@@ -4,13 +4,13 @@ Fast, in-memory code search and analysis using Tree-Sitter parsers. This Model C
 
 ## Features
 
-- 🚀 **Instant Search**: In-memory AST indexing for <100ms search times
-- 📡 **Smart File Watching**: Automatic incremental updates with 2-second debouncing
-- 🧠 **Memory Management**: LRU eviction (4 projects max, 1GB limit)
-- 🔍 **Type-Aware Search**: Find functions, classes, methods, interfaces by exact or fuzzy match
-- 🌐 **Multi-Language**: JavaScript, TypeScript, Python, Go, Rust, Java, C/C++
-- 🔄 **Auto-Initialization**: Projects initialize automatically on first search
-- 📊 **Clean Architecture**: Modular design with separated concerns and no magic strings
+- **Instant Search**: In-memory AST indexing for <100ms search times
+- **Smart File Watching**: Automatic incremental updates with 2-second debouncing
+- **Memory Management**: LRU eviction (4 projects max, 1GB limit)
+- **Type-Aware Search**: Find functions, classes, methods, interfaces by exact or fuzzy match
+- **Multi-Language**: JavaScript, TypeScript, Python, Go, Rust, Java, C/C++
+- **Auto-Initialization**: Projects initialize automatically on first search
+- **Clean Architecture**: Modular design with separated concerns and no magic strings
 
 ## Installation
 
