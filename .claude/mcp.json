@@ -1,0 +1,32 @@
+{
+  "name": "tree-sitter-mcp",
+  "description": "Fast in-memory code search and analysis using Tree-Sitter parsers",
+  "version": "1.0.0",
+  "tools": [
+    {
+      "name": "initialize_project",
+      "description": "Initialize a project for fast code searching (optional - auto-initializes on first search)"
+    },
+    {
+      "name": "search_code",
+      "description": "Search for files, classes, methods, functions, or variables by name with instant results"
+    },
+    {
+      "name": "update_file",
+      "description": "Manually update a specific file in the project tree"
+    },
+    {
+      "name": "project_status",
+      "description": "Get status of initialized projects and memory usage"
+    },
+    {
+      "name": "destroy_project",
+      "description": "Remove a project from memory to free resources"
+    }
+  ],
+  "agent": "agents/treesitter-code-agent.md",
+  "setup": {
+    "command": "yarn setup",
+    "install": "yarn global add tree-sitter-mcp"
+  }
+}
