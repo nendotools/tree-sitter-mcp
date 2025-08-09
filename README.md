@@ -1,248 +1,195 @@
-# Tree-Sitter MCP Service
+# Tree-Sitter MCP
 
-Fast, in-memory code search and analysis using Tree-Sitter parsers. This Model Context Protocol (MCP) service maintains parsed AST trees in memory with intelligent file watching for instant code navigation.
+A Model Context Protocol (MCP) server that provides fast, in-memory code search and analysis using [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) parsers. This server enables LLMs to efficiently navigate and understand codebases through semantic AST indexing with intelligent file watching.
 
-## Features
+## Key Features
 
-- **Instant Search**: In-memory AST indexing for <100ms search times
-- **Smart File Watching**: Automatic incremental updates with 2-second debouncing
-- **Memory Management**: LRU eviction (4 projects max, 1GB limit)
-- **Type-Aware Search**: Find functions, classes, methods, interfaces by exact or fuzzy match
-- **Multi-Language**: JavaScript, TypeScript, Python, Go, Rust, Java, C/C++
-- **Auto-Initialization**: Projects initialize automatically on first search
-- **Clean Architecture**: Modular design with separated concerns and no magic strings
+- **Fast and lightweight**. In-memory AST indexing delivers <100ms search times.
+- **Semantic understanding**. Search by function, class, method, interface - not just text.
+- **Automatic synchronization**. File watchers keep the index current with 2-second debouncing.
+- **Multi-language support**. JavaScript, TypeScript, Python, Go, Rust, Java, C/C++.
 
-## Installation
+## Requirements
 
-### Global Installation (Recommended)
+- Node.js 18 or newer
+- VS Code, Cursor, Windsurf, Claude Desktop, or any other MCP client
 
-```bash
-# Install globally with yarn
-yarn global add tree-sitter-mcp
+## Getting Started
 
-# Or with npm
-npm install -g tree-sitter-mcp
+First, install the Tree-Sitter MCP server with your client.
 
-# Run setup to configure MCP clients
-tree-sitter-mcp setup
+**Standard config** works in most tools:
+
+```json
+{
+  "mcpServers": {
+    "tree-sitter": {
+      "command": "npx",
+      "args": [
+        "tree-sitter-mcp@latest"
+      ]
+    }
+  }
+}
+```
+
+### VS Code / Cursor / Windsurf
+
+Add to your MCP settings file (in VS Code: `Cmd+Shift+P` → "MCP: Edit Settings"):
+
+```json
+{
+  "mcpServers": {
+    "tree-sitter": {
+      "command": "npx",
+      "args": ["tree-sitter-mcp@latest"]
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "tree-sitter": {
+      "command": "npx",
+      "args": ["tree-sitter-mcp@latest"]
+    }
+  }
+}
 ```
 
 ### Local Development
 
 ```bash
-# Clone the repository
 git clone https://github.com/your-username/tree-sitter-mcp.git
 cd tree-sitter-mcp
-
-# Install dependencies (Node 18+ required)
 yarn install
-
-# Build the project
 yarn build
 
-# Install globally from local build
-yarn global-install
+# Run MCP server
+yarn mcp
 
-# Run interactive setup
+# Or install globally
+yarn global-install
 tree-sitter-mcp setup
 ```
 
-## Usage
+## Configuration
 
-### As MCP Server
-
-The service runs as an MCP server that can be used with Claude Desktop or other MCP clients:
-
-```bash
-tree-sitter-mcp --mcp
-```
-
-### Standalone CLI
-
-```bash
-# List supported languages with extensions
-tree-sitter-mcp languages
-
-# Analyze current directory
-tree-sitter-mcp analyze
-
-# Analyze specific directory with language filter
-tree-sitter-mcp analyze ./src --languages typescript,javascript
-
-# Output analysis to file
-tree-sitter-mcp analyze ./src -o analysis.json --pretty
-
-# Run with custom config
-tree-sitter-mcp --mcp --config ./config.json
-
-# Enable verbose logging
-tree-sitter-mcp --mcp --verbose
-```
-
-### Configuration
-
-Configuration file (`~/.config/tree-sitter-mcp/config.json`):
+Create a config file at `~/.config/tree-sitter-mcp/config.json`:
 
 ```json
 {
   "workingDir": "./src",
   "languages": ["typescript", "javascript"],
-  "maxDepth": 10,
-  "ignoreDirs": [".git", "node_modules", "dist", "coverage", ".next"],
-  "verbose": false,
-  "quiet": false,
   "maxProjects": 4,
   "maxMemoryMB": 1024,
-  "watcherPollInterval": 2000
+  "ignoreDirs": ["node_modules", ".git", "dist"]
 }
 ```
 
-## MCP Tools
+### Command Line Options
 
-### initialize_project
-Pre-initialize a project for faster first search (optional - auto-initializes on first use).
-
-```json
-{
-  "projectId": "my-app",
-  "directory": "/path/to/project",
-  "languages": ["typescript", "javascript"],
-  "maxDepth": 10,
-  "ignoreDirs": ["node_modules", ".git"],
-  "autoWatch": true
-}
+```bash
+tree-sitter-mcp --help           # Show all options
+tree-sitter-mcp --languages      # List supported languages
+tree-sitter-mcp --verbose        # Enable verbose logging
+tree-sitter-mcp --config ./custom-config.json
 ```
 
-### search_code
-Search for code elements with smart matching. Auto-initializes and watches files.
+## Tools
 
+The server provides the following MCP tools:
+
+### `search_code`
+Search for code elements across your project with semantic understanding.
+
+**Parameters:**
+- `projectId` - Unique identifier for the project
+- `query` - Search term (function name, class name, etc.)
+- `types` - Filter by element types: `function`, `method`, `class`, `interface`
+- `languages` - Filter by programming languages
+- `exactMatch` - Use exact string matching (default: false)
+- `pathPattern` - Filter files by glob pattern
+
+**Example:**
 ```json
 {
   "projectId": "my-app",
   "query": "handleRequest",
-  "types": ["function", "method", "class", "interface"],
-  "languages": ["typescript"],
-  "exactMatch": false,
-  "caseSensitive": false,
-  "pathPattern": "**/src/**",
-  "maxResults": 20
+  "types": ["function", "method"],
+  "languages": ["typescript"]
 }
 ```
 
-Returns: Element name, type, file path, line numbers, parameters, return types, and parent context.
+### `initialize_project`
+Pre-load a project into memory for faster searches.
 
-### update_file
-Force re-parse a specific file (rarely needed - watcher handles automatically).
+**Parameters:**
+- `projectId` - Unique identifier
+- `directory` - Project root directory
+- `languages` - Languages to index
+- `autoWatch` - Enable file watching (default: true)
 
-```json
-{
-  "projectId": "my-app",
-  "filePath": "/path/to/file.ts"
-}
-```
+### `project_status`
+Get memory usage and indexing statistics.
 
-### project_status
-Get memory usage, file counts, and watcher status.
+### `update_file`
+Manually trigger re-parsing of a specific file.
 
-```json
-{
-  "projectId": "my-app",
-  "includeStats": true
-}
-```
+### `destroy_project`
+Free memory by removing a project from the index.
 
-### destroy_project
-Free memory by removing a project and stopping its watcher.
+## How It Works
 
-```json
-{
-  "projectId": "my-app"
-}
-```
+Tree-Sitter MCP maintains an in-memory index of your codebase's abstract syntax tree (AST). When you search, it queries this pre-parsed structure rather than scanning files, delivering instant results.
 
-## Development
-
-### Scripts
-
-```bash
-yarn dev          # Run in development mode with hot reload
-yarn build        # Build for production
-yarn test         # Run tests
-yarn lint         # Run linter
-yarn format       # Format code
-yarn typecheck    # Check TypeScript types
-```
-
-### Architecture
-
-```
-src/
-├── cli.ts              # CLI entry point with commander
-├── setup.ts            # Interactive MCP client configuration
-├── constants/          # Organized constants (no magic strings)
-│   ├── service-constants.ts  # Memory, watcher config
-│   ├── tree-constants.ts     # Node types, languages
-│   └── mcp-constants.ts      # Tool names
-├── types/              # TypeScript type definitions
-│   ├── tree-types.ts   # AST node types
-│   ├── project-types.ts # Project management
-│   └── mcp-types.ts    # Tool arguments
-├── core/               # Core functionality
-│   ├── tree-manager.ts # In-memory AST storage with LRU
-│   └── file-watcher.ts # Chokidar-based file monitoring
-├── parsers/            # Language parser registry
-└── mcp/                # MCP server and tool implementations
-```
-
-## Testing
-
-```bash
-# Run tests with Vitest
-yarn test
-
-# Run with coverage report
-yarn test:coverage
-
-# Watch mode for development
-yarn test --watch
-```
-
-## Requirements
-
-- Node.js 18 or higher
-- Yarn or npm
-- C++ build tools (for native tree-sitter bindings)
-
-## Performance
-
-- **Parse Time**: 1-5 seconds for large codebases
-- **Search Time**: <100ms for indexed AST nodes
-- **Memory Usage**: 100-500MB per project
-- **File Watch Latency**: 2-second debounced updates
-- **Concurrent Projects**: 4 with LRU eviction
-- **Max Memory**: 1GB total (configurable)
+1. **On first search** - Automatically indexes the project directory
+2. **File watching** - Monitors changes and updates the index incrementally
+3. **Memory management** - LRU eviction keeps memory usage under control
+4. **Smart debouncing** - Batches rapid file changes to minimize re-parsing
 
 ## Supported Languages
 
-| Language | Extensions | AST Support |
-|----------|-----------|-------------|
-| JavaScript | .js, .jsx, .mjs, .cjs | Functions, Classes, Variables |
-| TypeScript | .ts, .tsx, .mts, .cts | + Interfaces, Types, Enums |
-| Python | .py, .pyi | Functions, Classes, Methods |
-| Go | .go | Functions, Structs, Interfaces |
-| Rust | .rs | Functions, Structs, Traits, Impls |
-| Java | .java | Classes, Methods, Interfaces |
-| C | .c, .h | Functions, Structs, Enums |
-| C++ | .cpp, .cc, .hpp | + Classes, Templates |
+| Language | Extensions | Search Elements |
+|----------|-----------|-----------------|
+| JavaScript | `.js`, `.jsx`, `.mjs` | Functions, Classes, Variables |
+| TypeScript | `.ts`, `.tsx` | + Interfaces, Types, Enums |
+| Python | `.py` | Functions, Classes, Methods |
+| Go | `.go` | Functions, Structs, Interfaces |
+| Rust | `.rs` | Functions, Structs, Traits |
+| Java | `.java` | Classes, Methods, Interfaces |
+| C/C++ | `.c`, `.cpp`, `.h` | Functions, Structs, Classes |
+
+## Performance
+
+- Parse time: 1-5 seconds for large codebases
+- Search time: <100ms for indexed nodes
+- Memory usage: 100-500MB per project
+- File watch latency: 2-second debounced updates
+
+## Development
+
+```bash
+yarn dev          # Run with hot reload
+yarn build        # Build for production
+yarn test         # Run tests
+yarn typecheck    # Check types
+```
 
 ## License
 
-MIT License
+MIT
 
-## Built With
+## Contributing
 
-- [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) - Incremental parsing library
-- [Model Context Protocol](https://modelcontextprotocol.io) - AI tool integration
-- [Chokidar](https://github.com/paulmillr/chokidar) - File watching
-- [Commander](https://github.com/tj/commander.js) - CLI framework
-- [Chalk](https://github.com/chalk/chalk) - Terminal styling
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+
+## Acknowledgments
+
+Built with [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) and the [Model Context Protocol](https://modelcontextprotocol.io).
