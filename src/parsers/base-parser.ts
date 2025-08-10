@@ -1,5 +1,5 @@
 /**
- * Base parser implementation using Tree-Sitter
+ * Base parser implementation using Tree-Sitter for multi-language code analysis
  */
 
 import Parser from 'tree-sitter';
@@ -12,11 +12,31 @@ import type {
   FileInfo,
 } from '../types/index.js';
 
+/**
+ * Base parser class that provides Tree-Sitter integration for code analysis
+ *
+ * This parser extracts semantic information from source code including:
+ * - Functions, methods, classes, interfaces, and other code elements
+ * - Parameter information and return types where available
+ * - Import/export statements for dependency tracking
+ * - Syntax error detection and reporting
+ * - Position information (line/column) for all elements
+ *
+ * Supports multiple programming languages through language-specific grammars
+ * and maintains consistent element extraction across different syntaxes.
+ */
 export class BaseParser implements LanguageParser {
   public name: string;
   public extensions: string[];
   private parser: Parser;
 
+  /**
+   * Creates a new parser instance for a specific language
+   *
+   * @param name - Human-readable language name (e.g., 'typescript', 'python')
+   * @param language - Tree-Sitter language grammar
+   * @param extensions - Array of file extensions this parser supports (e.g., ['.ts', '.tsx'])
+   */
   constructor(name: string, language: any, extensions: string[]) {
     this.name = name;
     this.extensions = extensions;
@@ -24,11 +44,24 @@ export class BaseParser implements LanguageParser {
     this.parser.setLanguage(language);
   }
 
+  /**
+   * Determines if this parser can handle the given file
+   *
+   * @param filePath - Path to the file to check
+   * @returns True if the file extension is supported by this parser
+   */
   canParse(filePath: string): boolean {
     const fileExt = this.getFileExtension(filePath);
     return this.extensions.includes(fileExt);
   }
 
+  /**
+   * Parses source code and extracts semantic information
+   *
+   * @param content - Source code content to parse
+   * @param filePath - Path to the source file
+   * @returns Complete parse results including elements, imports, exports, and errors
+   */
   parse(content: string, filePath: string): ParseResult {
     const tree = this.parser.parse(content);
     const elements: ParsedElement[] = [];
@@ -36,10 +69,8 @@ export class BaseParser implements LanguageParser {
     const exports: string[] = [];
     const errors: string[] = [];
 
-    // Walk the syntax tree
     this.walkTree(tree.rootNode, content, elements, imports, exports);
 
-    // Check for syntax errors
     if (tree.rootNode.hasError) {
       errors.push('File contains syntax errors');
       this.collectErrors(tree.rootNode, errors, content);
@@ -60,6 +91,15 @@ export class BaseParser implements LanguageParser {
     };
   }
 
+  /**
+   * Recursively traverses the AST and extracts relevant information
+   *
+   * @param node - Current AST node to process
+   * @param source - Original source code for text extraction
+   * @param elements - Array to collect parsed code elements
+   * @param imports - Array to collect import statements
+   * @param exports - Array to collect export statements
+   */
   private walkTree(
     node: Parser.SyntaxNode,
     source: string,
@@ -67,21 +107,25 @@ export class BaseParser implements LanguageParser {
     imports: string[],
     exports: string[]
   ): void {
-    // Process current node
     const element = this.processNode(node, source);
     if (element) {
       elements.push(element);
     }
 
-    // Check for imports/exports
     this.checkImportsExports(node, source, imports, exports);
 
-    // Recursively process children
     for (const child of node.children) {
       this.walkTree(child, source, elements, imports, exports);
     }
   }
 
+  /**
+   * Processes an individual AST node and extracts element information
+   *
+   * @param node - AST node to process
+   * @param source - Source code for text extraction
+   * @returns Parsed element or null if node is not relevant
+   */
   private processNode(node: Parser.SyntaxNode, source: string): ParsedElement | null {
     const nodeType = this.mapNodeType(node.type);
     if (!nodeType) return null;
@@ -98,7 +142,6 @@ export class BaseParser implements LanguageParser {
       endColumn: node.endPosition.column,
     };
 
-    // Extract additional metadata based on node type
     if (nodeType === NODE_TYPES.FUNCTION || nodeType === NODE_TYPES.METHOD) {
       element.parameters = this.extractParameters(node, source);
       element.returnType = this.extractReturnType(node, source);
@@ -107,8 +150,13 @@ export class BaseParser implements LanguageParser {
     return element;
   }
 
+  /**
+   * Maps Tree-Sitter node types to our standardized element types
+   *
+   * @param nodeType - Tree-Sitter node type string
+   * @returns Standardized node type or null if not relevant
+   */
   private mapNodeType(nodeType: string): NodeType | null {
-    // Language-specific node type mapping
     const typeMap: Record<string, NodeType> = {
       // Common across languages
       function_declaration: NODE_TYPES.FUNCTION,
@@ -161,8 +209,14 @@ export class BaseParser implements LanguageParser {
     return typeMap[nodeType] || null;
   }
 
+  /**
+   * Extracts the name/identifier from an AST node
+   *
+   * @param node - AST node to extract name from
+   * @param source - Source code for text extraction
+   * @returns Element name or null if not found
+   */
   private extractNodeName(node: Parser.SyntaxNode, source: string): string | null {
-    // Try to find identifier nodes
     const identifierNode = this.findChildByType(node, [
       'identifier',
       'property_identifier',
@@ -185,10 +239,15 @@ export class BaseParser implements LanguageParser {
     return null;
   }
 
+  /**
+   * Extracts parameter names from function/method nodes
+   *
+   * @param node - Function or method AST node
+   * @param source - Source code for text extraction
+   * @returns Array of parameter names
+   */
   private extractParameters(node: Parser.SyntaxNode, source: string): string[] {
     const params: string[] = [];
-
-    // Find parameter list
     const paramList = this.findChildByType(node, [
       'formal_parameters',
       'parameter_list',
@@ -209,8 +268,14 @@ export class BaseParser implements LanguageParser {
     return params;
   }
 
+  /**
+   * Extracts return type information from function/method nodes
+   *
+   * @param node - Function or method AST node
+   * @param source - Source code for text extraction
+   * @returns Return type string or undefined if not found
+   */
   private extractReturnType(node: Parser.SyntaxNode, source: string): string | undefined {
-    // Find return type annotation
     const returnTypeNode =
       node.childForFieldName('return_type') ||
       this.findChildByType(node, ['type_annotation', 'return_type']);
@@ -289,6 +354,12 @@ export class BaseParser implements LanguageParser {
     }
   }
 
+  /**
+   * Extracts file extension from a file path
+   *
+   * @param filePath - Path to extract extension from
+   * @returns File extension including the dot, or empty string if none
+   */
   private getFileExtension(filePath: string): string {
     const lastDot = filePath.lastIndexOf('.');
     return lastDot > -1 ? filePath.substring(lastDot) : '';

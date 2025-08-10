@@ -1,5 +1,5 @@
 /**
- * Find Usage tool implementation - finds all lines where a specific function/variable is used
+ * Find Usage MCP tool - Locates all occurrences of identifiers across the codebase
  */
 
 import { TextContent } from '@modelcontextprotocol/sdk/types.js';
@@ -12,6 +12,22 @@ import { BatchFileWatcher } from '../../core/file-watcher.js';
 import { getLogger } from '../../utils/logger.js';
 import { findProjectRoot } from '../../utils/project-detection.js';
 
+/**
+ * Finds all usages of a specific identifier (function, variable, class, etc.) across the project
+ *
+ * This tool is essential for refactoring analysis as it provides:
+ * - Complete usage discovery with line numbers and context
+ * - Function/class context extraction for each usage
+ * - Language and path filtering
+ * - Exact match vs fuzzy search options
+ * - Results grouped by file for easy navigation
+ *
+ * @param args - Search parameters including identifier, filters, and options
+ * @param treeManager - Tree manager for project access
+ * @param fileWatcher - File watcher for ensuring fresh data
+ * @returns Formatted usage results with context information
+ * @throws Error if usage search fails
+ */
 export async function findUsage(
   args: FindUsageArgs,
   treeManager: TreeManager,
@@ -20,10 +36,8 @@ export async function findUsage(
   const logger = getLogger();
 
   try {
-    // Check if project exists
     let project = treeManager.getProject(args.projectId);
 
-    // Auto-initialize if needed
     if (!project) {
       logger.info(`Auto-initializing project ${args.projectId}`);
 
@@ -37,13 +51,11 @@ export async function findUsage(
       project = await treeManager.createProject(args.projectId, config);
       await treeManager.initializeProject(args.projectId);
 
-      // Start watcher
       await fileWatcher.startWatching(args.projectId, config);
     } else if (!project.initialized) {
       await treeManager.initializeProject(args.projectId);
     }
 
-    // Ensure watcher is running
     if (!fileWatcher.getWatcher(args.projectId)) {
       await fileWatcher.startWatching(args.projectId, project.config);
     }
@@ -107,13 +119,28 @@ export async function findUsage(
   }
 }
 
+/**
+ * Represents a single usage occurrence of an identifier
+ */
 interface UsageResult {
+  /** Path to the file containing the usage */
   filePath: string;
+  /** Line number (1-based) where the usage occurs */
   lineNumber: number;
+  /** Full content of the line containing the usage */
   lineContent: string;
+  /** Context information (e.g., containing function/class) */
   context?: string;
 }
 
+/**
+ * Performs text-based search across all indexed files to find identifier usages
+ *
+ * @param project - Project tree containing file index
+ * @param identifier - Identifier to search for
+ * @param args - Search arguments with filters and options
+ * @returns Array of usage results with location and context
+ */
 async function findAllUsages(
   project: any,
   identifier: string,
@@ -170,15 +197,34 @@ async function findAllUsages(
   return results.slice(0, maxResults);
 }
 
+/**
+ * Escapes special regex characters in a string for literal matching
+ *
+ * @param string - String to escape
+ * @returns Escaped string safe for use in RegExp constructor
+ */
 function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Gets the primary file extension for a given language name
+ *
+ * @param language - Programming language name
+ * @returns File extension (without dot) or the language name if not found
+ */
 function getFileExtension(language: string): string {
   const langExtensions = LANGUAGE_EXTENSIONS[language.toLowerCase()];
   return langExtensions?.[0]?.slice(1) ?? language;
 }
 
+/**
+ * Extracts context information (function/class name) for a usage by searching backwards
+ *
+ * @param lines - All lines in the file
+ * @param currentIndex - Index of the line containing the usage
+ * @returns Context string or undefined if no context found
+ */
 function extractContext(lines: string[], currentIndex: number): string | undefined {
   for (
     let i = currentIndex - 1;

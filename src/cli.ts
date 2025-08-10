@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * CLI entry point for the Tree-Sitter MCP service
+ * Command-line interface for the Tree-Sitter MCP service
+ *
+ * This CLI provides multiple execution modes:
+ * - MCP server mode for integration with MCP clients
+ * - Standalone analysis mode for direct code analysis
+ * - Interactive setup for MCP configuration
+ * - Language listing and project analysis commands
  */
 
 import { Command } from 'commander';
@@ -23,24 +29,29 @@ import { listSupportedLanguages } from './parsers/registry.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load package.json for version
+/**
+ * Package.json interface for version information
+ */
 interface PackageJson {
   version: string;
   [key: string]: unknown;
 }
 
-// Load package.json with error handling for different execution contexts
+/**
+ * Load package.json with fallback for different execution contexts
+ */
 let packageJson: PackageJson;
 try {
   packageJson = JSON.parse(
     readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')
   ) as PackageJson;
 } catch {
-  // Fallback for when package.json is not found (e.g., when run from different directory)
   packageJson = { version: '1.0.0' } as PackageJson;
 }
 
-// Create the CLI program
+/**
+ * Main CLI program configuration
+ */
 const program = new Command();
 
 program
@@ -59,7 +70,6 @@ program
   .option('-q, --quiet', 'Suppress all non-error output')
   .option('--setup', 'Run interactive setup to configure MCP')
   .action(async (options: CLIOptions) => {
-    // Configure logger based on options
     const logger = new ConsoleLogger({
       level: options.verbose ? LOG_LEVELS.VERBOSE : LOG_LEVELS.INFO,
       quiet: options.quiet || false,
@@ -67,7 +77,6 @@ program
     });
     setLogger(logger);
 
-    // Log startup info to global debug file when debugging is enabled
     if (process.env.TREE_SITTER_MCP_DEBUG === 'true') {
       try {
         const { homedir } = await import('os');
@@ -187,7 +196,18 @@ program
     }
   );
 
-// Parse configuration from CLI options and config file
+/**
+ * Parses CLI options and optional config file into a unified configuration
+ *
+ * Merges settings from multiple sources with the following precedence:
+ * 1. CLI options (highest priority)
+ * 2. Configuration file settings
+ * 3. Default values (lowest priority)
+ *
+ * @param options - Parsed CLI options from commander
+ * @returns Merged configuration object
+ * @throws Error if config file loading fails
+ */
 function parseConfig(options: CLIOptions): Config {
   let config: Config = {
     workingDir: resolve(options.dir || '.'),
@@ -198,17 +218,14 @@ function parseConfig(options: CLIOptions): Config {
     quiet: options.quiet,
   };
 
-  // Load config file if provided
   if (options.config) {
     try {
       const configPath = resolve(options.config);
       const configFile = JSON.parse(readFileSync(configPath, 'utf-8')) as Partial<Config>;
 
-      // Merge config file with CLI options (CLI takes precedence)
       config = {
         ...configFile,
         ...config,
-        // Arrays need special handling for merging
         languages: options.languages ? config.languages : configFile.languages || config.languages,
         ignoreDirs: options.ignore ? config.ignoreDirs : configFile.ignoreDirs || config.ignoreDirs,
       };
@@ -220,7 +237,12 @@ function parseConfig(options: CLIOptions): Config {
   return config;
 }
 
-// Handle list languages command
+/**
+ * Displays a formatted list of all supported programming languages
+ *
+ * Shows language names, supported file extensions, and total count
+ * with color-coded output for better readability.
+ */
 function handleListLanguages(): void {
   const logger = getLogger();
   const languages = listSupportedLanguages();
@@ -236,7 +258,12 @@ function handleListLanguages(): void {
   logger.info('');
 }
 
-// Handle setup command
+/**
+ * Launches the interactive MCP setup process
+ *
+ * Delegates to the setup module which handles client detection,
+ * configuration generation, and installation instructions.
+ */
 async function handleSetup(): Promise<void> {
   await runSetup();
 }

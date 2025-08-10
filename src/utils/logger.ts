@@ -1,5 +1,5 @@
 /**
- * Logger utility for the Tree-Sitter MCP service
+ * Configurable logger utility with console and file output support
  */
 
 import chalk from 'chalk';
@@ -8,6 +8,16 @@ import { resolve } from 'path';
 import { LOG_LEVELS } from '../constants/cli-constants.js';
 import type { Logger, LogLevel } from '../types/cli-types.js';
 
+/**
+ * Console and file logger implementation with level-based filtering
+ *
+ * Features:
+ * - Configurable log levels (error, warn, info, debug, verbose)
+ * - Optional file logging with automatic directory creation
+ * - Color-coded console output with TTY detection
+ * - Quiet mode for suppressing non-error output
+ * - Timestamp formatting for all log entries
+ */
 export class ConsoleLogger implements Logger {
   private level: LogLevel;
   private quiet: boolean;
@@ -15,6 +25,11 @@ export class ConsoleLogger implements Logger {
   private logToFile: boolean;
   private logFilePath?: string;
 
+  /**
+   * Creates a new console logger instance
+   *
+   * @param options - Configuration options for the logger
+   */
   constructor(
     options: {
       level?: LogLevel;
@@ -35,6 +50,9 @@ export class ConsoleLogger implements Logger {
     }
   }
 
+  /**
+   * Initializes the log file and creates necessary directories
+   */
   private initializeLogFile(): void {
     if (!this.logFilePath) return;
 
@@ -47,6 +65,12 @@ export class ConsoleLogger implements Logger {
     writeFileSync(this.logFilePath, `=== Tree-Sitter MCP Log Started ${timestamp} ===\n`);
   }
 
+  /**
+   * Determines if a message should be logged based on current level and quiet mode
+   *
+   * @param level - Log level of the message
+   * @returns True if the message should be logged
+   */
   private shouldLog(level: LogLevel): boolean {
     if (this.quiet && level !== LOG_LEVELS.ERROR) {
       return false;
@@ -66,6 +90,13 @@ export class ConsoleLogger implements Logger {
     return messageLevelIndex <= currentLevelIndex;
   }
 
+  /**
+   * Formats a log message with timestamp and level information
+   *
+   * @param level - Log level for color coding
+   * @param message - Message content to format
+   * @returns Formatted log message string
+   */
   private format(level: LogLevel, message: string): string {
     const timestamp = new Date().toISOString();
 
@@ -134,14 +165,31 @@ export class ConsoleLogger implements Logger {
     }
   }
 
+  /**
+   * Updates the current log level
+   *
+   * @param level - New log level to set
+   */
   setLevel(level: LogLevel): void {
     this.level = level;
   }
 
+  /**
+   * Enables or disables quiet mode
+   *
+   * @param quiet - True to enable quiet mode (errors only)
+   */
   setQuiet(quiet: boolean): void {
     this.quiet = quiet;
   }
 
+  /**
+   * Writes a log message to the configured file
+   *
+   * @param level - Log level for the message
+   * @param message - Primary message content
+   * @param args - Additional arguments to include
+   */
   private writeToFile(level: LogLevel, message: string, ...args: unknown[]): void {
     if (this.logToFile && this.logFilePath) {
       const timestamp = new Date().toISOString();
@@ -155,15 +203,25 @@ export class ConsoleLogger implements Logger {
   }
 }
 
-// Singleton logger instance
+/**
+ * Global singleton logger instance
+ */
 let logger: Logger = new ConsoleLogger();
 
+/**
+ * Sets the global logger instance
+ *
+ * @param newLogger - New logger instance to use globally
+ */
 export function setLogger(newLogger: Logger): void {
   logger = newLogger;
 }
 
+/**
+ * Gets the current global logger instance
+ *
+ * @returns Current logger instance
+ */
 export function getLogger(): Logger {
   return logger;
 }
-
-// Export convenience functions

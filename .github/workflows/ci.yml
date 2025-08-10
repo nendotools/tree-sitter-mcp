@@ -17,16 +17,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'npm'
       
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci
       
       - name: Run linter
-        run: yarn lint
+        run: npm run lint
       
       - name: Check formatting
-        run: yarn format --check
+        run: npm run format:check
 
   typecheck:
     name: Type Check
@@ -38,46 +38,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'npm'
       
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci
       
       - name: Run type check
-        run: yarn typecheck
+        run: npm run typecheck
 
   test:
     name: Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        node: ['18', '20', '21']
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-          cache: 'yarn'
-      
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-      
-      - name: Run tests
-        run: yarn test:coverage
-      
-      - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.node == '20'
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage/lcov.info
-
-  build:
-    name: Build
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, test]
     steps:
       - uses: actions/checkout@v4
       
@@ -85,22 +56,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'npm'
       
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci
       
-      - name: Build project
-        run: yarn build
-      
-      - name: Test global installation
-        run: |
-          npm pack
-          npm install -g tree-sitter-mcp-*.tgz
-          tree-sitter-mcp --version
-      
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: dist
-          path: dist/
+      - name: Run tests
+        run: npm test

@@ -1,5 +1,5 @@
 /**
- * Search Code tool implementation
+ * Search Code MCP tool - Provides fast semantic search across indexed code elements
  */
 
 import { TextContent } from '@modelcontextprotocol/sdk/types.js';
@@ -11,6 +11,22 @@ import { BatchFileWatcher } from '../../core/file-watcher.js';
 import { getLogger } from '../../utils/logger.js';
 import { findProjectRoot } from '../../utils/project-detection.js';
 
+/**
+ * Performs semantic search across project code elements
+ *
+ * Features:
+ * - Auto-initialization of projects on first search
+ * - Mono-repo support with sub-project filtering
+ * - Type, language, and path pattern filtering
+ * - Formatted results with context information
+ * - Automatic file watching setup
+ *
+ * @param args - Search parameters including query, filters, and scope
+ * @param treeManager - Tree manager for search operations
+ * @param fileWatcher - File watcher for monitoring changes
+ * @returns Formatted search results as text content
+ * @throws Error if search operation fails
+ */
 export async function searchCode(
   args: SearchCodeArgs,
   treeManager: TreeManager,
@@ -19,10 +35,8 @@ export async function searchCode(
   const logger = getLogger();
 
   try {
-    // Check if project exists
     let project = treeManager.getProject(args.projectId);
 
-    // Auto-initialize if needed
     if (!project) {
       logger.info(`Auto-initializing project ${args.projectId}`);
 
@@ -36,18 +50,15 @@ export async function searchCode(
       project = await treeManager.createProject(args.projectId, config);
       await treeManager.initializeProject(args.projectId);
 
-      // Start watcher
       await fileWatcher.startWatching(args.projectId, config);
     } else if (!project.initialized) {
       await treeManager.initializeProject(args.projectId);
     }
 
-    // Ensure watcher is running
     if (!fileWatcher.getWatcher(args.projectId)) {
       await fileWatcher.startWatching(args.projectId, project.config);
     }
 
-    // Prepare search options
     const searchOptions: SearchOptions = {
       maxResults: args.maxResults || SEARCH.DEFAULT_MAX_RESULTS,
       types: args.types as NodeType[],
@@ -63,10 +74,8 @@ export async function searchCode(
       },
     };
 
-    // Perform search
     const results = await treeManager.search(args.projectId, args.query, searchOptions);
 
-    // Format results
     if (results.length === 0) {
       return {
         type: 'text',

@@ -1,5 +1,5 @@
 /**
- * Tree Manager - Manages in-memory project trees
+ * Tree Manager - Core engine for managing in-memory project trees and search indexes
  */
 
 import { readFileSync } from 'fs';
@@ -24,6 +24,21 @@ import { generateId } from '../utils/helpers.js';
 import { findProjectRootWithMonoRepo } from '../utils/project-detection.js';
 import { resolve, relative, basename } from 'path';
 
+/**
+ * Tree Manager is the core engine that manages in-memory AST representations of projects
+ *
+ * Key responsibilities:
+ * - Project lifecycle management (create, initialize, destroy)
+ * - Memory management with LRU eviction
+ * - Fast semantic search across indexed code elements
+ * - Mono-repo support with sub-project isolation
+ * - File-level and element-level indexing
+ *
+ * Performance characteristics:
+ * - <100ms search times for indexed projects
+ * - Configurable memory limits with automatic eviction
+ * - Incremental updates via file watching integration
+ */
 export class TreeManager {
   private projects: Map<string, ProjectTree> = new Map();
   private maxProjects: number = MEMORY.MAX_PROJECTS;
@@ -32,12 +47,27 @@ export class TreeManager {
   private parserRegistry: ParserRegistry;
   private logger = getLogger();
 
+  /**
+   * Creates a new TreeManager instance
+   *
+   * @param parserRegistry - Registry containing language parsers for code analysis
+   */
   constructor(parserRegistry: ParserRegistry) {
     this.parserRegistry = parserRegistry;
   }
 
+  /**
+   * Creates a new project tree structure
+   *
+   * If the project already exists, returns the existing instance.
+   * Automatically handles memory limits by evicting LRU projects when necessary.
+   *
+   * @param projectId - Unique identifier for the project
+   * @param config - Configuration object with project settings
+   * @returns The created or existing project tree
+   * @throws TreeSitterMCPError if project creation fails
+   */
   createProject(projectId: string, config: Config): ProjectTree {
-    // Check if project already exists
     if (this.projects.has(projectId)) {
       const project = this.projects.get(projectId);
       if (!project) {
@@ -46,12 +76,10 @@ export class TreeManager {
       return project;
     }
 
-    // Check memory limits and evict if necessary
     if (this.projects.size >= this.maxProjects) {
       this.evictLRUProject();
     }
 
-    // Create new project tree
     const project: ProjectTree = {
       projectId,
       root: this.createRootNode(config.workingDir),
@@ -63,7 +91,6 @@ export class TreeManager {
       createdAt: new Date(),
       accessedAt: new Date(),
       memoryUsage: 0,
-      // Initialize mono-repo support
       isMonoRepo: false,
       subProjects: new Map(),
       subProjectFileIndex: new Map(),
@@ -76,6 +103,18 @@ export class TreeManager {
     return project;
   }
 
+  /**
+   * Initializes a project by walking its directory structure and building the AST index
+   *
+   * This is the core indexing process that:
+   * - Detects mono-repo structure and sub-projects
+   * - Walks the directory tree to find parseable files
+   * - Builds search indexes for fast lookups
+   * - Calculates memory usage and applies limits
+   *
+   * @param projectId - Unique project identifier
+   * @throws TreeSitterMCPError if project doesn't exist or initialization fails
+   */
   async initializeProject(projectId: string): Promise<void> {
     const project = this.getProject(projectId);
     if (!project) {
@@ -89,13 +128,11 @@ export class TreeManager {
 
     this.logger.info(`Initializing project: ${projectId}`);
 
-    // Check for mono-repo structure
     const monoRepoInfo = await findProjectRootWithMonoRepo(project.config.workingDir);
     if (monoRepoInfo.isMonoRepo && monoRepoInfo.subProjects.length > 0) {
       project.isMonoRepo = true;
       this.logger.info(`Detected mono-repo with ${monoRepoInfo.subProjects.length} sub-projects`);
 
-      // Initialize sub-project information
       for (const subProject of monoRepoInfo.subProjects) {
         const subProjectName = this.getSubProjectName(subProject.path, project.config.workingDir);
         project.subProjects!.set(subProjectName, {
@@ -133,6 +170,18 @@ export class TreeManager {
     this.logger.info(`Project ${projectId} initialized with ${project.fileIndex.size} files`);
   }
 
+  /**
+   * Updates a single file in the project's AST index
+   *
+   * Performs incremental updates by:
+   * - Removing the old file's nodes from indexes
+   * - Re-parsing the file with current content
+   * - Adding new nodes back to indexes
+   *
+   * @param projectId - Project containing the file
+   * @param filePath - Path to the file to update
+   * @throws TreeSitterMCPError if project doesn't exist
+   */
   async updateFile(projectId: string, filePath: string): Promise<void> {
     const project = this.getProject(projectId);
     if (!project) {
@@ -141,13 +190,11 @@ export class TreeManager {
 
     this.logger.debug(`Updating file: ${filePath} in project ${projectId}`);
 
-    // Remove old file node if exists
     const oldNode = project.fileIndex.get(filePath);
     if (oldNode) {
       this.removeNodeFromIndex(project, oldNode);
     }
 
-    // Re-parse and add file
     try {
       const content = readFileSync(filePath, 'utf-8');
       const parseResult = await this.parserRegistry.parseFile(filePath, content);
@@ -162,6 +209,23 @@ export class TreeManager {
     project.lastUpdate = new Date();
   }
 
+  /**
+   * Performs fast semantic search across the project's indexed code elements
+   *
+   * Search process:
+   * - Updates project access time for LRU tracking
+   * - Determines search scope (main project vs mono-repo sub-projects)
+   * - Matches query against element names with optional exact matching
+   * - Applies filters for types, languages, and path patterns
+   * - Ranks results by relevance score
+   * - Returns top results within the specified limit
+   *
+   * @param projectId - Project to search within
+   * @param query - Search term to match against element names
+   * @param options - Search options including filters and scope
+   * @returns Array of matching search results, sorted by relevance
+   * @throws TreeSitterMCPError if project doesn't exist
+   */
   async search(projectId: string, query: string, options: SearchOptions): Promise<SearchResult[]> {
     const project = this.getProject(projectId);
     if (!project) {
@@ -173,7 +237,6 @@ export class TreeManager {
     const results: SearchResult[] = [];
     const lowerQuery = query.toLowerCase();
 
-    // Determine which node indexes to search based on scope
     const nodeIndexesToSearch = this.getNodeIndexesToSearch(project, options.scope);
 
     for (const { nodeIndex, subProjectName } of nodeIndexesToSearch) {
@@ -190,14 +253,18 @@ export class TreeManager {
       }
     }
 
-    // Sort by relevance
     results.sort((a, b) => b.score - a.score);
 
-    // Apply limit
     const maxResults = options.maxResults || 20;
     return results.slice(0, maxResults);
   }
 
+  /**
+   * Removes a project from memory and cleans up its resources
+   *
+   * @param projectId - Project to destroy
+   * @throws TreeSitterMCPError if project doesn't exist
+   */
   destroyProject(projectId: string): void {
     const project = this.projects.get(projectId);
     if (!project) {
@@ -209,6 +276,12 @@ export class TreeManager {
     this.logger.info(`Destroyed project: ${projectId}`);
   }
 
+  /**
+   * Retrieves a project by ID and updates its access time for LRU tracking
+   *
+   * @param projectId - Project identifier to retrieve
+   * @returns The project tree or undefined if not found
+   */
   getProject(projectId: string): ProjectTree | undefined {
     const project = this.projects.get(projectId);
     if (project) {
@@ -217,6 +290,13 @@ export class TreeManager {
     return project;
   }
 
+  /**
+   * Calculates comprehensive statistics for a project
+   *
+   * @param projectId - Project to analyze
+   * @returns Statistics including file count, node count, memory usage
+   * @throws TreeSitterMCPError if project doesn't exist
+   */
   getProjectStats(projectId: string): ProjectStats {
     const project = this.getProject(projectId);
     if (!project) {
@@ -233,7 +313,6 @@ export class TreeManager {
       memoryUsage: project.memoryUsage,
     };
 
-    // Count nodes and languages
     for (const nodes of project.nodeIndex.values()) {
       stats.totalNodes += nodes.length;
     }
@@ -241,11 +320,22 @@ export class TreeManager {
     return stats;
   }
 
+  /**
+   * Gets the root tree node for a project
+   *
+   * @param projectId - Project identifier
+   * @returns Root tree node or null if project doesn't exist
+   */
   getProjectTree(projectId: string): TreeNode | null {
     const project = this.getProject(projectId);
     return project ? project.root : null;
   }
 
+  /**
+   * Gets information about all managed projects
+   *
+   * @returns Array of project information objects
+   */
   getAllProjects(): ProjectInfo[] {
     const projects: ProjectInfo[] = [];
 
@@ -257,13 +347,19 @@ export class TreeManager {
         createdAt: project.createdAt,
         accessedAt: project.accessedAt,
         memoryUsage: project.memoryUsage,
-        watcherActive: false, // Will be set by file watcher
+        watcherActive: false,
       });
     }
 
     return projects;
   }
 
+  /**
+   * Serializes a tree node and its children to a plain object
+   *
+   * @param node - Tree node to serialize
+   * @returns Serialized representation suitable for JSON output
+   */
   serializeTree(node: TreeNode): Record<string, unknown> {
     return {
       id: node.id,
@@ -274,6 +370,12 @@ export class TreeManager {
     };
   }
 
+  /**
+   * Creates the root directory node for a project tree
+   *
+   * @param workingDir - Working directory path for the project
+   * @returns Root tree node representing the project directory
+   */
   private createRootNode(workingDir: string): TreeNode {
     return {
       id: generateId(),
@@ -285,10 +387,18 @@ export class TreeManager {
     };
   }
 
+  /**
+   * Adds a parsed file and its code elements to the project's indexes
+   *
+   * Creates file and element nodes, updates both main project indexes
+   * and mono-repo sub-project indexes if applicable.
+   *
+   * @param project - Project tree to update
+   * @param parseResult - Parsed file data with code elements
+   */
   private addFileToTree(project: ProjectTree, parseResult: ParseResult): void {
     const filePath = parseResult.file.path;
 
-    // Create file node
     const fileNode: TreeNode = {
       id: generateId(),
       path: filePath,

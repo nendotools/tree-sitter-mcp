@@ -1,5 +1,5 @@
 /**
- * Initialize Project tool implementation
+ * Initialize Project MCP tool - Sets up project indexing and file watching
  */
 
 import { TextContent } from '@modelcontextprotocol/sdk/types.js';
@@ -14,6 +14,27 @@ import { getLogger } from '../../utils/logger.js';
 import { formatBytes } from '../../utils/helpers.js';
 import { findProjectRoot, findProjectRootWithMonoRepo } from '../../utils/project-detection.js';
 
+/**
+ * Initializes a project for fast code search and analysis
+ *
+ * This tool provides explicit project setup with:
+ * - Directory structure analysis and mono-repo detection
+ * - Complete AST indexing of all supported code files
+ * - Memory usage calculation and optimization
+ * - Optional file watching for live updates
+ * - Comprehensive project statistics and reporting
+ *
+ * While search_code can auto-initialize projects, this tool is recommended for:
+ * - Large codebases that benefit from explicit setup
+ * - Projects requiring specific configuration
+ * - Situations where you want detailed initialization feedback
+ *
+ * @param args - Initialization parameters including directory, languages, and options
+ * @param treeManager - Tree manager for project creation and indexing
+ * @param fileWatcher - File watcher for monitoring changes
+ * @returns Detailed initialization results and project statistics
+ * @throws Error if initialization fails
+ */
 export async function initializeProject(
   args: InitializeProjectArgs,
   treeManager: TreeManager,
@@ -22,7 +43,6 @@ export async function initializeProject(
   const logger = getLogger();
 
   try {
-    // Determine project directory and detect mono-repo
     const projectDir = args.directory ? resolve(args.directory) : findProjectRoot();
     const monoRepoInfo = await findProjectRootWithMonoRepo(args.directory);
     logger.info(`Using project directory: ${projectDir}`);
@@ -34,7 +54,6 @@ export async function initializeProject(
       }
     }
 
-    // Prepare configuration
     const config: Config = {
       workingDir: projectDir,
       languages: args.languages || [],
@@ -42,23 +61,18 @@ export async function initializeProject(
       ignoreDirs: args.ignoreDirs || DEFAULT_IGNORE_DIRS,
     };
 
-    // Create or get project
     const project = treeManager.createProject(args.projectId, config);
 
-    // Initialize if not already initialized
     if (!project.initialized) {
       await treeManager.initializeProject(args.projectId);
     }
 
-    // Start file watching if requested
     if (args.autoWatch !== false) {
       fileWatcher.startWatching(args.projectId, config);
     }
 
-    // Get stats for response
     const stats = treeManager.getProjectStats(args.projectId);
 
-    // Format response
     const lines = [
       `${chalk.green('[OK]')} ${SUCCESS.PROJECT_INITIALIZED}`,
       '',
@@ -69,7 +83,6 @@ export async function initializeProject(
       `Memory Usage: ${formatBytes(stats.memoryUsage)}`,
     ];
 
-    // Add mono-repo information if detected
     if (monoRepoInfo.isMonoRepo) {
       lines.push('', chalk.blue('[MONO-REPO] Detected mono-repository'));
       if (monoRepoInfo.subProjects.length > 0) {
