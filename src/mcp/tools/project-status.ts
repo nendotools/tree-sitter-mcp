@@ -98,7 +98,9 @@ export function projectStatus(
       }
 
       lines.push('')
-      lines.push(`Legend: ${chalk.green('[ACTIVE]')} = Watcher Active, ${chalk.red('[INACTIVE]')} = Watcher Inactive`)
+      lines.push(
+        `Legend: ${chalk.green('[ACTIVE]')} = Watcher Active, ${chalk.red('[INACTIVE]')} = Watcher Inactive`,
+      )
     }
 
     return {

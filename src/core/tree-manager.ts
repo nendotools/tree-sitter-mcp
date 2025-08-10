@@ -86,6 +86,8 @@ export class TreeManager {
     const walker = new FileWalker(this.parserRegistry, project.config)
     const files = await walker.walk()
 
+    this.logger.info(`FileWalker returned ${files.length} files for project ${projectId}`)
+
     // Build tree from parsed files
     for (const file of files) {
       await this.addFileToTree(project, file)
@@ -251,9 +253,53 @@ export class TreeManager {
     }
   }
 
-  private addFileToTree(_project: ProjectTree, _parseResult: ParseResult): void {
-    // Placeholder implementation
-    // Would create TreeNode from parseResult and add to indices
+  private addFileToTree(project: ProjectTree, parseResult: ParseResult): void {
+    const filePath = parseResult.file.path
+    
+    // Create file node
+    const fileNode: TreeNode = {
+      id: generateId(),
+      path: filePath,
+      name: basename(filePath),
+      type: NODE_TYPES.FILE,
+      language: parseResult.file.language,
+      children: [],
+      lastModified: new Date(),
+    }
+
+    // Add file to file index
+    project.fileIndex.set(filePath, fileNode)
+
+    // Process parsed elements and add to node index
+    for (const element of parseResult.elements) {
+      const elementNode: TreeNode = {
+        id: generateId(),
+        path: filePath,
+        name: element.name,
+        type: element.type,
+        language: parseResult.file.language,
+        startLine: element.startLine,
+        endLine: element.endLine,
+        startColumn: element.startColumn,
+        endColumn: element.endColumn,
+        parameters: element.parameters,
+        returnType: element.returnType,
+        children: [],
+        parent: fileNode,
+        lastModified: new Date(),
+      }
+
+      // Add to node index by name
+      if (!project.nodeIndex.has(element.name)) {
+        project.nodeIndex.set(element.name, [])
+      }
+      project.nodeIndex.get(element.name)!.push(elementNode)
+
+      // Add as child to file node
+      fileNode.children.push(elementNode)
+    }
+
+    this.logger.debug(`Added file to tree: ${filePath} with ${parseResult.elements.length} elements`)
   }
 
   private removeNodeFromIndex(project: ProjectTree, node: TreeNode): void {

@@ -1,8 +1,3 @@
-/**
- * Interactive setup script for Tree-Sitter MCP service
- * Provides guided configuration for various MCP clients
- */
-
 import { homedir } from 'os'
 import { join, dirname } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
@@ -28,7 +23,15 @@ interface MCPConfig {
 interface MCPClient {
   name: string
   configPath: string
-  type: 'claude-desktop' | 'vscode' | 'cursor' | 'windsurf' | 'other'
+  type:
+    | 'claude-desktop'
+    | 'vscode'
+    | 'cursor'
+    | 'windsurf'
+    | 'claude-code'
+    | 'gemini-cli'
+    | 'qwen-cli'
+    | 'other'
 }
 
 type SetupMode = 'quick' | 'manual' | 'npm' | 'global' | 'config-only'
@@ -36,7 +39,6 @@ type SetupMode = 'quick' | 'manual' | 'npm' | 'global' | 'config-only'
 export async function runSetup(): Promise<void> {
   const logger = getLogger()
 
-  // Check for command-line flags
   const args = process.argv.slice(2)
   let mode: SetupMode | undefined
 
@@ -56,7 +58,6 @@ export async function runSetup(): Promise<void> {
     mode = 'config-only'
   }
 
-  // Show header unless running with flags
   if (!mode) {
     logger.info(chalk.cyan.bold('\nTree-Sitter MCP Setup\n'))
     logger.info(chalk.dim('Fast, in-memory code search for LLMs\n'))
@@ -66,7 +67,6 @@ export async function runSetup(): Promise<void> {
   }
 
   try {
-    // Choose setup mode interactively if not specified via flags
     if (!mode) {
       mode = await chooseSetupMode()
     }
@@ -148,7 +148,6 @@ async function quickSetup(): Promise<void> {
   if (clients.length === 0) {
     logger.info(chalk.yellow('No MCP clients detected.\n'))
 
-    // With --auto flag, skip to manual setup
     if (process.argv.includes('--auto')) {
       logger.info(chalk.dim('Run without --auto flag for manual setup options.'))
       return
@@ -175,7 +174,6 @@ async function quickSetup(): Promise<void> {
     logger.info(`    ${chalk.dim(client.configPath)}`)
   })
 
-  // With --auto flag, configure all clients automatically with npx
   const isAuto = process.argv.includes('--auto')
 
   let selectedClients: MCPClient[]
@@ -228,13 +226,11 @@ async function quickSetup(): Promise<void> {
     installMethod = methodSelection.installMethod
   }
 
-  // Configure selected clients
   for (const client of selectedClients) {
     logger.info(chalk.cyan(`\n[CONFIG] Setting up ${client.name}...`))
     await configureClient(client, installMethod)
   }
 
-  // Create default config
   await createDefaultConfig()
 }
 
@@ -277,7 +273,6 @@ async function globalSetup(): Promise<void> {
 
   logger.info(chalk.cyan('\n=== Global Installation ===\n'))
 
-  // Check if already installed globally
   const isGlobal = checkGlobalInstallation()
 
   if (!isGlobal) {
@@ -465,6 +460,16 @@ function showConfigLocations(): void {
   logger.info(chalk.dim('  Linux: ~/.config/Claude/claude_desktop_config.json'))
   logger.info(chalk.dim('  Windows: %APPDATA%\\Claude\\claude_desktop_config.json\n'))
 
+  logger.info(chalk.white('Claude Code:'))
+  logger.info(chalk.dim('  ~/.claude.json'))
+  logger.info(chalk.dim('  ~/.claude/settings.local.json\n'))
+
+  logger.info(chalk.white('Gemini CLI:'))
+  logger.info(chalk.dim('  ~/.gemini/settings.json\n'))
+
+  logger.info(chalk.white('Qwen CLI:'))
+  logger.info(chalk.dim('  ~/.cursor/mcp.json\n'))
+
   logger.info(chalk.white('VS Code / Cursor / Windsurf:'))
   logger.info(chalk.dim('  Open command palette → "MCP: Edit Settings"\n'))
 }
@@ -473,7 +478,6 @@ function detectMCPClients(): MCPClient[] {
   const clients: MCPClient[] = []
   const home = homedir()
 
-  // Check for Claude Desktop
   const claudeConfigPaths = [
     join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'), // macOS
     join(home, '.config', 'Claude', 'claude_desktop_config.json'), // Linux
@@ -491,7 +495,6 @@ function detectMCPClients(): MCPClient[] {
     }
   }
 
-  // Check for VS Code
   const vscodeConfigPaths = [
     join(home, '.vscode', 'mcp', 'settings.json'),
     join(home, 'Library', 'Application Support', 'Code', 'User', 'settings.json'), // macOS
@@ -509,7 +512,6 @@ function detectMCPClients(): MCPClient[] {
     }
   }
 
-  // Check for Cursor
   const cursorConfigPaths = [
     join(home, '.cursor', 'mcp', 'settings.json'),
     join(home, 'Library', 'Application Support', 'Cursor', 'User', 'settings.json'), // macOS
@@ -526,7 +528,6 @@ function detectMCPClients(): MCPClient[] {
     }
   }
 
-  // Check for Windsurf
   const windsurfConfigPath = join(home, '.windsurf', 'mcp-config.json')
   if (existsSync(windsurfConfigPath)) {
     clients.push({
@@ -534,6 +535,48 @@ function detectMCPClients(): MCPClient[] {
       configPath: windsurfConfigPath,
       type: 'windsurf',
     })
+  }
+
+  const claudeCodeConfigPaths = [
+    join(home, '.claude.json'),
+    join(home, '.claude', 'settings.local.json'),
+  ]
+
+  for (const path of claudeCodeConfigPaths) {
+    if (existsSync(path)) {
+      clients.push({
+        name: 'Claude Code',
+        configPath: path,
+        type: 'claude-code',
+      })
+      break
+    }
+  }
+
+  const geminiConfigPaths = [join(home, '.gemini', 'settings.json')]
+
+  for (const path of geminiConfigPaths) {
+    if (existsSync(path)) {
+      clients.push({
+        name: 'Gemini CLI',
+        configPath: path,
+        type: 'gemini-cli',
+      })
+      break
+    }
+  }
+
+  const qwenConfigPaths = [join(home, '.cursor', 'mcp.json')]
+
+  for (const path of qwenConfigPaths) {
+    if (existsSync(path)) {
+      clients.push({
+        name: 'Qwen CLI',
+        configPath: path,
+        type: 'qwen-cli',
+      })
+      break
+    }
   }
 
   return clients
@@ -547,6 +590,15 @@ async function configureClient(client: MCPClient, method: 'npx' | 'global'): Pro
       await configureClaudeDesktop(client.configPath, method)
       break
 
+    case 'claude-code':
+      await configureClaudeCode(client.configPath, method)
+      break
+
+    case 'gemini-cli':
+    case 'qwen-cli':
+      await configureCLIClient(client, method)
+      break
+
     case 'vscode':
     case 'cursor':
     case 'windsurf': {
@@ -554,9 +606,10 @@ async function configureClient(client: MCPClient, method: 'npx' | 'global'): Pro
       logger.info(chalk.dim(`  Please add the configuration manually using:`))
       logger.info(chalk.dim(`  Command palette → "MCP: Edit Settings"`))
 
-      const config = method === 'npx'
-        ? { command: 'npx', args: ['tree-sitter-mcp@latest'] }
-        : { command: 'tree-sitter-mcp', args: ['--mcp'] }
+      const config
+        = method === 'npx'
+          ? { command: 'npx', args: ['tree-sitter-mcp@latest'] }
+          : { command: 'tree-sitter-mcp', args: ['--mcp'] }
 
       logger.info(
         chalk.gray('\n' + JSON.stringify({ mcpServers: { 'tree-sitter': config } }, null, 2)),
@@ -573,7 +626,6 @@ async function configureClaudeDesktop(configPath: string, method: 'npx' | 'globa
   const logger = getLogger()
   let config: MCPConfig = {}
 
-  // Read existing config if it exists
   if (existsSync(configPath)) {
     try {
       const content = readFileSync(configPath, 'utf-8')
@@ -589,19 +641,16 @@ async function configureClaudeDesktop(configPath: string, method: 'npx' | 'globa
   }
   else {
     logger.info(chalk.dim('  Creating new configuration...'))
-    // Ensure directory exists
     const dir = dirname(configPath)
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true })
     }
   }
 
-  // Initialize mcpServers if it doesn't exist
   if (!config.mcpServers) {
     config.mcpServers = {}
   }
 
-  // Add or update tree-sitter configuration
   if (method === 'npx') {
     config.mcpServers['tree-sitter'] = {
       command: 'npx',
@@ -615,9 +664,110 @@ async function configureClaudeDesktop(configPath: string, method: 'npx' | 'globa
     }
   }
 
-  // Write updated config
   writeFileSync(configPath, JSON.stringify(config, null, 2))
   logger.info(chalk.green('  [OK] Claude Desktop configured'))
+}
+
+async function configureClaudeCode(configPath: string, method: 'npx' | 'global'): Promise<void> {
+  const logger = getLogger()
+  let config: any = {}
+
+  if (existsSync(configPath)) {
+    try {
+      const content = readFileSync(configPath, 'utf-8')
+      config = JSON.parse(content)
+      logger.info(chalk.dim('  Updating existing configuration...'))
+    }
+    catch {
+      logger.info(chalk.yellow('  Warning: Could not parse existing config, creating backup...'))
+      const backupPath = `${configPath}.backup`
+      writeFileSync(backupPath, readFileSync(configPath, 'utf-8'))
+      logger.info(chalk.dim(`  Backup saved to: ${backupPath}`))
+    }
+  }
+  else {
+    logger.info(chalk.dim('  Creating new configuration...'))
+    const dir = dirname(configPath)
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true })
+    }
+  }
+
+  if (!config.projects) {
+    config.projects = {}
+  }
+
+  const currentDir = process.cwd()
+
+  if (!config.projects[currentDir]) {
+    config.projects[currentDir] = {}
+  }
+
+  if (!config.projects[currentDir].mcpServers) {
+    config.projects[currentDir].mcpServers = {}
+  }
+
+  if (method === 'npx') {
+    config.projects[currentDir].mcpServers['tree-sitter'] = {
+      command: 'npx',
+      args: ['tree-sitter-mcp@latest'],
+    }
+  }
+  else {
+    config.projects[currentDir].mcpServers['tree-sitter'] = {
+      command: 'tree-sitter-mcp',
+      args: ['--mcp'],
+    }
+  }
+
+  writeFileSync(configPath, JSON.stringify(config, null, 2))
+  logger.info(chalk.green('  [OK] Claude Code configured'))
+}
+
+async function configureCLIClient(client: MCPClient, method: 'npx' | 'global'): Promise<void> {
+  const logger = getLogger()
+  let config: MCPConfig = {}
+
+  if (existsSync(client.configPath)) {
+    try {
+      const content = readFileSync(client.configPath, 'utf-8')
+      config = JSON.parse(content) as MCPConfig
+      logger.info(chalk.dim('  Updating existing configuration...'))
+    }
+    catch {
+      logger.info(chalk.yellow('  Warning: Could not parse existing config, creating backup...'))
+      const backupPath = `${client.configPath}.backup`
+      writeFileSync(backupPath, readFileSync(client.configPath, 'utf-8'))
+      logger.info(chalk.dim(`  Backup saved to: ${backupPath}`))
+    }
+  }
+  else {
+    logger.info(chalk.dim('  Creating new configuration...'))
+    const dir = dirname(client.configPath)
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true })
+    }
+  }
+
+  if (!config.mcpServers) {
+    config.mcpServers = {}
+  }
+
+  if (method === 'npx') {
+    config.mcpServers['tree-sitter'] = {
+      command: 'npx',
+      args: ['tree-sitter-mcp@latest'],
+    }
+  }
+  else {
+    config.mcpServers['tree-sitter'] = {
+      command: 'tree-sitter-mcp',
+      args: ['--mcp'],
+    }
+  }
+
+  writeFileSync(client.configPath, JSON.stringify(config, null, 2))
+  logger.info(chalk.green(`  [OK] ${client.name} configured`))
 }
 
 async function createDefaultConfig(interactive: boolean = false): Promise<void> {
@@ -649,12 +799,10 @@ async function createDefaultConfig(interactive: boolean = false): Promise<void> 
     }
   }
 
-  // Create directory if it doesn't exist
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true })
   }
 
-  // Default config with sensible defaults
   const defaultConfig = {
     workingDir: '.',
     languages: [], // Empty means all supported languages
@@ -763,7 +911,6 @@ function installGlobally(): void {
   }
 }
 
-// Allow running directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   try {
     await runSetup()

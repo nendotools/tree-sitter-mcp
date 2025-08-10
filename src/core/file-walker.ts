@@ -4,7 +4,7 @@
 
 import { readdir, stat, readFile } from 'fs/promises'
 import { join, relative } from 'path'
-import { DEFAULT_IGNORE_DIRS, WATCHER } from '../constants/index.js'
+import { DEFAULT_IGNORE_DIRS, WATCHER, DIRECTORIES } from '../constants/index.js'
 import type { Config, ParseResult } from '../types/index.js'
 import { getLogger } from '../utils/logger.js'
 import { ParserRegistry } from '../parsers/registry.js'
@@ -23,27 +23,39 @@ export class FileWalker {
 
   async walk(): Promise<ParseResult[]> {
     const results: ParseResult[] = []
+    this.logger.debug(`Starting file walk from: ${this.config.workingDir}`)
     await this.walkDirectory(this.config.workingDir, results, 0)
+    this.logger.info(`File walk completed, found ${results.length} files`)
     return results
   }
 
   private async walkDirectory(dir: string, results: ParseResult[], depth: number): Promise<void> {
-    if (depth > this.config.maxDepth) {
+    const maxDepth = this.config.maxDepth ?? DIRECTORIES.DEFAULT_MAX_DEPTH
+    if (depth > maxDepth) {
+      this.logger.debug(`Skipping directory ${dir} - depth ${depth} > maxDepth ${maxDepth}`)
       return
     }
 
+    this.logger.debug(`Walking directory: ${dir} at depth ${depth}`)
+
     try {
       const entries = await readdir(dir, { withFileTypes: true })
+      this.logger.debug(`Found ${entries.length} entries in ${dir}`)
 
       for (const entry of entries) {
         const fullPath = join(dir, entry.name)
 
         if (entry.isDirectory()) {
-          if (!this.ignoreDirs.has(entry.name)) {
+          if (this.ignoreDirs.has(entry.name)) {
+            this.logger.debug(`Ignoring directory: ${entry.name}`)
+          }
+          else {
+            this.logger.debug(`Recursing into directory: ${entry.name}`)
             await this.walkDirectory(fullPath, results, depth + 1)
           }
         }
         else if (entry.isFile()) {
+          this.logger.debug(`Processing file: ${entry.name}`)
           await this.processFile(fullPath, results)
         }
       }
@@ -86,6 +98,7 @@ export class FileWalker {
         const relativePath = relative(this.config.workingDir, filePath)
         result.file.path = relativePath
         results.push(result)
+        this.logger.debug(`Successfully parsed file: ${filePath} with ${result.elements.length} elements`)
       }
     }
     catch (error) {

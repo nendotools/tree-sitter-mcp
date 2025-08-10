@@ -3,6 +3,8 @@
  */
 
 import chalk from 'chalk'
+import { writeFileSync, appendFileSync, mkdirSync, existsSync } from 'fs'
+import { resolve } from 'path'
 import { LOG_LEVELS } from '../constants/cli-constants.js'
 import type { Logger, LogLevel } from '../types/cli-types.js'
 
@@ -10,17 +12,39 @@ export class ConsoleLogger implements Logger {
   private level: LogLevel
   private quiet: boolean
   private useColors: boolean
+  private logToFile: boolean
+  private logFilePath?: string
 
   constructor(
     options: {
       level?: LogLevel
       quiet?: boolean
       useColors?: boolean
+      logToFile?: boolean
+      logFilePath?: string
     } = {},
   ) {
     this.level = options.level || LOG_LEVELS.INFO
     this.quiet = options.quiet || false
     this.useColors = options.useColors ?? process.stdout.isTTY
+    this.logToFile = options.logToFile || false
+    this.logFilePath = options.logFilePath
+    
+    if (this.logToFile && this.logFilePath) {
+      this.initializeLogFile()
+    }
+  }
+  
+  private initializeLogFile(): void {
+    if (!this.logFilePath) return
+    
+    const logDir = resolve(this.logFilePath, '..')
+    if (!existsSync(logDir)) {
+      mkdirSync(logDir, { recursive: true })
+    }
+    
+    const timestamp = new Date().toISOString()
+    writeFileSync(this.logFilePath, `=== Tree-Sitter MCP Log Started ${timestamp} ===\n`)
   }
 
   private shouldLog(level: LogLevel): boolean {
@@ -76,18 +100,21 @@ export class ConsoleLogger implements Logger {
   error(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LOG_LEVELS.ERROR)) {
       console.error(this.format(LOG_LEVELS.ERROR, message), ...args)
+      this.writeToFile(LOG_LEVELS.ERROR, message, ...args)
     }
   }
 
   warn(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LOG_LEVELS.WARN)) {
       console.warn(this.format(LOG_LEVELS.WARN, message), ...args)
+      this.writeToFile(LOG_LEVELS.WARN, message, ...args)
     }
   }
 
   info(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LOG_LEVELS.INFO)) {
       console.info(this.format(LOG_LEVELS.INFO, message), ...args)
+      this.writeToFile(LOG_LEVELS.INFO, message, ...args)
     }
   }
 
@@ -95,6 +122,7 @@ export class ConsoleLogger implements Logger {
     if (this.shouldLog(LOG_LEVELS.DEBUG)) {
       // eslint-disable-next-line no-console
       console.debug(this.format(LOG_LEVELS.DEBUG, message), ...args)
+      this.writeToFile(LOG_LEVELS.DEBUG, message, ...args)
     }
   }
 
@@ -102,6 +130,7 @@ export class ConsoleLogger implements Logger {
     if (this.shouldLog(LOG_LEVELS.VERBOSE)) {
       // eslint-disable-next-line no-console
       console.log(this.format(LOG_LEVELS.VERBOSE, message), ...args)
+      this.writeToFile(LOG_LEVELS.VERBOSE, message, ...args)
     }
   }
 
@@ -111,6 +140,19 @@ export class ConsoleLogger implements Logger {
 
   setQuiet(quiet: boolean): void {
     this.quiet = quiet
+  }
+  
+  private writeToFile(level: LogLevel, message: string, ...args: unknown[]): void {
+    if (this.logToFile && this.logFilePath) {
+      const timestamp = new Date().toISOString()
+      const fileMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}${args.length > 0 ? ' ' + args.join(' ') : ''}\n`
+      try {
+        appendFileSync(this.logFilePath, fileMessage)
+      }
+      catch (error) {
+        console.error('Failed to write to log file:', error)
+      }
+    }
   }
 }
 

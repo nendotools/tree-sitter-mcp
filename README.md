@@ -18,7 +18,7 @@ npm install -g tree-sitter-mcp
 tree-sitter-mcp setup
 ```
 
-This will auto-detect your MCP clients (Claude Desktop, VS Code, Cursor, Windsurf) and configure them automatically.
+This will auto-detect your MCP clients (Claude Desktop, Claude Code, VS Code, Cursor, Windsurf, Gemini CLI, Qwen CLI) and configure them automatically.
 
 ## Manual Setup
 
@@ -43,6 +43,16 @@ Add this to your MCP client configuration:
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Linux: `~/.config/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+**Claude Code:**
+- `~/.claude.json`
+- `~/.claude/settings.local.json`
+
+**Gemini CLI:**
+- `~/.gemini/settings.json`
+
+**Qwen CLI:**
+- `~/.cursor/mcp.json`
 
 **VS Code / Cursor / Windsurf:**
 - Open command palette (`Cmd+Shift+P` or `Ctrl+Shift+P`)
@@ -123,8 +133,46 @@ Get memory usage and indexing statistics.
 ### `update_file`
 Manually trigger re-parsing of a specific file.
 
+### `find_usage`
+Find all lines where a specific function, variable, class, or identifier is used.
+
+**Parameters:**
+- `projectId` - Project to search in
+- `identifier` - Function, variable, class, or identifier name
+- `languages` - Filter by programming languages
+- `pathPattern` - Filter by file path pattern
+- `maxResults` - Maximum number of results (default: 100)
+- `exactMatch` - Require exact identifier match with word boundaries
+- `caseSensitive` - Case sensitive search (default: false)
+
+**Example:**
+```json
+{
+  "projectId": "my-app",
+  "identifier": "handleRequest",
+  "languages": ["typescript", "javascript"],
+  "exactMatch": true
+}
+```
+
 ### `destroy_project`
 Free memory by removing a project from the index.
+
+## Debug Logging
+
+To enable detailed debug logging for troubleshooting, set the environment variable:
+
+```bash
+TREE_SITTER_MCP_DEBUG=true npx tree-sitter-mcp@latest
+```
+
+This will:
+- Enable verbose logging output
+- Write detailed logs to `logs/mcp-server.log` 
+- Show file walking, parsing, and indexing details
+- Display memory usage and performance metrics
+
+**Note:** Debug logging is disabled by default for optimal performance.
 
 ## How It Works
 

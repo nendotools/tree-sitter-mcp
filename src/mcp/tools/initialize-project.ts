@@ -12,6 +12,7 @@ import { TreeManager } from '../../core/tree-manager.js'
 import { BatchFileWatcher } from '../../core/file-watcher.js'
 import { getLogger } from '../../utils/logger.js'
 import { formatBytes } from '../../utils/helpers.js'
+import { findProjectRoot } from '../../utils/project-detection.js'
 
 export async function initializeProject(
   args: InitializeProjectArgs,
@@ -21,16 +22,20 @@ export async function initializeProject(
   const logger = getLogger()
 
   try {
+    // Determine project directory
+    const projectDir = args.directory ? resolve(args.directory) : findProjectRoot()
+    logger.info(`Using project directory: ${projectDir}`)
+
     // Prepare configuration
     const config: Config = {
-      workingDir: resolve(args.directory || '.'),
+      workingDir: projectDir,
       languages: args.languages || [],
       maxDepth: args.maxDepth || DIRECTORIES.DEFAULT_MAX_DEPTH,
       ignoreDirs: args.ignoreDirs || DEFAULT_IGNORE_DIRS,
     }
 
     // Create or get project
-    const project = await treeManager.createProject(args.projectId, config)
+    const project = treeManager.createProject(args.projectId, config)
 
     // Initialize if not already initialized
     if (!project.initialized) {
@@ -39,7 +44,7 @@ export async function initializeProject(
 
     // Start file watching if requested
     if (args.autoWatch !== false) {
-      await fileWatcher.startWatching(args.projectId, config)
+      fileWatcher.startWatching(args.projectId, config)
     }
 
     // Get stats for response

@@ -3,13 +3,13 @@
  */
 
 import { TextContent } from '@modelcontextprotocol/sdk/types.js'
-import { resolve } from 'path'
 import { DIRECTORIES, DEFAULT_IGNORE_DIRS } from '../../constants/service-constants.js'
 import { SEARCH } from '../../constants/tree-constants.js'
 import type { SearchCodeArgs, Config, SearchOptions, NodeType } from '../../types/index.js'
 import { TreeManager } from '../../core/tree-manager.js'
 import { BatchFileWatcher } from '../../core/file-watcher.js'
 import { getLogger } from '../../utils/logger.js'
+import { findProjectRoot } from '../../utils/project-detection.js'
 
 export async function searchCode(
   args: SearchCodeArgs,
@@ -27,7 +27,7 @@ export async function searchCode(
       logger.info(`Auto-initializing project ${args.projectId}`)
 
       const config: Config = {
-        workingDir: resolve('.'),
+        workingDir: findProjectRoot(),
         languages: args.languages || [],
         maxDepth: DIRECTORIES.DEFAULT_MAX_DEPTH,
         ignoreDirs: DEFAULT_IGNORE_DIRS,

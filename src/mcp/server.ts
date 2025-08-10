@@ -4,6 +4,8 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { resolve } from 'path'
+import { findProjectRoot } from '../utils/project-detection.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -16,18 +18,44 @@ import type {
   Config,
   InitializeProjectArgs,
   SearchCodeArgs,
+  FindUsageArgs,
   UpdateFileArgs,
   ProjectStatusArgs,
   DestroyProjectArgs,
 } from '../types/index.js'
-import { getLogger } from '../utils/logger.js'
+import { setLogger, ConsoleLogger } from '../utils/logger.js'
+import { LOG_LEVELS } from '../constants/cli-constants.js'
 import { TreeManager } from '../core/tree-manager.js'
 import { BatchFileWatcher } from '../core/file-watcher.js'
 import { getParserRegistry } from '../parsers/registry.js'
 import * as tools from './tools/index.js'
 
 export async function startMCPServer(_config: Config): Promise<void> {
-  const logger = getLogger()
+  const enableDebugLogging = process.env.TREE_SITTER_MCP_DEBUG === 'true'
+  
+  let logger: ConsoleLogger
+  if (enableDebugLogging) {
+    const projectRoot = findProjectRoot()
+    const logFilePath = resolve(projectRoot, 'logs', 'mcp-server.log')
+    logger = new ConsoleLogger({
+      level: LOG_LEVELS.VERBOSE,
+      logToFile: true,
+      logFilePath,
+      useColors: false,
+    })
+    setLogger(logger)
+    logger.info('Starting MCP server with debug file logging enabled')
+    logger.info(`Process cwd: ${process.cwd()}`)
+    logger.info(`Log file: ${logFilePath}`)
+  } else {
+    logger = new ConsoleLogger({
+      level: LOG_LEVELS.INFO,
+      logToFile: false,
+      useColors: false,
+    })
+    setLogger(logger)
+    logger.info('Starting MCP server')
+  }
 
   // Initialize core components
   const parserRegistry = getParserRegistry()
@@ -130,6 +158,46 @@ export async function startMCPServer(_config: Config): Promise<void> {
           },
         },
         {
+          name: MCP_TOOLS.FIND_USAGE,
+          description:
+            'Find all lines that use a specific function, variable, class, or identifier. Searches through project files for usage occurrences.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectId: {
+                type: 'string',
+                description: 'Project to search in',
+              },
+              identifier: {
+                type: 'string',
+                description: 'Function, variable, class, or identifier name to find usage of',
+              },
+              languages: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Filter by programming languages',
+              },
+              pathPattern: {
+                type: 'string',
+                description: 'Filter by file path pattern',
+              },
+              maxResults: {
+                type: 'number',
+                description: 'Maximum number of results',
+              },
+              exactMatch: {
+                type: 'boolean',
+                description: 'Require exact identifier match (word boundaries)',
+              },
+              caseSensitive: {
+                type: 'boolean',
+                description: 'Case sensitive search',
+              },
+            },
+            required: ['projectId', 'identifier'],
+          },
+        },
+        {
           name: MCP_TOOLS.UPDATE_FILE,
           description: 'Manually update a specific file in the project tree',
           inputSchema: {
@@ -203,6 +271,14 @@ export async function startMCPServer(_config: Config): Promise<void> {
         case MCP_TOOLS.SEARCH_CODE:
           result = await tools.searchCode(
             args as unknown as SearchCodeArgs,
+            treeManager,
+            fileWatcher,
+          )
+          break
+
+        case MCP_TOOLS.FIND_USAGE:
+          result = await tools.findUsage(
+            args as unknown as FindUsageArgs,
             treeManager,
             fileWatcher,
           )

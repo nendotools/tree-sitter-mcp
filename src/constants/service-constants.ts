@@ -47,4 +47,5 @@ export const DEFAULT_IGNORE_DIRS = [
   '.cache',
   'tmp',
   'temp',
+  'logs',
 ]

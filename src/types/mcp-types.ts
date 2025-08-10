@@ -8,6 +8,7 @@ import type { NodeType, TreeNode } from './tree-types.js'
 export type MCPTool
   = | 'initialize_project'
     | 'search_code'
+    | 'find_usage'
     | 'update_file'
     | 'project_status'
     | 'destroy_project'
@@ -45,6 +46,17 @@ export interface UpdateFileArgs {
 export interface ProjectStatusArgs {
   projectId?: string
   includeStats?: boolean
+}
+
+// Find Usage tool arguments
+export interface FindUsageArgs {
+  projectId: string
+  identifier: string
+  languages?: string[]
+  pathPattern?: string
+  maxResults?: number
+  exactMatch?: boolean
+  caseSensitive?: boolean
 }
 
 // Destroy Project tool arguments

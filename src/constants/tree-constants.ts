@@ -45,6 +45,14 @@ export const SEARCH = {
   SCORE_BOOST_FUNCTION: 5,
 } as const
 
+// Usage search configuration
+export const USAGE_SEARCH = {
+  DEFAULT_CONTEXT_LINES: 10,
+  MAX_LINE_LENGTH_DISPLAY: 200,
+  FUNCTION_PATTERNS: ['function', 'def', 'fn', 'func', 'const', 'let', 'var'],
+  CLASS_PATTERNS: ['class', 'interface', 'struct'],
+} as const
+
 // File change event types
 export const CHANGE_EVENTS = {
   CREATED: 'created',
