@@ -71,77 +71,7 @@ program
   .option('-q, --quiet', 'Suppress all non-error output')
   .option('--setup', 'Run interactive setup to configure MCP')
   .action(async (options: CLIOptions) => {
-    const logger = new ConsoleLogger({
-      level: options.verbose ? LOG_LEVELS.VERBOSE : LOG_LEVELS.INFO,
-      quiet: options.quiet || false,
-      useColors: true,
-    })
-    setLogger(logger)
-
-    if (process.env.TREE_SITTER_MCP_DEBUG === 'true') {
-      try {
-        const { homedir } = await import('os')
-        const { appendFileSync } = await import('fs')
-        const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log')
-        const timestamp = new Date().toISOString()
-        const cliStartupInfo = `[${timestamp}] CLI Startup:
-  - Raw Args: ${JSON.stringify(process.argv)}
-  - Parsed Options: ${JSON.stringify(options)}
-  - Process CWD: ${process.cwd()}
-  - stdin.isTTY: ${process.stdin.isTTY}
-  - Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}
-\n`
-        appendFileSync(globalLogPath, cliStartupInfo)
-      }
-      catch {
-        // Ignore errors writing to global debug log
-      }
-    }
-
-    try {
-      // Handle special commands first
-      if (options.listLanguages) {
-        handleListLanguages()
-        process.exit(0)
-      }
-
-      if (options.setup) {
-        await handleSetup()
-        process.exit(0)
-      }
-
-      // Parse configuration
-      const config = parseConfig(options)
-
-      // Debug logging for mode detection
-      logger.debug(`CLI args: ${process.argv.join(' ')}`)
-      logger.debug(`--mcp flag: ${options.mcp || false}`)
-      logger.debug(`stdin.isTTY: ${process.stdin.isTTY}`)
-      logger.debug(`Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}`)
-
-      // Determine execution mode
-      const shouldRunMCP = options.mcp || !process.stdin.isTTY
-      logger.debug(
-        `Mode decision: ${shouldRunMCP ? 'MCP Server' : 'Standalone'} (--mcp=${options.mcp || false}, !stdin.isTTY=${!process.stdin.isTTY})`,
-      )
-
-      if (shouldRunMCP) {
-        // Run in MCP mode
-        logger.info('Starting Tree-Sitter MCP server...')
-        logger.debug('Mode: MCP Server')
-        await startMCPServer(config)
-      }
-      else {
-        // Run in standalone mode
-        logger.info('Running Tree-Sitter analysis...')
-        logger.debug('Mode: Standalone')
-        await runStandaloneMode(config)
-      }
-    }
-    catch (error) {
-      logger.error('Fatal error:', error)
-      process.exit(1)
-    }
+    await handleMainAction(options)
   })
 
 // Add subcommands
@@ -199,6 +129,142 @@ program
       })
     },
   )
+
+/**
+ * Sets up logger and handles debug logging
+ *
+ * @param options - CLI options containing logging preferences
+ * @returns Configured logger instance
+ */
+function setupLogger(options: CLIOptions): ConsoleLogger {
+  const logger = new ConsoleLogger({
+    level: options.verbose ? LOG_LEVELS.VERBOSE : LOG_LEVELS.INFO,
+    quiet: options.quiet || false,
+    useColors: true,
+  })
+  setLogger(logger)
+  return logger
+}
+
+/**
+ * Writes debug information to global log file if debug mode is enabled
+ *
+ * @param options - CLI options to include in debug output
+ */
+async function writeDebugLog(options: CLIOptions): Promise<void> {
+  if (process.env.TREE_SITTER_MCP_DEBUG !== 'true') return
+
+  try {
+    const { homedir } = await import('os')
+    const { appendFileSync } = await import('fs')
+    const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log')
+    const timestamp = new Date().toISOString()
+    const cliStartupInfo = `[${timestamp}] CLI Startup:
+  - Raw Args: ${JSON.stringify(process.argv)}
+  - Parsed Options: ${JSON.stringify(options)}
+  - Process CWD: ${process.cwd()}
+  - stdin.isTTY: ${process.stdin.isTTY}
+  - Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}
+\n`
+    appendFileSync(globalLogPath, cliStartupInfo)
+  }
+  catch {
+    // Ignore errors writing to global debug log
+  }
+}
+
+/**
+ * Handles special commands that exit immediately
+ *
+ * @param options - CLI options to check for special commands
+ * @returns Promise that resolves if no special commands, exits process otherwise
+ */
+async function handleSpecialCommands(options: CLIOptions): Promise<void> {
+  if (options.listLanguages) {
+    handleListLanguages()
+    process.exit(0)
+  }
+
+  if (options.setup) {
+    await handleSetup()
+    process.exit(0)
+  }
+}
+
+/**
+ * Determines execution mode and logs debug information
+ *
+ * @param options - CLI options
+ * @param logger - Logger instance for debug output
+ * @returns True if should run MCP mode, false for standalone
+ */
+function determineExecutionMode(options: CLIOptions, logger: ConsoleLogger): boolean {
+  // Debug logging for mode detection
+  logger.debug(`CLI args: ${process.argv.join(' ')}`)
+  logger.debug(`--mcp flag: ${options.mcp || false}`)
+  logger.debug(`stdin.isTTY: ${process.stdin.isTTY}`)
+  logger.debug(`Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}`)
+
+  // Determine execution mode
+  const shouldRunMCP = options.mcp || !process.stdin.isTTY
+  logger.debug(
+    `Mode decision: ${shouldRunMCP ? 'MCP Server' : 'Standalone'} (--mcp=${options.mcp || false}, !stdin.isTTY=${!process.stdin.isTTY})`,
+  )
+
+  return shouldRunMCP
+}
+
+/**
+ * Runs the appropriate execution mode
+ *
+ * @param shouldRunMCP - Whether to run MCP server mode
+ * @param config - Parsed configuration
+ * @param logger - Logger instance
+ */
+async function runExecutionMode(shouldRunMCP: boolean, config: Config, logger: ConsoleLogger): Promise<void> {
+  if (shouldRunMCP) {
+    // Run in MCP mode
+    logger.info('Starting Tree-Sitter MCP server...')
+    logger.debug('Mode: MCP Server')
+    await startMCPServer(config)
+  }
+  else {
+    // Run in standalone mode
+    logger.info('Running Tree-Sitter analysis...')
+    logger.debug('Mode: Standalone')
+    await runStandaloneMode(config)
+  }
+}
+
+/**
+ * Main action handler for the CLI program
+ *
+ * Coordinates all CLI operations including setup, configuration parsing,
+ * mode detection, and execution of the appropriate service mode.
+ *
+ * @param options - Parsed CLI options from commander
+ */
+async function handleMainAction(options: CLIOptions): Promise<void> {
+  const logger = setupLogger(options)
+
+  await writeDebugLog(options)
+
+  try {
+    // Handle special commands first
+    await handleSpecialCommands(options)
+
+    // Parse configuration
+    const config = parseConfig(options)
+
+    // Determine and run execution mode
+    const shouldRunMCP = determineExecutionMode(options, logger)
+    await runExecutionMode(shouldRunMCP, config, logger)
+  }
+  catch (error) {
+    logger.error('Fatal error:', error)
+    process.exit(1)
+  }
+}
 
 /**
  * Parses CLI options and optional config file into a unified configuration
