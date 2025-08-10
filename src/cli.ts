@@ -160,7 +160,11 @@ function determineExecutionMode(options: CLIOptions, logger: ConsoleLogger): boo
  * @param config - Parsed configuration
  * @param logger - Logger instance
  */
-async function runExecutionMode(shouldRunMCP: boolean, config: Config, logger: ConsoleLogger): Promise<void> {
+async function runExecutionMode(
+  shouldRunMCP: boolean,
+  config: Config,
+  logger: ConsoleLogger,
+): Promise<void> {
   if (shouldRunMCP) {
     // Run in MCP mode
     logger.info('Starting Tree-Sitter MCP server...')

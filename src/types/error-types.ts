@@ -44,7 +44,12 @@ export class McpOperationError extends Error {
   public readonly code?: string
   public readonly context?: Record<string, unknown>
 
-  constructor(category: ErrorCategory, message: string, code?: string, context?: Record<string, unknown>) {
+  constructor(
+    category: ErrorCategory,
+    message: string,
+    code?: string,
+    context?: Record<string, unknown>,
+  ) {
     super(message)
     this.name = 'McpOperationError'
     this.category = category
@@ -102,12 +107,9 @@ export const ErrorFactory = {
     ),
 
   invalidQuery: (query: string): McpOperationError =>
-    new McpOperationError(
-      ErrorCategory.SEARCH,
-      `Invalid search query: ${query}`,
-      'INVALID_QUERY',
-      { query },
-    ),
+    new McpOperationError(ErrorCategory.SEARCH, `Invalid search query: ${query}`, 'INVALID_QUERY', {
+      query,
+    }),
 
   unsupportedLanguage: (language: string): McpOperationError =>
     new McpOperationError(

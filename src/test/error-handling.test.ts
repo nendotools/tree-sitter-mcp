@@ -3,7 +3,12 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ErrorFactory, ErrorCategory, McpOperationError, formatError } from '../types/error-types.js'
+import {
+  ErrorFactory,
+  ErrorCategory,
+  McpOperationError,
+  formatError,
+} from '../types/error-types.js'
 
 describe('Error Handling', () => {
   describe('ErrorFactory', () => {

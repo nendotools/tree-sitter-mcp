@@ -129,7 +129,9 @@ export class TreeManager {
     await this.buildProjectIndexes(project)
     this.finalizeProjectInitialization(project)
 
-    this.logger.info(`Project ${project.projectId} initialized with ${project.fileIndex.size} files`)
+    this.logger.info(
+      `Project ${project.projectId} initialized with ${project.fileIndex.size} files`,
+    )
   }
 
   /**
@@ -443,14 +445,14 @@ export class TreeManager {
     if (name.includes('_')) {
       return name.split('_').filter(Boolean)
     }
-    
+
     // Handle camelCase and mixed patterns
     // Split on transitions: lowercase->uppercase, digit->letter, letter->digit
     return name
-      .replace(/([a-z])([A-Z])/g, '$1|$2')        // camelCase: user|Name
-      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1|$2')  // XMLHttp: XML|Http  
-      .replace(/([a-zA-Z])(\d)/g, '$1|$2')        // letter->digit: user|2
-      .replace(/(\d)([a-zA-Z])/g, '$1|$2')        // digit->letter: 2|Name
+      .replace(/([a-z])([A-Z])/g, '$1|$2') // camelCase: user|Name
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1|$2') // XMLHttp: XML|Http
+      .replace(/([a-zA-Z])(\d)/g, '$1|$2') // letter->digit: user|2
+      .replace(/(\d)([a-zA-Z])/g, '$1|$2') // digit->letter: 2|Name
       .split('|')
       .filter(Boolean)
   }
@@ -466,12 +468,12 @@ export class TreeManager {
   private calculateFuzzyScore(name: string, query: string, options: SearchOptions): number {
     const nameLower = name.toLowerCase()
     const queryLower = query.toLowerCase()
-    
+
     // Handle empty query
     if (query.length === 0) {
       return 0
     }
-    
+
     if (options.exactMatch) {
       return nameLower === queryLower ? 100 : 0
     }
@@ -489,7 +491,7 @@ export class TreeManager {
     // 3. Word boundary prefix match
     else {
       const nameWords = this.splitIntoWords(name)
-      
+
       // Check if query matches any word boundary
       for (const nameWord of nameWords) {
         if (nameWord.toLowerCase().startsWith(queryLower)) {
@@ -501,12 +503,12 @@ export class TreeManager {
         }
       }
     }
-    
+
     // 4. Substring match (current behavior)
     if (baseScore === 0 && nameLower.includes(queryLower)) {
       baseScore = name.includes(query) ? 55 : 50 // Exact case gets higher score
     }
-    
+
     // 5. Character sequence match (fuzzy)
     if (baseScore === 0) {
       const sequenceScore = this.calculateSequenceMatch(nameLower, queryLower)
@@ -514,24 +516,25 @@ export class TreeManager {
         baseScore = Math.min(40, sequenceScore)
       }
     }
-    
+
     // Apply bonuses
     if (baseScore > 0) {
       // Position bonus
       const queryPos = nameLower.indexOf(queryLower)
       if (queryPos === 0) {
         baseScore += 5 // Starts at beginning
-      } else if (queryPos <= 2) {
+      }
+      else if (queryPos <= 2) {
         baseScore += 2 // Within first few characters
       }
-      
+
       // Length ratio bonus
       const lengthRatio = query.length / name.length
       if (lengthRatio >= 0.5 && lengthRatio <= 1.0) {
         baseScore += 5
       }
     }
-    
+
     return baseScore
   }
 
@@ -545,11 +548,11 @@ export class TreeManager {
   private calculateSequenceMatch(name: string, query: string): number {
     if (query.length === 0) return 0
     if (query.length > name.length) return 0
-    
+
     let nameIndex = 0
     let queryIndex = 0
     let matches = 0
-    
+
     while (nameIndex < name.length && queryIndex < query.length) {
       if (name[nameIndex] === query[queryIndex]) {
         matches++
@@ -557,15 +560,15 @@ export class TreeManager {
       }
       nameIndex++
     }
-    
+
     if (queryIndex < query.length) {
       return 0 // Didn't match all query characters
     }
-    
+
     // Score based on percentage of characters matched and compactness
     const matchPercentage = matches / query.length
     const compactness = query.length / (nameIndex - queryIndex + query.length)
-    
+
     return Math.floor(matchPercentage * compactness * 40)
   }
 
@@ -618,7 +621,11 @@ export class TreeManager {
    * @param options - Search options for priority type bonus
    * @returns Search result with node, score, and context
    */
-  private createSearchResult(node: TreeNode, fuzzyScore: number, options: SearchOptions): SearchResult {
+  private createSearchResult(
+    node: TreeNode,
+    fuzzyScore: number,
+    options: SearchOptions,
+  ): SearchResult {
     return {
       node,
       filePath: node.path,
@@ -841,7 +848,11 @@ export class TreeManager {
    * @param options - Search options
    * @returns Array of matching search results
    */
-  private performSearch(project: ProjectTree, query: string, options: SearchOptions): SearchResult[] {
+  private performSearch(
+    project: ProjectTree,
+    query: string,
+    options: SearchOptions,
+  ): SearchResult[] {
     const results: SearchResult[] = []
     const nodeIndexesToSearch = this.getNodeIndexesToSearch(project, options.scope)
 
@@ -872,7 +883,7 @@ export class TreeManager {
 
     for (const [name, nodes] of nodeIndex) {
       const fuzzyScore = this.matchesQuery(name, query, options)
-      
+
       if (fuzzyScore >= threshold) {
         for (const node of nodes) {
           if (this.matchesFilters(node, options)) {

@@ -193,7 +193,8 @@ export async function startMCPServer(_config: Config): Promise<void> {
               },
               priorityType: {
                 type: 'string',
-                description: 'Boost specific element types in search ranking (function, method, class, interface, variable)',
+                description:
+                  'Boost specific element types in search ranking (function, method, class, interface, variable)',
               },
               fuzzyThreshold: {
                 type: 'number',

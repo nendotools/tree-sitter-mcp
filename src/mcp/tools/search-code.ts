@@ -143,6 +143,9 @@ export async function searchCode(
     }
 
     // Wrap other errors in a system error
-    throw ErrorFactory.systemError('code search', error instanceof Error ? error.message : String(error))
+    throw ErrorFactory.systemError(
+      'code search',
+      error instanceof Error ? error.message : String(error),
+    )
   }
 }

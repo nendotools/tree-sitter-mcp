@@ -45,7 +45,9 @@ const MCP_CONFIGS = {
 /**
  * Generate complete MCP server configuration with tree-sitter entry
  */
-function createMCPServerConfig(config: typeof MCP_CONFIGS.npx | typeof MCP_CONFIGS.global | ReturnType<typeof MCP_CONFIGS.local>) {
+function createMCPServerConfig(
+  config: typeof MCP_CONFIGS.npx | typeof MCP_CONFIGS.global | ReturnType<typeof MCP_CONFIGS.local>,
+) {
   return {
     mcpServers: {
       'tree-sitter': config,
@@ -398,22 +400,14 @@ async function manualSetup(): Promise<void> {
   switch (method) {
     case 'npx':
       logger.info(chalk.white('Add this to your MCP client configuration:\n'))
-      logger.info(
-        chalk.gray(
-          formatJsonConfig(createMCPServerConfig(MCP_CONFIGS.npx)),
-        ),
-      )
+      logger.info(chalk.gray(formatJsonConfig(createMCPServerConfig(MCP_CONFIGS.npx))))
       break
 
     case 'global':
       logger.info(chalk.white('1. Install globally:\n'))
       logger.info(chalk.gray('   npm install -g @nendo/tree-sitter-mcp\n'))
       logger.info(chalk.white('2. Add this to your MCP client configuration:\n'))
-      logger.info(
-        chalk.gray(
-          formatJsonConfig(createMCPServerConfig(MCP_CONFIGS.global)),
-        ),
-      )
+      logger.info(chalk.gray(formatJsonConfig(createMCPServerConfig(MCP_CONFIGS.global))))
       break
 
     case 'local':
@@ -425,7 +419,9 @@ async function manualSetup(): Promise<void> {
       logger.info(chalk.white('2. Add this to your MCP client configuration:\n'))
       logger.info(
         chalk.gray(
-          formatJsonConfig(createMCPServerConfig(MCP_CONFIGS.local('/path/to/tree-sitter-mcp/dist/cli.js'))),
+          formatJsonConfig(
+            createMCPServerConfig(MCP_CONFIGS.local('/path/to/tree-sitter-mcp/dist/cli.js')),
+          ),
         ),
       )
       break
@@ -619,9 +615,7 @@ async function configureClient(
 
       const config = method === 'npx' ? MCP_CONFIGS.npx : MCP_CONFIGS.global
 
-      logger.info(
-        chalk.gray('\n' + formatJsonConfig(createMCPServerConfig(config))),
-      )
+      logger.info(chalk.gray('\n' + formatJsonConfig(createMCPServerConfig(config))))
       break
     }
 

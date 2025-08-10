@@ -231,7 +231,9 @@ describe('Integration Tests with Fixtures', () => {
 
       // Should find the function definition
       const resultFiles = generateUUIDResults.map(r => r.filePath)
-      expect(resultFiles.some(f => f.includes('shared-utils') || f.includes('index.ts'))).toBe(true)
+      expect(resultFiles.some(f => f.includes('shared-utils') || f.includes('index.ts'))).toBe(
+        true,
+      )
     })
   })
 
@@ -295,12 +297,16 @@ describe('Integration Tests with Fixtures', () => {
 
   describe('MCP Tools Integration', () => {
     it('should work with initialize-project tool', async () => {
-      const result = await initializeProject({
-        projectId: 'mcp-test-init',
-        directory: simpleProjectDir,
-        languages: ['typescript'],
-        autoWatch: false,
-      }, treeManager, fileWatcher)
+      const result = await initializeProject(
+        {
+          projectId: 'mcp-test-init',
+          directory: simpleProjectDir,
+          languages: ['typescript'],
+          autoWatch: false,
+        },
+        treeManager,
+        fileWatcher,
+      )
 
       expect(result.type).toBe('text')
       expect(result.text).toContain('[OK]')
@@ -310,20 +316,28 @@ describe('Integration Tests with Fixtures', () => {
 
     it('should work with search-code tool', async () => {
       // First initialize
-      await initializeProject({
-        projectId: 'mcp-test-search',
-        directory: simpleProjectDir,
-        languages: ['typescript'],
-        autoWatch: false,
-      }, treeManager, fileWatcher)
+      await initializeProject(
+        {
+          projectId: 'mcp-test-search',
+          directory: simpleProjectDir,
+          languages: ['typescript'],
+          autoWatch: false,
+        },
+        treeManager,
+        fileWatcher,
+      )
 
       // Then search
-      const result = await searchCode({
-        projectId: 'mcp-test-search',
-        query: 'User',
-        types: ['class'],
-        maxResults: 10,
-      }, treeManager, fileWatcher)
+      const result = await searchCode(
+        {
+          projectId: 'mcp-test-search',
+          query: 'User',
+          types: ['class'],
+          maxResults: 10,
+        },
+        treeManager,
+        fileWatcher,
+      )
 
       expect(result.type).toBe('text')
       expect(result.text).toContain('Found')
@@ -333,19 +347,27 @@ describe('Integration Tests with Fixtures', () => {
 
     it('should work with find-usage tool', async () => {
       // First initialize
-      await initializeProject({
-        projectId: 'mcp-test-usage',
-        directory: simpleProjectDir,
-        languages: ['typescript'],
-        autoWatch: false,
-      }, treeManager, fileWatcher)
+      await initializeProject(
+        {
+          projectId: 'mcp-test-usage',
+          directory: simpleProjectDir,
+          languages: ['typescript'],
+          autoWatch: false,
+        },
+        treeManager,
+        fileWatcher,
+      )
 
       // Then find usage
-      const result = await findUsage({
-        projectId: 'mcp-test-usage',
-        identifier: 'User',
-        exactMatch: false,
-      }, treeManager, fileWatcher)
+      const result = await findUsage(
+        {
+          projectId: 'mcp-test-usage',
+          identifier: 'User',
+          exactMatch: false,
+        },
+        treeManager,
+        fileWatcher,
+      )
 
       expect(result.type).toBe('text')
       // Should either find usages or complete without error

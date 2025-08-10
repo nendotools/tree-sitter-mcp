@@ -49,6 +49,9 @@ export async function updateFile(
     }
 
     // Wrap other errors in a system error
-    throw ErrorFactory.systemError('file update', error instanceof Error ? error.message : String(error))
+    throw ErrorFactory.systemError(
+      'file update',
+      error instanceof Error ? error.message : String(error),
+    )
   }
 }

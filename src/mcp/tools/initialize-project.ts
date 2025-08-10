@@ -138,6 +138,9 @@ export async function initializeProject(
     }
 
     // Wrap other errors in a system error
-    throw ErrorFactory.systemError('project initialization', error instanceof Error ? error.message : String(error))
+    throw ErrorFactory.systemError(
+      'project initialization',
+      error instanceof Error ? error.message : String(error),
+    )
   }
 }
