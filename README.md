@@ -66,16 +66,16 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ### Local Development
 
 ```bash
-git clone https://github.com/your-username/tree-sitter-mcp.git
+git clone <repository-url>
 cd tree-sitter-mcp
-yarn install
-yarn build
+npm install
+npm run build
 
 # Run MCP server
-yarn mcp
+npm run mcp
 
 # Or install globally
-yarn global-install
+npm install -g .
 tree-sitter-mcp setup
 ```
 
@@ -176,10 +176,10 @@ Tree-Sitter MCP maintains an in-memory index of your codebase's abstract syntax 
 ## Development
 
 ```bash
-yarn dev          # Run with hot reload
-yarn build        # Build for production
-yarn test         # Run tests
-yarn typecheck    # Check types
+npm run dev       # Run with hot reload
+npm run build     # Build for production
+npm test          # Run tests
+npm run typecheck # Check types
 ```
 
 ## License
@@ -188,7 +188,7 @@ MIT
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions are welcome! Please open an issue or pull request.
 
 ## Acknowledgments
 

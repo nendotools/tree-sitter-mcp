@@ -17,7 +17,7 @@ export const NODE_TYPES = {
   TYPE: 'type',
   IMPORT: 'import',
   EXPORT: 'export',
-} as const;
+} as const
 
 // Language to file extension mappings
 export const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
@@ -32,7 +32,7 @@ export const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
   ruby: ['.rb'],
   php: ['.php'],
   vue: ['.vue'],
-} as const;
+} as const
 
 // Search configuration
 export const SEARCH = {
@@ -43,11 +43,11 @@ export const SEARCH = {
   SCORE_CONTAINS_MATCH: 50,
   SCORE_BOOST_CLASS: 10,
   SCORE_BOOST_FUNCTION: 5,
-} as const;
+} as const
 
 // File change event types
 export const CHANGE_EVENTS = {
   CREATED: 'created',
   MODIFIED: 'modified',
   DELETED: 'deleted',
-} as const;
+} as const

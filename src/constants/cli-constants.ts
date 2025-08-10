@@ -16,7 +16,7 @@ export const CLI_FLAGS = {
   VERBOSE: '--verbose',
   QUIET: '--quiet',
   SETUP: '--setup',
-} as const;
+} as const
 
 // Log levels
 export const LOG_LEVELS = {
@@ -25,4 +25,4 @@ export const LOG_LEVELS = {
   INFO: 'info',
   DEBUG: 'debug',
   VERBOSE: 'verbose',
-} as const;
+} as const
