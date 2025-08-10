@@ -131,67 +131,6 @@ program
   )
 
 /**
- * Sets up logger and handles debug logging
- *
- * @param options - CLI options containing logging preferences
- * @returns Configured logger instance
- */
-function setupLogger(options: CLIOptions): ConsoleLogger {
-  const logger = new ConsoleLogger({
-    level: options.verbose ? LOG_LEVELS.VERBOSE : LOG_LEVELS.INFO,
-    quiet: options.quiet || false,
-    useColors: true,
-  })
-  setLogger(logger)
-  return logger
-}
-
-/**
- * Writes debug information to global log file if debug mode is enabled
- *
- * @param options - CLI options to include in debug output
- */
-async function writeDebugLog(options: CLIOptions): Promise<void> {
-  if (process.env.TREE_SITTER_MCP_DEBUG !== 'true') return
-
-  try {
-    const { homedir } = await import('os')
-    const { appendFileSync } = await import('fs')
-    const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log')
-    const timestamp = new Date().toISOString()
-    const cliStartupInfo = `[${timestamp}] CLI Startup:
-  - Raw Args: ${JSON.stringify(process.argv)}
-  - Parsed Options: ${JSON.stringify(options)}
-  - Process CWD: ${process.cwd()}
-  - stdin.isTTY: ${process.stdin.isTTY}
-  - Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}
-\n`
-    appendFileSync(globalLogPath, cliStartupInfo)
-  }
-  catch {
-    // Ignore errors writing to global debug log
-  }
-}
-
-/**
- * Handles special commands that exit immediately
- *
- * @param options - CLI options to check for special commands
- * @returns Promise that resolves if no special commands, exits process otherwise
- */
-async function handleSpecialCommands(options: CLIOptions): Promise<void> {
-  if (options.listLanguages) {
-    handleListLanguages()
-    process.exit(0)
-  }
-
-  if (options.setup) {
-    await handleSetup()
-    process.exit(0)
-  }
-}
-
-/**
  * Determines execution mode and logs debug information
  *
  * @param options - CLI options
@@ -245,13 +184,45 @@ async function runExecutionMode(shouldRunMCP: boolean, config: Config, logger: C
  * @param options - Parsed CLI options from commander
  */
 async function handleMainAction(options: CLIOptions): Promise<void> {
-  const logger = setupLogger(options)
+  const logger = new ConsoleLogger({
+    level: options.verbose ? LOG_LEVELS.VERBOSE : LOG_LEVELS.INFO,
+    quiet: options.quiet || false,
+    useColors: true,
+  })
+  setLogger(logger)
 
-  await writeDebugLog(options)
+  // Write debug log if enabled
+  if (process.env.TREE_SITTER_MCP_DEBUG === 'true') {
+    try {
+      const { homedir } = await import('os')
+      const { appendFileSync } = await import('fs')
+      const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log')
+      const timestamp = new Date().toISOString()
+      const cliStartupInfo = `[${timestamp}] CLI Startup:
+  - Raw Args: ${JSON.stringify(process.argv)}
+  - Parsed Options: ${JSON.stringify(options)}
+  - Process CWD: ${process.cwd()}
+  - stdin.isTTY: ${process.stdin.isTTY}
+  - Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}
+\n`
+      appendFileSync(globalLogPath, cliStartupInfo)
+    }
+    catch {
+      // Ignore errors writing to global debug log
+    }
+  }
 
   try {
     // Handle special commands first
-    await handleSpecialCommands(options)
+    if (options.listLanguages) {
+      handleListLanguages()
+      process.exit(0)
+    }
+
+    if (options.setup) {
+      await handleSetup()
+      process.exit(0)
+    }
 
     // Parse configuration
     const config = parseConfig(options)

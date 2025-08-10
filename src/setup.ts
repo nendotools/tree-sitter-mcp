@@ -10,6 +10,49 @@ import { getLogger } from './utils/logger.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
+/**
+ * Utility function to log JSON configuration with consistent formatting
+ */
+function logJsonConfig(config: unknown): void {
+  getLogger().info(chalk.gray(formatJsonConfig(config)))
+}
+
+/**
+ * Utility function to create formatted JSON string for file writing
+ */
+function formatJsonConfig(config: unknown): string {
+  return JSON.stringify(config, null, 2)
+}
+
+/**
+ * Standard MCP server configurations
+ */
+const MCP_CONFIGS = {
+  npx: {
+    command: 'npx' as const,
+    args: ['@nendo/tree-sitter-mcp@latest', '--mcp'],
+  },
+  global: {
+    command: 'tree-sitter-mcp' as const,
+    args: ['--mcp'],
+  },
+  local: (cliPath: string) => ({
+    command: 'node' as const,
+    args: [cliPath, '--mcp'],
+  }),
+}
+
+/**
+ * Generate complete MCP server configuration with tree-sitter entry
+ */
+function createMCPServerConfig(config: typeof MCP_CONFIGS.npx | typeof MCP_CONFIGS.global | ReturnType<typeof MCP_CONFIGS.local>) {
+  return {
+    mcpServers: {
+      'tree-sitter': config,
+    },
+  }
+}
+
 interface MCPConfig {
   mcpServers?: {
     [key: string]: {
@@ -250,16 +293,9 @@ async function npmSetup(): Promise<void> {
   logger.info(chalk.cyan('\n=== NPM/NPX Setup ===\n'))
   logger.info(chalk.white('Add this to your MCP client configuration:\n'))
 
-  const config = {
-    mcpServers: {
-      'tree-sitter': {
-        command: 'npx',
-        args: ['@nendo/tree-sitter-mcp@latest'],
-      },
-    },
-  }
+  const config = createMCPServerConfig(MCP_CONFIGS.npx)
 
-  logger.info(chalk.gray(JSON.stringify(config, null, 2)))
+  logJsonConfig(config)
 
   logger.info(chalk.cyan('\nConfiguration locations:\n'))
 
@@ -309,16 +345,9 @@ async function globalSetup(): Promise<void> {
 
   logger.info(chalk.white('Add this to your MCP client configuration:\n'))
 
-  const config = {
-    mcpServers: {
-      'tree-sitter': {
-        command: 'tree-sitter-mcp',
-        args: [],
-      },
-    },
-  }
+  const config = createMCPServerConfig(MCP_CONFIGS.global)
 
-  logger.info(chalk.gray(JSON.stringify(config, null, 2)))
+  logJsonConfig(config)
 
   const { showLocations } = await inquirer.prompt([
     {
@@ -371,18 +400,7 @@ async function manualSetup(): Promise<void> {
       logger.info(chalk.white('Add this to your MCP client configuration:\n'))
       logger.info(
         chalk.gray(
-          JSON.stringify(
-            {
-              mcpServers: {
-                'tree-sitter': {
-                  command: 'npx',
-                  args: ['@nendo/tree-sitter-mcp@latest'],
-                },
-              },
-            },
-            null,
-            2,
-          ),
+          formatJsonConfig(createMCPServerConfig(MCP_CONFIGS.npx)),
         ),
       )
       break
@@ -393,18 +411,7 @@ async function manualSetup(): Promise<void> {
       logger.info(chalk.white('2. Add this to your MCP client configuration:\n'))
       logger.info(
         chalk.gray(
-          JSON.stringify(
-            {
-              mcpServers: {
-                'tree-sitter': {
-                  command: 'tree-sitter-mcp',
-                  args: [],
-                },
-              },
-            },
-            null,
-            2,
-          ),
+          formatJsonConfig(createMCPServerConfig(MCP_CONFIGS.global)),
         ),
       )
       break
@@ -418,18 +425,7 @@ async function manualSetup(): Promise<void> {
       logger.info(chalk.white('2. Add this to your MCP client configuration:\n'))
       logger.info(
         chalk.gray(
-          JSON.stringify(
-            {
-              mcpServers: {
-                'tree-sitter': {
-                  command: 'node',
-                  args: ['/path/to/tree-sitter-mcp/dist/cli.js'],
-                },
-              },
-            },
-            null,
-            2,
-          ),
+          formatJsonConfig(createMCPServerConfig(MCP_CONFIGS.local('/path/to/tree-sitter-mcp/dist/cli.js'))),
         ),
       )
       break
@@ -621,13 +617,10 @@ async function configureClient(
       logger.info(chalk.dim(`  Please add the configuration manually using:`))
       logger.info(chalk.dim(`  Command palette → "MCP: Edit Settings"`))
 
-      const config
-        = method === 'npx'
-          ? { command: 'npx', args: ['@nendo/tree-sitter-mcp@latest'] }
-          : { command: 'tree-sitter-mcp', args: [] }
+      const config = method === 'npx' ? MCP_CONFIGS.npx : MCP_CONFIGS.global
 
       logger.info(
-        chalk.gray('\n' + JSON.stringify({ mcpServers: { 'tree-sitter': config } }, null, 2)),
+        chalk.gray('\n' + formatJsonConfig(createMCPServerConfig(config))),
       )
       break
     }
@@ -667,19 +660,13 @@ async function configureClaudeDesktop(configPath: string, method: 'npx' | 'globa
   }
 
   if (method === 'npx') {
-    config.mcpServers['tree-sitter'] = {
-      command: 'npx',
-      args: ['@nendo/tree-sitter-mcp@latest'],
-    }
+    config.mcpServers['tree-sitter'] = MCP_CONFIGS.npx
   }
   else {
-    config.mcpServers['tree-sitter'] = {
-      command: 'tree-sitter-mcp',
-      args: ['--mcp'],
-    }
+    config.mcpServers['tree-sitter'] = MCP_CONFIGS.global
   }
 
-  writeFileSync(configPath, JSON.stringify(config, null, 2))
+  writeFileSync(configPath, formatJsonConfig(config))
   logger.info(chalk.green('  [OK] Claude Desktop configured'))
 }
 
@@ -840,19 +827,13 @@ async function configureCLIClient(client: MCPClient, method: 'npx' | 'global'): 
   }
 
   if (method === 'npx') {
-    config.mcpServers['tree-sitter'] = {
-      command: 'npx',
-      args: ['@nendo/tree-sitter-mcp@latest'],
-    }
+    config.mcpServers['tree-sitter'] = MCP_CONFIGS.npx
   }
   else {
-    config.mcpServers['tree-sitter'] = {
-      command: 'tree-sitter-mcp',
-      args: ['--mcp'],
-    }
+    config.mcpServers['tree-sitter'] = MCP_CONFIGS.global
   }
 
-  writeFileSync(client.configPath, JSON.stringify(config, null, 2))
+  writeFileSync(client.configPath, formatJsonConfig(config))
   logger.info(chalk.green(`  [OK] ${client.name} configured`))
 }
 
@@ -926,14 +907,14 @@ async function createDefaultConfig(interactive: boolean = false): Promise<void> 
 
     if (customize) {
       const customConfig = await customizeConfig(defaultConfig)
-      writeFileSync(configPath, JSON.stringify(customConfig, null, 2))
+      writeFileSync(configPath, formatJsonConfig(customConfig))
     }
     else {
-      writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2))
+      writeFileSync(configPath, formatJsonConfig(defaultConfig))
     }
   }
   else {
-    writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2))
+    writeFileSync(configPath, formatJsonConfig(defaultConfig))
   }
 
   logger.info(chalk.green('\n[OK] Configuration created at:'))
