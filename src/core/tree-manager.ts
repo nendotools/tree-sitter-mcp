@@ -255,7 +255,7 @@ export class TreeManager {
 
   private addFileToTree(project: ProjectTree, parseResult: ParseResult): void {
     const filePath = parseResult.file.path
-    
+
     // Create file node
     const fileNode: TreeNode = {
       id: generateId(),

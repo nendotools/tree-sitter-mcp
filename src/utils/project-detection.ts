@@ -33,7 +33,7 @@ const PROJECT_ROOT_INDICATORS = [
 export function findProjectRoot(startDir?: string): string {
   let currentDir = resolve(startDir || process.cwd())
   const rootDir = resolve('/')
-  
+
   while (currentDir !== rootDir) {
     // Check if any project indicators exist in this directory
     for (const indicator of PROJECT_ROOT_INDICATORS) {
@@ -42,7 +42,7 @@ export function findProjectRoot(startDir?: string): string {
         return currentDir
       }
     }
-    
+
     // Move up one directory
     const parentDir = dirname(currentDir)
     if (parentDir === currentDir) {
@@ -51,16 +51,7 @@ export function findProjectRoot(startDir?: string): string {
     }
     currentDir = parentDir
   }
-  
+
   // If no project root found, return the starting directory
   return resolve(startDir || process.cwd())
-}
-
-/**
- * Check if a directory appears to be a project root
- */
-export function isProjectRoot(dir: string): boolean {
-  return PROJECT_ROOT_INDICATORS.some(indicator => 
-    existsSync(resolve(dir, indicator))
-  )
 }

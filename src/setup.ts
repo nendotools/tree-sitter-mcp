@@ -538,6 +538,7 @@ function detectMCPClients(): MCPClient[] {
   }
 
   const claudeCodeConfigPaths = [
+    join(home, '.claude', 'settings.json'), // User-scoped settings (preferred)
     join(home, '.claude.json'),
     join(home, '.claude', 'settings.local.json'),
   ]
@@ -668,60 +669,88 @@ async function configureClaudeDesktop(configPath: string, method: 'npx' | 'globa
   logger.info(chalk.green('  [OK] Claude Desktop configured'))
 }
 
-async function configureClaudeCode(configPath: string, method: 'npx' | 'global'): Promise<void> {
+async function configureClaudeCode(_configPath: string, method: 'npx' | 'global'): Promise<void> {
   const logger = getLogger()
-  let config: any = {}
+  const home = homedir()
 
-  if (existsSync(configPath)) {
+  try {
+    // Remove existing tree-sitter MCP if present
+    logger.info(chalk.dim('  Removing existing tree-sitter MCP if present...'))
     try {
-      const content = readFileSync(configPath, 'utf-8')
-      config = JSON.parse(content)
-      logger.info(chalk.dim('  Updating existing configuration...'))
+      execSync('claude mcp remove tree-sitter -s user', { stdio: 'pipe' })
     }
     catch {
-      logger.info(chalk.yellow('  Warning: Could not parse existing config, creating backup...'))
-      const backupPath = `${configPath}.backup`
-      writeFileSync(backupPath, readFileSync(configPath, 'utf-8'))
-      logger.info(chalk.dim(`  Backup saved to: ${backupPath}`))
+      // Ignore errors if tree-sitter MCP doesn't exist
+    }
+
+    // Add tree-sitter MCP using claude mcp command
+    let mcpCommand: string
+
+    if (method === 'npx') {
+      // Check if package is published to npm
+      try {
+        execSync('npm view tree-sitter-mcp version', { stdio: 'pipe' })
+        mcpCommand = 'claude mcp add tree-sitter -s user "npx tree-sitter-mcp@latest"'
+        logger.info(chalk.dim('  Using published npm package'))
+      }
+      catch {
+        // Package not published, use absolute path to local build
+        const localCliPath = join(__dirname, '..', 'dist', 'cli.js')
+        if (existsSync(localCliPath)) {
+          mcpCommand = `claude mcp add tree-sitter -s user "node ${localCliPath} --mcp"`
+          logger.info(chalk.yellow('  Package not published, using local development build'))
+        }
+        else {
+          throw new Error('Local build not found. Run "npm run build" first.')
+        }
+      }
+    }
+    else {
+      // For global method, try to use global command, fallback to local if needed
+      try {
+        execSync('which tree-sitter-mcp', { stdio: 'pipe' })
+        mcpCommand = 'claude mcp add tree-sitter -s user "tree-sitter-mcp --mcp"'
+        logger.info(chalk.dim('  Using globally installed command'))
+      }
+      catch {
+        // Global command not available, use local build
+        const localCliPath = join(__dirname, '..', 'dist', 'cli.js')
+        if (existsSync(localCliPath)) {
+          mcpCommand = `claude mcp add tree-sitter -s user "node ${localCliPath} --mcp"`
+          logger.info(chalk.yellow('  Global command not found, using local development build'))
+        }
+        else {
+          throw new Error('Neither global command nor local build found. Run "npm run build" and/or "npm run global-install".')
+        }
+      }
+    }
+
+    logger.info(chalk.dim(`  Adding tree-sitter MCP: ${mcpCommand}`))
+    execSync(mcpCommand, { stdio: 'pipe' })
+    logger.info(chalk.green('  [OK] Tree-sitter MCP added to user scope'))
+
+    // Copy agent to ~/.claude/agents directory
+    const agentsDir = join(home, '.claude', 'agents')
+    const agentSourcePath = join(__dirname, '..', 'agents', 'treesitter-code-agent.md')
+    const agentDestPath = join(agentsDir, 'treesitter-code-agent.md')
+
+    if (existsSync(agentSourcePath)) {
+      if (!existsSync(agentsDir)) {
+        mkdirSync(agentsDir, { recursive: true })
+      }
+
+      const agentContent = readFileSync(agentSourcePath, 'utf-8')
+      writeFileSync(agentDestPath, agentContent)
+      logger.info(chalk.green('  [OK] Tree-sitter agent copied to ~/.claude/agents'))
+    }
+    else {
+      logger.info(chalk.yellow('  Warning: Agent file not found, skipping agent copy'))
     }
   }
-  else {
-    logger.info(chalk.dim('  Creating new configuration...'))
-    const dir = dirname(configPath)
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true })
-    }
+  catch (error) {
+    logger.error(chalk.red('  [ERROR] Failed to configure Claude Code:'), error instanceof Error ? error.message : error)
+    throw error
   }
-
-  if (!config.projects) {
-    config.projects = {}
-  }
-
-  const currentDir = process.cwd()
-
-  if (!config.projects[currentDir]) {
-    config.projects[currentDir] = {}
-  }
-
-  if (!config.projects[currentDir].mcpServers) {
-    config.projects[currentDir].mcpServers = {}
-  }
-
-  if (method === 'npx') {
-    config.projects[currentDir].mcpServers['tree-sitter'] = {
-      command: 'npx',
-      args: ['tree-sitter-mcp@latest'],
-    }
-  }
-  else {
-    config.projects[currentDir].mcpServers['tree-sitter'] = {
-      command: 'tree-sitter-mcp',
-      args: ['--mcp'],
-    }
-  }
-
-  writeFileSync(configPath, JSON.stringify(config, null, 2))
-  logger.info(chalk.green('  [OK] Claude Code configured'))
 }
 
 async function configureCLIClient(client: MCPClient, method: 'npx' | 'global'): Promise<void> {

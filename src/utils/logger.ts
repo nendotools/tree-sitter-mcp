@@ -29,20 +29,20 @@ export class ConsoleLogger implements Logger {
     this.useColors = options.useColors ?? process.stdout.isTTY
     this.logToFile = options.logToFile || false
     this.logFilePath = options.logFilePath
-    
+
     if (this.logToFile && this.logFilePath) {
       this.initializeLogFile()
     }
   }
-  
+
   private initializeLogFile(): void {
     if (!this.logFilePath) return
-    
+
     const logDir = resolve(this.logFilePath, '..')
     if (!existsSync(logDir)) {
       mkdirSync(logDir, { recursive: true })
     }
-    
+
     const timestamp = new Date().toISOString()
     writeFileSync(this.logFilePath, `=== Tree-Sitter MCP Log Started ${timestamp} ===\n`)
   }
@@ -141,7 +141,7 @@ export class ConsoleLogger implements Logger {
   setQuiet(quiet: boolean): void {
     this.quiet = quiet
   }
-  
+
   private writeToFile(level: LogLevel, message: string, ...args: unknown[]): void {
     if (this.logToFile && this.logFilePath) {
       const timestamp = new Date().toISOString()
@@ -168,8 +168,3 @@ export function getLogger(): Logger {
 }
 
 // Export convenience functions
-export const error = (message: string, ...args: unknown[]) => logger.error(message, ...args)
-export const warn = (message: string, ...args: unknown[]) => logger.warn(message, ...args)
-export const info = (message: string, ...args: unknown[]) => logger.info(message, ...args)
-export const debug = (message: string, ...args: unknown[]) => logger.debug(message, ...args)
-export const verbose = (message: string, ...args: unknown[]) => logger.verbose(message, ...args)

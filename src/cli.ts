@@ -29,9 +29,17 @@ interface PackageJson {
   [key: string]: unknown
 }
 
-const packageJson = JSON.parse(
-  readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'),
-) as PackageJson
+// Load package.json with error handling for different execution contexts
+let packageJson: PackageJson
+try {
+  packageJson = JSON.parse(
+    readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'),
+  ) as PackageJson
+}
+catch {
+  // Fallback for when package.json is not found (e.g., when run from different directory)
+  packageJson = { version: '1.0.0' } as PackageJson
+}
 
 // Create the CLI program
 const program = new Command()

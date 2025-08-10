@@ -32,7 +32,7 @@ import * as tools from './tools/index.js'
 
 export async function startMCPServer(_config: Config): Promise<void> {
   const enableDebugLogging = process.env.TREE_SITTER_MCP_DEBUG === 'true'
-  
+
   let logger: ConsoleLogger
   if (enableDebugLogging) {
     const projectRoot = findProjectRoot()
@@ -47,7 +47,8 @@ export async function startMCPServer(_config: Config): Promise<void> {
     logger.info('Starting MCP server with debug file logging enabled')
     logger.info(`Process cwd: ${process.cwd()}`)
     logger.info(`Log file: ${logFilePath}`)
-  } else {
+  }
+  else {
     logger = new ConsoleLogger({
       level: LOG_LEVELS.INFO,
       logToFile: false,
