@@ -82,7 +82,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.INITIALIZE_PROJECT,
           description:
-            'Initialize a project for fast code searching. This caches the project structure in memory.',
+            'Pre-cache a project structure for faster searches and enable file watching. Optional performance optimization - search_code auto-initializes projects when needed.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -119,7 +119,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.SEARCH_CODE,
           description:
-            'Search for files, classes, methods, functions, or variables by name. Auto-initializes project if needed.',
+            'Find code elements semantically with AST parsing precision. Use this INSTEAD of grep/find commands for discovering functions, classes, methods, interfaces, or variables. Provides exact definitions with context.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -160,7 +160,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.FIND_USAGE,
           description:
-            'Find all lines that use a specific function, variable, class, or identifier. Searches through project files for usage occurrences.',
+            'ESSENTIAL for refactoring impact analysis and dependency mapping. Find every usage of any identifier across the codebase with containing function context. Use this BEFORE modifying any code element to understand the complete impact scope.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -199,7 +199,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         },
         {
           name: MCP_TOOLS.UPDATE_FILE,
-          description: 'Manually update a specific file in the project tree',
+          description: 'Force re-parsing of a specific file when search results seem outdated. Use after file modifications to ensure search accuracy.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -217,7 +217,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         },
         {
           name: MCP_TOOLS.PROJECT_STATUS,
-          description: 'Get status of initialized projects and memory usage',
+          description: 'Check project initialization status, memory usage, and parsing statistics. Use to verify projects are properly indexed before searching.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -234,7 +234,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         },
         {
           name: MCP_TOOLS.DESTROY_PROJECT,
-          description: 'Destroy a project to free memory',
+          description: 'Clean up project from memory when switching between codebases. Use for memory management in long-running analysis sessions.',
           inputSchema: {
             type: 'object',
             properties: {

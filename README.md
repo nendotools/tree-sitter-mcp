@@ -160,19 +160,44 @@ Free memory by removing a project from the index.
 
 ## Debug Logging
 
-To enable detailed debug logging for troubleshooting, set the environment variable:
+To enable detailed debug logging for troubleshooting, you need to modify your MCP client configuration to set the environment variable.
 
-```bash
-TREE_SITTER_MCP_DEBUG=true npx tree-sitter-mcp@latest
+**For NPX users, update your MCP config:**
+```json
+{
+  "mcpServers": {
+    "tree-sitter": {
+      "command": "npx",
+      "args": ["tree-sitter-mcp@latest"],
+      "env": {
+        "TREE_SITTER_MCP_DEBUG": "true"
+      }
+    }
+  }
+}
+```
+
+**For global installation users:**
+```json
+{
+  "mcpServers": {
+    "tree-sitter": {
+      "command": "tree-sitter-mcp",
+      "env": {
+        "TREE_SITTER_MCP_DEBUG": "true"
+      }
+    }
+  }
+}
 ```
 
 This will:
 - Enable verbose logging output
-- Write detailed logs to `logs/mcp-server.log` 
+- Write detailed logs to `logs/mcp-server.log` in the project directory
 - Show file walking, parsing, and indexing details
 - Display memory usage and performance metrics
 
-**Note:** Debug logging is disabled by default for optimal performance.
+**Note:** Debug logging is disabled by default for optimal performance. Remember to remove the `env` section when troubleshooting is complete.
 
 ## How It Works
 
