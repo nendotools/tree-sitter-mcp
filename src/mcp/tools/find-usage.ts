@@ -83,16 +83,16 @@ export async function findUsage(
       const usages = usagesByFile.get(filePath)!
       usages.sort((a, b) => a.line - b.line)
 
-      lines.push(`📁 ${filePath}`)
+      lines.push(`File: ${filePath}`)
 
       for (const usage of usages) {
         const displayContent
           = usage.content.length > USAGE_SEARCH.MAX_LINE_LENGTH_DISPLAY
             ? `${usage.content.slice(0, USAGE_SEARCH.MAX_LINE_LENGTH_DISPLAY)}...`
             : usage.content
-        lines.push(`   📍 Line ${usage.line}: ${displayContent}`)
+        lines.push(`   Line ${usage.line}: ${displayContent}`)
         if (usage.context) {
-          lines.push(`      🔍 In: ${usage.context}`)
+          lines.push(`      In: ${usage.context}`)
         }
       }
       lines.push('')

@@ -31,20 +31,32 @@ import { getParserRegistry } from '../parsers/registry.js'
 import * as tools from './tools/index.js'
 
 export async function startMCPServer(_config: Config): Promise<void> {
+  // Enable debug logging if TREE_SITTER_MCP_DEBUG environment variable is set
   const enableDebugLogging = process.env.TREE_SITTER_MCP_DEBUG === 'true'
 
   // Always write startup debug info to a global log file for Claude Code troubleshooting
   const { homedir } = await import('os')
   const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log')
   const timestamp = new Date().toISOString()
-  const startupInfo = `[${timestamp}] MCP Server Startup - CWD: ${process.cwd()}, Args: ${JSON.stringify(process.argv)}, Env: TREE_SITTER_MCP_DEBUG=${process.env.TREE_SITTER_MCP_DEBUG}\n`
+  const startupInfo = `[${timestamp}] MCP Server Startup:
+  - Mode: MCP Server (confirmed)
+  - CWD: ${process.cwd()}
+  - Args: ${JSON.stringify(process.argv)}
+  - stdin.isTTY: ${process.stdin.isTTY}
+  - stdout.isTTY: ${process.stdout.isTTY}
+  - stderr.isTTY: ${process.stderr.isTTY}
+  - NODE_ENV: ${process.env.NODE_ENV || 'undefined'}
+  - TREE_SITTER_MCP_DEBUG: ${process.env.TREE_SITTER_MCP_DEBUG || 'undefined'}
+  - Parent PID: ${process.ppid || 'undefined'}
+  - Process Title: ${process.title || 'undefined'}
+\n`
 
   try {
     const { appendFileSync } = await import('fs')
     appendFileSync(globalLogPath, startupInfo)
   }
   catch {
-    // Ignore write errors for global debug log
+    // Ignore write errors
   }
 
   let logger: ConsoleLogger
@@ -72,12 +84,9 @@ export async function startMCPServer(_config: Config): Promise<void> {
     logger.info('Starting MCP server')
   }
 
-  // Initialize core components
   const parserRegistry = getParserRegistry()
   const treeManager = new TreeManager(parserRegistry)
   const fileWatcher = new BatchFileWatcher(treeManager)
-
-  // Create MCP server
   const server = new Server(
     {
       name: 'tree-sitter-mcp',
@@ -90,7 +99,6 @@ export async function startMCPServer(_config: Config): Promise<void> {
     },
   )
 
-  // Register tool handlers
   server.setRequestHandler(ListToolsRequestSchema, () => {
     return {
       tools: [
@@ -265,7 +273,6 @@ export async function startMCPServer(_config: Config): Promise<void> {
     }
   })
 
-  // Handle tool calls
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params
 
@@ -342,7 +349,6 @@ export async function startMCPServer(_config: Config): Promise<void> {
     }
   })
 
-  // Create transport
   const transport = new StdioServerTransport()
 
   // Handle shutdown
@@ -362,7 +368,6 @@ export async function startMCPServer(_config: Config): Promise<void> {
     })
   })
 
-  // Start server
   logger.info('Starting Tree-Sitter MCP server...')
   await server.connect(transport)
   logger.info('MCP server started successfully')

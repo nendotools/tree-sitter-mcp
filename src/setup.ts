@@ -98,7 +98,7 @@ export async function runSetup(): Promise<void> {
       logger.info(chalk.yellow('\nSetup cancelled\n'))
     }
     else {
-      logger.error(chalk.red('\n[ERROR] Setup failed:'), error)
+      logger.error('Setup failed:', error)
       process.exit(1)
     }
   }
@@ -251,7 +251,7 @@ async function npmSetup(): Promise<void> {
 
   logger.info(chalk.gray(JSON.stringify(config, null, 2)))
 
-  logger.info(chalk.cyan('\n📍 Configuration locations:\n'))
+  logger.info(chalk.cyan('\nConfiguration locations:\n'))
 
   logger.info(chalk.white('Claude Desktop:'))
   logger.info(
@@ -320,7 +320,7 @@ async function globalSetup(): Promise<void> {
   ])
 
   if (showLocations) {
-    logger.info(chalk.cyan('\n📍 Configuration locations:\n'))
+    logger.info(chalk.cyan('\nConfiguration locations:\n'))
     showConfigLocations()
   }
 
@@ -354,7 +354,7 @@ async function manualSetup(): Promise<void> {
     },
   ])
 
-  logger.info(chalk.cyan('\n📋 Configuration:\n'))
+  logger.info(chalk.cyan('\nConfiguration:\n'))
 
   switch (method) {
     case 'npx':
@@ -435,7 +435,7 @@ async function manualSetup(): Promise<void> {
   ])
 
   if (showLocations) {
-    logger.info(chalk.cyan('\n📍 Configuration locations:\n'))
+    logger.info(chalk.cyan('\nConfiguration locations:\n'))
     showConfigLocations()
   }
 
@@ -683,21 +683,33 @@ async function configureClaudeCode(_configPath: string, method: 'npx' | 'global'
       // Ignore errors if tree-sitter MCP doesn't exist
     }
 
-    // Add tree-sitter MCP using claude mcp command
-    let mcpCommand: string
+    // Add tree-sitter MCP using claude mcp add-json command with correct format
+    let mcpConfig: any
 
     if (method === 'npx') {
       // Check if package is published to npm
       try {
         execSync('npm view @nendo/tree-sitter-mcp version', { stdio: 'pipe' })
-        mcpCommand = 'claude mcp add tree-sitter -s user "npx @nendo/tree-sitter-mcp@latest"'
+        mcpConfig = {
+          type: 'stdio',
+          command: 'npx',
+          args: ['@nendo/tree-sitter-mcp@latest', '--mcp'],
+          env: { TREE_SITTER_MCP_DEBUG: 'true' },
+        }
         logger.info(chalk.dim('  Using published npm package'))
       }
       catch {
-        // Package not published, use absolute path to local build
+        // Package not published, use absolute path to local build with node
         const localCliPath = join(__dirname, '..', 'dist', 'cli.js')
         if (existsSync(localCliPath)) {
-          mcpCommand = `claude mcp add tree-sitter -s user "node ${localCliPath}"`
+          // Find node executable path
+          const nodePath = execSync('which node', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+          mcpConfig = {
+            type: 'stdio',
+            command: nodePath,
+            args: [localCliPath, '--mcp'],
+            env: { TREE_SITTER_MCP_DEBUG: 'true' },
+          }
           logger.info(chalk.yellow('  Package not published, using local development build'))
         }
         else {
@@ -708,15 +720,28 @@ async function configureClaudeCode(_configPath: string, method: 'npx' | 'global'
     else {
       // For global method, try to use global command, fallback to local if needed
       try {
-        execSync('which tree-sitter-mcp', { stdio: 'pipe' })
-        mcpCommand = 'claude mcp add tree-sitter -s user "tree-sitter-mcp"'
+        const globalPath = execSync('which tree-sitter-mcp', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+        // Find node executable path for global installations
+        const nodePath = execSync('which node', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+        mcpConfig = {
+          type: 'stdio',
+          command: nodePath,
+          args: [globalPath, '--mcp'],
+          env: { TREE_SITTER_MCP_DEBUG: 'true' },
+        }
         logger.info(chalk.dim('  Using globally installed command'))
       }
       catch {
         // Global command not available, use local build
         const localCliPath = join(__dirname, '..', 'dist', 'cli.js')
         if (existsSync(localCliPath)) {
-          mcpCommand = `claude mcp add tree-sitter -s user "node ${localCliPath}"`
+          const nodePath = execSync('which node', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+          mcpConfig = {
+            type: 'stdio',
+            command: nodePath,
+            args: [localCliPath, '--mcp'],
+            env: { TREE_SITTER_MCP_DEBUG: 'true' },
+          }
           logger.info(chalk.yellow('  Global command not found, using local development build'))
         }
         else {
@@ -725,7 +750,8 @@ async function configureClaudeCode(_configPath: string, method: 'npx' | 'global'
       }
     }
 
-    logger.info(chalk.dim(`  Adding tree-sitter MCP: ${mcpCommand}`))
+    const mcpCommand = `claude mcp add-json tree-sitter '${JSON.stringify(mcpConfig)}'`
+    logger.info(chalk.dim(`  Adding tree-sitter MCP with JSON config...`))
     execSync(mcpCommand, { stdio: 'pipe' })
     logger.info(chalk.green('  [OK] Tree-sitter MCP added to user scope'))
 

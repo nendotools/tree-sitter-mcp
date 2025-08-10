@@ -60,13 +60,34 @@ program
   .option('-q, --quiet', 'Suppress all non-error output')
   .option('--setup', 'Run interactive setup to configure MCP')
   .action(async (options: CLIOptions) => {
-    // Configure logger
+    // Configure logger based on options
     const logger = new ConsoleLogger({
       level: options.verbose ? LOG_LEVELS.VERBOSE : LOG_LEVELS.INFO,
       quiet: options.quiet || false,
       useColors: true,
     })
     setLogger(logger)
+
+    // Log startup info to global debug file when debugging is enabled
+    if (process.env.TREE_SITTER_MCP_DEBUG === 'true') {
+      try {
+        const { homedir } = await import('os')
+        const { appendFileSync } = await import('fs')
+        const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log')
+        const timestamp = new Date().toISOString()
+        const cliStartupInfo = `[${timestamp}] CLI Startup:
+  - Raw Args: ${JSON.stringify(process.argv)}
+  - Parsed Options: ${JSON.stringify(options)}
+  - Process CWD: ${process.cwd()}
+  - stdin.isTTY: ${process.stdin.isTTY}
+  - Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}
+\n`
+        appendFileSync(globalLogPath, cliStartupInfo)
+      }
+      catch {
+        // Ignore errors writing to global debug log
+      }
+    }
 
     try {
       // Handle special commands first
@@ -83,21 +104,31 @@ program
       // Parse configuration
       const config = parseConfig(options)
 
-      // Auto-detect MCP mode: if --mcp is specified OR if stdin is piped (MCP clients pipe JSON-RPC via stdin)
-      const shouldRunMCP = options.mcp || !process.stdin.isTTY
+      // Debug logging for mode detection
+      logger.debug(`CLI args: ${process.argv.join(' ')}`)
+      logger.debug(`--mcp flag: ${options.mcp || false}`)
+      logger.debug(`stdin.isTTY: ${process.stdin.isTTY}`)
+      logger.debug(`Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}`)
 
-      // Run in appropriate mode
+      // Determine execution mode
+      const shouldRunMCP = options.mcp || !process.stdin.isTTY
+      logger.debug(`Mode decision: ${shouldRunMCP ? 'MCP Server' : 'Standalone'} (--mcp=${options.mcp || false}, !stdin.isTTY=${!process.stdin.isTTY})`)
+
       if (shouldRunMCP) {
-        logger.info(chalk.cyan('Starting Tree-Sitter MCP server...'))
+        // Run in MCP mode
+        logger.info('Starting Tree-Sitter MCP server...')
+        logger.debug('Mode: MCP Server')
         await startMCPServer(config)
       }
       else {
-        // Standalone mode for testing/debugging
+        // Run in standalone mode
+        logger.info('Running Tree-Sitter analysis...')
+        logger.debug('Mode: Standalone')
         await runStandaloneMode(config)
       }
     }
     catch (error) {
-      logger.error(chalk.red('Fatal error:'), error)
+      logger.error('Fatal error:', error)
       process.exit(1)
     }
   })
@@ -197,7 +228,7 @@ function handleListLanguages(): void {
   const logger = getLogger()
   const languages = listSupportedLanguages()
 
-  logger.info(chalk.cyan('\n📚 Supported Languages:\n'))
+  logger.info(chalk.cyan('\nSupported Languages:\n'))
 
   languages.forEach((lang) => {
     logger.info(`  ${chalk.green('•')} ${chalk.bold(lang.name)}`)

@@ -76,24 +76,24 @@ export async function searchCode(
 
     results.forEach((result, index) => {
       lines.push(`${index + 1}. ${result.node.name} (${result.node.type})`)
-      lines.push(`   📁 ${result.filePath}`)
+      lines.push(`   File: ${result.filePath}`)
 
       if (result.node.startLine) {
         lines.push(
-          `   📍 Lines ${result.node.startLine}-${result.node.endLine || result.node.startLine}`,
+          `   Lines: ${result.node.startLine}-${result.node.endLine || result.node.startLine}`,
         )
       }
 
       if (result.context?.parentName) {
-        lines.push(`   📦 In: ${result.context.parentType} ${result.context.parentName}`)
+        lines.push(`   In: ${result.context.parentType} ${result.context.parentName}`)
       }
 
       if (result.node.parameters && result.node.parameters.length > 0) {
-        lines.push(`   🔧 Parameters: ${result.node.parameters.join(', ')}`)
+        lines.push(`   Parameters: ${result.node.parameters.join(', ')}`)
       }
 
       if (result.node.returnType) {
-        lines.push(`   ↩️  Returns: ${result.node.returnType}`)
+        lines.push(`   Returns: ${result.node.returnType}`)
       }
 
       lines.push('')

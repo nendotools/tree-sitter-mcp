@@ -21,11 +21,8 @@ export async function runStandaloneMode(options: StandaloneOptions): Promise<voi
   logger.info(`Analyzing directory: ${options.workingDir}`)
 
   try {
-    // Initialize components
     const parserRegistry = getParserRegistry()
     const treeManager = new TreeManager(parserRegistry)
-
-    // Create and initialize project
     const projectId = 'standalone'
     const config: Config = {
       workingDir: options.workingDir,
@@ -37,11 +34,9 @@ export async function runStandaloneMode(options: StandaloneOptions): Promise<voi
     await treeManager.createProject(projectId, config)
     await treeManager.initializeProject(projectId)
 
-    // Get project stats
     const stats = treeManager.getProjectStats(projectId)
     const tree = treeManager.getProjectTree(projectId)
 
-    // Prepare output
     const output = {
       project: {
         id: projectId,
@@ -57,10 +52,7 @@ export async function runStandaloneMode(options: StandaloneOptions): Promise<voi
       tree: tree ? treeManager.serializeTree(tree) : null,
     }
 
-    // Format output
     const jsonOutput = options.pretty ? JSON.stringify(output, null, 2) : JSON.stringify(output)
-
-    // Write output
     if (options.output) {
       writeFileSync(options.output, jsonOutput)
       logger.info(`Output written to: ${options.output}`)
