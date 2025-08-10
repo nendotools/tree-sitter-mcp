@@ -116,10 +116,7 @@ export class TreeManager {
    * @throws TreeSitterMCPError if project doesn't exist or initialization fails
    */
   async initializeProject(projectId: string): Promise<void> {
-    const project = this.getProject(projectId)
-    if (!project) {
-      throw new TreeSitterMCPError(ERRORS.PROJECT_NOT_FOUND, 'PROJECT_NOT_FOUND', { projectId })
-    }
+    const project = this.validateAndGetProject(projectId)
 
     if (project.initialized) {
       this.logger.debug(`Project ${projectId} already initialized`)
@@ -128,46 +125,11 @@ export class TreeManager {
 
     this.logger.info(`Initializing project: ${projectId}`)
 
-    const monoRepoInfo = await findProjectRootWithMonoRepo(project.config.workingDir)
-    if (monoRepoInfo.isMonoRepo && monoRepoInfo.subProjects.length > 0) {
-      project.isMonoRepo = true
-      this.logger.info(`Detected mono-repo with ${monoRepoInfo.subProjects.length} sub-projects`)
+    await this.setupMonoRepoStructure(project)
+    await this.buildProjectIndexes(project)
+    this.finalizeProjectInitialization(project)
 
-      for (const subProject of monoRepoInfo.subProjects) {
-        const subProjectName = this.getSubProjectName(subProject.path, project.config.workingDir)
-        project.subProjects!.set(subProjectName, {
-          name: subProjectName,
-          path: subProject.path,
-          languages: subProject.languages,
-          indicators: subProject.indicators,
-        })
-        project.subProjectFileIndex!.set(subProjectName, new Map())
-        project.subProjectNodeIndex!.set(subProjectName, new Map())
-        this.logger.info(
-          `  • Registered sub-project: ${subProjectName} (${subProject.languages.join(', ')})`,
-        )
-      }
-    }
-
-    // Walk directory and parse files
-    const walker = new FileWalker(this.parserRegistry, project.config)
-    const files = await walker.walk()
-
-    this.logger.info(`FileWalker returned ${files.length} files for project ${projectId}`)
-
-    // Build tree from parsed files
-    for (const file of files) {
-      await this.addFileToTree(project, file)
-    }
-
-    project.initialized = true
-    project.lastUpdate = new Date()
-    project.memoryUsage = this.estimateProjectMemory(project)
-
-    this.currentMemoryMB += project.memoryUsage / (1024 * 1024)
-    this.checkMemoryLimits()
-
-    this.logger.info(`Project ${projectId} initialized with ${project.fileIndex.size} files`)
+    this.logger.info(`Project ${project.projectId} initialized with ${project.fileIndex.size} files`)
   }
 
   /**
@@ -228,36 +190,11 @@ export class TreeManager {
    * @throws TreeSitterMCPError if project doesn't exist
    */
   async search(projectId: string, query: string, options: SearchOptions): Promise<SearchResult[]> {
-    const project = this.getProject(projectId)
-    if (!project) {
-      throw new TreeSitterMCPError(ERRORS.PROJECT_NOT_FOUND, 'PROJECT_NOT_FOUND', { projectId })
-    }
-
+    const project = this.validateAndGetProject(projectId)
     project.accessedAt = new Date()
 
-    const results: SearchResult[] = []
-    const lowerQuery = query.toLowerCase()
-
-    const nodeIndexesToSearch = this.getNodeIndexesToSearch(project, options.scope)
-
-    for (const { nodeIndex, subProjectName } of nodeIndexesToSearch) {
-      for (const [name, nodes] of nodeIndex) {
-        if (this.matchesQuery(name, lowerQuery, options)) {
-          for (const node of nodes) {
-            if (this.matchesFilters(node, options)) {
-              const result = this.createSearchResult(node)
-              result.subProject = subProjectName
-              results.push(result)
-            }
-          }
-        }
-      }
-    }
-
-    results.sort((a, b) => b.score - a.score)
-
-    const maxResults = options.maxResults || 20
-    return results.slice(0, maxResults)
+    const results = this.performSearch(project, query, options)
+    return this.rankAndLimitResults(results, options.maxResults || 20)
   }
 
   /**
@@ -314,17 +251,14 @@ export class TreeManager {
       memoryUsage: project.memoryUsage,
     }
 
-    // Count nodes by language and type
     for (const nodes of project.nodeIndex.values()) {
       for (const node of nodes) {
         stats.totalNodes++
 
-        // Count by language
         if (node.language) {
           stats.languages[node.language] = (stats.languages[node.language] || 0) + 1
         }
 
-        // Count by node type
         if (node.type) {
           stats.nodeTypes[node.type] = (stats.nodeTypes[node.type] || 0) + 1
         }
@@ -423,10 +357,8 @@ export class TreeManager {
       lastModified: new Date(),
     }
 
-    // Add file to main file index
     project.fileIndex.set(filePath, fileNode)
 
-    // Determine which sub-project this file belongs to (if any)
     let belongsToSubProject: string | undefined
     if (project.isMonoRepo && project.subProjects) {
       belongsToSubProject = this.findFileSubProject(filePath, project)
@@ -434,8 +366,6 @@ export class TreeManager {
         project.subProjectFileIndex.get(belongsToSubProject)!.set(filePath, fileNode)
       }
     }
-
-    // Process parsed elements and add to node index
     for (const element of parseResult.elements) {
       const elementNode: TreeNode = {
         id: generateId(),
@@ -454,13 +384,11 @@ export class TreeManager {
         lastModified: new Date(),
       }
 
-      // Add to main node index by name
       if (!project.nodeIndex.has(element.name)) {
         project.nodeIndex.set(element.name, [])
       }
       project.nodeIndex.get(element.name)!.push(elementNode)
 
-      // Add to sub-project node index if applicable
       if (belongsToSubProject && project.subProjectNodeIndex) {
         const subProjectNodeIndex = project.subProjectNodeIndex.get(belongsToSubProject)!
         if (!subProjectNodeIndex.has(element.name)) {
@@ -469,7 +397,6 @@ export class TreeManager {
         subProjectNodeIndex.get(element.name)!.push(elementNode)
       }
 
-      // Add as child to file node
       fileNode.children.push(elementNode)
     }
 
@@ -478,8 +405,13 @@ export class TreeManager {
     )
   }
 
+  /**
+   * Removes a node and its children from all project indexes
+   *
+   * @param project - Project containing the node
+   * @param node - Node to remove from indexes
+   */
   private removeNodeFromIndex(project: ProjectTree, node: TreeNode): void {
-    // Remove from node index
     const nodes = project.nodeIndex.get(node.name)
     if (nodes) {
       const filtered = nodes.filter(n => n.id !== node.id)
@@ -491,17 +423,23 @@ export class TreeManager {
       }
     }
 
-    // Remove from file index if it's a file
     if (node.type === NODE_TYPES.FILE) {
       project.fileIndex.delete(node.path)
     }
 
-    // Recursively remove children
     for (const child of node.children) {
       this.removeNodeFromIndex(project, child)
     }
   }
 
+  /**
+   * Checks if a name matches the search query
+   *
+   * @param name - Element name to check
+   * @param query - Lowercase search query
+   * @param options - Search options including exact match flag
+   * @returns True if name matches query
+   */
   private matchesQuery(name: string, query: string, options: SearchOptions): boolean {
     const nameLower = name.toLowerCase()
 
@@ -512,24 +450,27 @@ export class TreeManager {
     return nameLower.includes(query)
   }
 
+  /**
+   * Applies search filters to determine if a node should be included in results
+   *
+   * @param node - Tree node to filter
+   * @param options - Search options containing filter criteria
+   * @returns True if node passes all filters
+   */
   private matchesFilters(node: TreeNode, options: SearchOptions): boolean {
-    // Type filter
     if (options.types && options.types.length > 0) {
       if (!options.types.includes(node.type)) {
         return false
       }
     }
 
-    // Language filter
     if (options.languages && options.languages.length > 0) {
       if (!node.language || !options.languages.includes(node.language)) {
         return false
       }
     }
 
-    // Path pattern filter
     if (options.pathPattern) {
-      // Simple pattern matching
       if (!node.path.includes(options.pathPattern)) {
         return false
       }
@@ -538,6 +479,12 @@ export class TreeManager {
     return true
   }
 
+  /**
+   * Creates a search result object from a tree node
+   *
+   * @param node - Tree node to create result from
+   * @returns Search result with node, score, and context
+   */
   private createSearchResult(node: TreeNode): SearchResult {
     return {
       node,
@@ -550,10 +497,15 @@ export class TreeManager {
     }
   }
 
+  /**
+   * Calculates relevance score for a search result
+   *
+   * @param node - Tree node to calculate score for
+   * @returns Numeric score for result ranking
+   */
   private calculateScore(node: TreeNode): number {
-    let score = 50 // Base score
+    let score = 50
 
-    // Boost for certain types
     if (node.type === NODE_TYPES.CLASS || node.type === NODE_TYPES.INTERFACE) {
       score += 10
     }
@@ -564,8 +516,13 @@ export class TreeManager {
     return score
   }
 
+  /**
+   * Estimates memory usage for a project in bytes
+   *
+   * @param project - Project to estimate memory for
+   * @returns Estimated memory usage in bytes
+   */
   private estimateProjectMemory(project: ProjectTree): number {
-    // Rough estimation
     const nodeCount = project.nodeIndex.size
     const fileCount = project.fileIndex.size
 
@@ -576,6 +533,9 @@ export class TreeManager {
     )
   }
 
+  /**
+   * Evicts the least recently used project to free memory
+   */
   private evictLRUProject(): void {
     let oldestProject: ProjectTree | null = null
     let oldestTime = new Date()
@@ -593,6 +553,9 @@ export class TreeManager {
     }
   }
 
+  /**
+   * Checks memory limits and evicts projects if necessary
+   */
   private checkMemoryLimits(): void {
     if (this.currentMemoryMB > this.maxMemoryMB) {
       this.logger.warn('Memory limit exceeded, evicting projects...')
@@ -602,11 +565,114 @@ export class TreeManager {
     }
   }
 
+  /**
+   * Validates project exists and returns it, throwing if not found
+   *
+   * @param projectId - Project identifier to validate
+   * @returns The project tree
+   * @throws TreeSitterMCPError if project doesn't exist
+   */
+  private validateAndGetProject(projectId: string): ProjectTree {
+    const project = this.getProject(projectId)
+    if (!project) {
+      throw new TreeSitterMCPError(ERRORS.PROJECT_NOT_FOUND, 'PROJECT_NOT_FOUND', { projectId })
+    }
+    return project
+  }
+
+  /**
+   * Detects and sets up mono-repo structure for a project
+   *
+   * @param project - Project to setup mono-repo structure for
+   */
+  private async setupMonoRepoStructure(project: ProjectTree): Promise<void> {
+    const monoRepoInfo = await findProjectRootWithMonoRepo(project.config.workingDir)
+
+    if (!monoRepoInfo.isMonoRepo || monoRepoInfo.subProjects.length === 0) {
+      return
+    }
+
+    project.isMonoRepo = true
+    this.logger.info(`Detected mono-repo with ${monoRepoInfo.subProjects.length} sub-projects`)
+
+    for (const subProject of monoRepoInfo.subProjects) {
+      this.registerSubProject(project, subProject)
+    }
+  }
+
+  /**
+   * Registers a sub-project within a mono-repo structure
+   *
+   * @param project - Parent project tree
+   * @param subProject - Sub-project information containing path, languages, and indicators
+   */
+  private registerSubProject(project: ProjectTree, subProject: any): void {
+    const subProjectName = this.getSubProjectName(subProject.path, project.config.workingDir)
+
+    project.subProjects!.set(subProjectName, {
+      name: subProjectName,
+      path: subProject.path,
+      languages: subProject.languages,
+      indicators: subProject.indicators,
+    })
+
+    project.subProjectFileIndex!.set(subProjectName, new Map())
+    project.subProjectNodeIndex!.set(subProjectName, new Map())
+
+    this.logger.info(
+      `  • Registered sub-project: ${subProjectName} (${subProject.languages.join(', ')})`,
+    )
+  }
+
+  /**
+   * Walks directory structure and builds file/node indexes
+   *
+   * @param project - Project to build indexes for
+   */
+  private async buildProjectIndexes(project: ProjectTree): Promise<void> {
+    const walker = new FileWalker(this.parserRegistry, project.config)
+    const files = await walker.walk()
+
+    this.logger.info(`FileWalker returned ${files.length} files for project ${project.projectId}`)
+
+    for (const file of files) {
+      await this.addFileToTree(project, file)
+    }
+  }
+
+  /**
+   * Finalizes project initialization with memory management
+   *
+   * @param project - Project to finalize
+   */
+  private finalizeProjectInitialization(project: ProjectTree): void {
+    project.initialized = true
+    project.lastUpdate = new Date()
+    project.memoryUsage = this.estimateProjectMemory(project)
+
+    this.currentMemoryMB += project.memoryUsage / (1024 * 1024)
+    this.checkMemoryLimits()
+  }
+
+  /**
+   * Derives a sub-project name from its path relative to project root
+   *
+   * @param subProjectPath - Absolute path to sub-project
+   * @param projectRoot - Project root directory path
+   * @returns Sub-project name for indexing
+   */
   private getSubProjectName(subProjectPath: string, projectRoot: string): string {
     const relativePath = relative(projectRoot, subProjectPath)
     return relativePath.split('/')[0] || basename(subProjectPath)
   }
 
+  /**
+   * Determines which sub-project a file belongs to in a mono-repo
+   *
+   * @param filePath - File path to classify
+   * @param project - Project containing sub-projects
+   * @returns Sub-project name or undefined if not in any sub-project
+   */
   private findFileSubProject(filePath: string, project: ProjectTree): string | undefined {
     if (!project.isMonoRepo || !project.subProjects) {
       return undefined
@@ -626,6 +692,74 @@ export class TreeManager {
     return undefined
   }
 
+  /**
+   * Performs the actual search across node indexes
+   *
+   * @param project - Project to search in
+   * @param query - Search query
+   * @param options - Search options
+   * @returns Array of matching search results
+   */
+  private performSearch(project: ProjectTree, query: string, options: SearchOptions): SearchResult[] {
+    const results: SearchResult[] = []
+    const lowerQuery = query.toLowerCase()
+    const nodeIndexesToSearch = this.getNodeIndexesToSearch(project, options.scope)
+
+    for (const { nodeIndex, subProjectName } of nodeIndexesToSearch) {
+      this.searchInNodeIndex(nodeIndex, lowerQuery, options, results, subProjectName)
+    }
+
+    return results
+  }
+
+  /**
+   * Searches within a specific node index
+   *
+   * @param nodeIndex - Node index to search in
+   * @param lowerQuery - Lowercase query string
+   * @param options - Search options
+   * @param results - Results array to populate
+   * @param subProjectName - Sub-project name if applicable
+   */
+  private searchInNodeIndex(
+    nodeIndex: Map<string, TreeNode[]>,
+    lowerQuery: string,
+    options: SearchOptions,
+    results: SearchResult[],
+    subProjectName?: string,
+  ): void {
+    for (const [name, nodes] of nodeIndex) {
+      if (this.matchesQuery(name, lowerQuery, options)) {
+        for (const node of nodes) {
+          if (this.matchesFilters(node, options)) {
+            const result = this.createSearchResult(node)
+            result.subProject = subProjectName
+            results.push(result)
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Ranks results by score and limits to specified maximum
+   *
+   * @param results - Search results to rank
+   * @param maxResults - Maximum number of results to return
+   * @returns Ranked and limited results
+   */
+  private rankAndLimitResults(results: SearchResult[], maxResults: number): SearchResult[] {
+    results.sort((a, b) => b.score - a.score)
+    return results.slice(0, maxResults)
+  }
+
+  /**
+   * Determines which node indexes to search based on scope options
+   *
+   * @param project - Project containing node indexes
+   * @param scope - Search scope configuration
+   * @returns Array of node indexes to search with optional sub-project names
+   */
   private getNodeIndexesToSearch(
     project: ProjectTree,
     scope?: SearchScope,

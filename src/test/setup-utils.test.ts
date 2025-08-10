@@ -41,7 +41,7 @@ describe('Setup Configuration Utils', () => {
       }
 
       const expectedJson = JSON.stringify(testConfig, null, 2)
-      
+
       // Since formatJsonConfig is not exported, we test the expected behavior
       expect(expectedJson).toContain('  "mcpServers": {')
       expect(expectedJson).toContain('    "tree-sitter": {')
@@ -198,7 +198,7 @@ describe('Setup Configuration Utils', () => {
       configs.forEach((config, index) => {
         expect(config, `Config ${index} should have mcpServers property`).toHaveProperty('mcpServers')
         expect(config.mcpServers, `Config ${index} should have tree-sitter server`).toHaveProperty('tree-sitter')
-        
+
         const serverConfig = config.mcpServers['tree-sitter']
         expect(serverConfig, `Config ${index} should have command`).toHaveProperty('command')
         expect(serverConfig, `Config ${index} should have args`).toHaveProperty('args')
