@@ -2,12 +2,12 @@
  * File watcher for monitoring file system changes and keeping the AST index synchronized
  */
 
-import { watch, FSWatcher } from 'chokidar';
-import { WATCHER, CHANGE_EVENTS } from '../constants/index.js';
-import type { Config, WatcherStatus } from '../types/index.js';
-import { getLogger } from '../utils/logger.js';
-import { debounce } from '../utils/helpers.js';
-import { TreeManager } from './tree-manager.js';
+import { watch, FSWatcher } from 'chokidar'
+import { WATCHER, CHANGE_EVENTS } from '../constants/index.js'
+import type { Config, WatcherStatus } from '../types/index.js'
+import { getLogger } from '../utils/logger.js'
+import { debounce } from '../utils/helpers.js'
+import { TreeManager } from './tree-manager.js'
 
 /**
  * Single project file watcher that monitors file changes and updates the tree manager
@@ -19,14 +19,14 @@ import { TreeManager } from './tree-manager.js';
  * - Automatic retry on write completion
  */
 export class FileWatcher {
-  private treeManager: TreeManager;
-  private projectId: string;
-  private config: Config;
-  private watcher: FSWatcher | null = null;
-  private logger = getLogger();
-  private watching: boolean = false;
-  private filesTracked: number = 0;
-  private lastCheck: Date = new Date();
+  private treeManager: TreeManager
+  private projectId: string
+  private config: Config
+  private watcher: FSWatcher | null = null
+  private logger = getLogger()
+  private watching: boolean = false
+  private filesTracked: number = 0
+  private lastCheck: Date = new Date()
 
   /**
    * Creates a new file watcher for a specific project
@@ -36,9 +36,9 @@ export class FileWatcher {
    * @param config - Project configuration with watch settings
    */
   constructor(treeManager: TreeManager, projectId: string, config: Config) {
-    this.treeManager = treeManager;
-    this.projectId = projectId;
-    this.config = config;
+    this.treeManager = treeManager
+    this.projectId = projectId
+    this.config = config
   }
 
   /**
@@ -49,16 +49,16 @@ export class FileWatcher {
    */
   start(): void {
     if (this.watching) {
-      this.logger.warn(`Watcher already running for project ${this.projectId}`);
-      return;
+      this.logger.warn(`Watcher already running for project ${this.projectId}`)
+      return
     }
 
-    this.logger.info(`Starting file watcher for project ${this.projectId}`);
+    this.logger.info(`Starting file watcher for project ${this.projectId}`)
 
     const debouncedUpdate = debounce(
       (path: string) => this.handleFileChange(path),
-      WATCHER.DEBOUNCE_MS
-    );
+      WATCHER.DEBOUNCE_MS,
+    )
 
     this.watcher = watch(this.config.workingDir, {
       ignored: this.config.ignoreDirs || [],
@@ -68,30 +68,30 @@ export class FileWatcher {
         stabilityThreshold: WATCHER.DEBOUNCE_MS,
         pollInterval: 100,
       },
-    });
+    })
 
     this.watcher
-      .on('add', path => {
-        this.filesTracked++;
-        debouncedUpdate(path);
-        this.logChange(CHANGE_EVENTS.CREATED, path);
+      .on('add', (path) => {
+        this.filesTracked++
+        debouncedUpdate(path)
+        this.logChange(CHANGE_EVENTS.CREATED, path)
       })
-      .on('change', path => {
-        debouncedUpdate(path);
-        this.logChange(CHANGE_EVENTS.MODIFIED, path);
+      .on('change', (path) => {
+        debouncedUpdate(path)
+        this.logChange(CHANGE_EVENTS.MODIFIED, path)
       })
-      .on('unlink', path => {
-        this.filesTracked--;
-        debouncedUpdate(path);
-        this.logChange(CHANGE_EVENTS.DELETED, path);
+      .on('unlink', (path) => {
+        this.filesTracked--
+        debouncedUpdate(path)
+        this.logChange(CHANGE_EVENTS.DELETED, path)
       })
-      .on('error', error => {
-        this.logger.error(`Watcher error for project ${this.projectId}:`, error);
+      .on('error', (error) => {
+        this.logger.error(`Watcher error for project ${this.projectId}:`, error)
       })
       .on('ready', () => {
-        this.watching = true;
-        this.logger.info(`File watcher ready for project ${this.projectId}`);
-      });
+        this.watching = true
+        this.logger.info(`File watcher ready for project ${this.projectId}`)
+      })
   }
 
   /**
@@ -99,10 +99,10 @@ export class FileWatcher {
    */
   stop(): void {
     if (this.watcher) {
-      void this.watcher.close();
-      this.watcher = null;
-      this.watching = false;
-      this.logger.info(`File watcher stopped for project ${this.projectId}`);
+      void this.watcher.close()
+      this.watcher = null
+      this.watching = false
+      this.logger.info(`File watcher stopped for project ${this.projectId}`)
     }
   }
 
@@ -119,7 +119,7 @@ export class FileWatcher {
       pollInterval: WATCHER.POLL_INTERVAL_MS,
       filesTracked: this.filesTracked,
       lastCheck: this.lastCheck,
-    };
+    }
   }
 
   /**
@@ -128,12 +128,13 @@ export class FileWatcher {
    * @param path - Path of the changed file
    */
   private async handleFileChange(path: string): Promise<void> {
-    this.lastCheck = new Date();
+    this.lastCheck = new Date()
 
     try {
-      await this.treeManager.updateFile(this.projectId, path);
-    } catch (error) {
-      this.logger.error(`Failed to update file ${path}:`, error);
+      await this.treeManager.updateFile(this.projectId, path)
+    }
+    catch (error) {
+      this.logger.error(`Failed to update file ${path}:`, error)
     }
   }
 
@@ -144,7 +145,7 @@ export class FileWatcher {
    * @param path - Path of the changed file
    */
   private logChange(type: string, path: string): void {
-    this.logger.debug(`File ${type}: ${path} (project: ${this.projectId})`);
+    this.logger.debug(`File ${type}: ${path} (project: ${this.projectId})`)
   }
 }
 
@@ -155,9 +156,9 @@ export class FileWatcher {
  * with individual watcher lifecycle management and status reporting
  */
 export class BatchFileWatcher {
-  private watchers: Map<string, FileWatcher> = new Map();
-  private treeManager: TreeManager;
-  private logger = getLogger();
+  private watchers: Map<string, FileWatcher> = new Map()
+  private treeManager: TreeManager
+  private logger = getLogger()
 
   /**
    * Creates a new batch file watcher
@@ -165,7 +166,7 @@ export class BatchFileWatcher {
    * @param treeManager - Tree manager to share across all project watchers
    */
   constructor(treeManager: TreeManager) {
-    this.treeManager = treeManager;
+    this.treeManager = treeManager
   }
 
   /**
@@ -176,13 +177,13 @@ export class BatchFileWatcher {
    */
   startWatching(projectId: string, config: Config): void {
     if (this.watchers.has(projectId)) {
-      this.logger.debug(`Watcher already exists for project ${projectId}`);
-      return;
+      this.logger.debug(`Watcher already exists for project ${projectId}`)
+      return
     }
 
-    const watcher = new FileWatcher(this.treeManager, projectId, config);
-    watcher.start();
-    this.watchers.set(projectId, watcher);
+    const watcher = new FileWatcher(this.treeManager, projectId, config)
+    watcher.start()
+    this.watchers.set(projectId, watcher)
   }
 
   /**
@@ -191,10 +192,10 @@ export class BatchFileWatcher {
    * @param projectId - Project identifier to stop watching
    */
   stopWatching(projectId: string): void {
-    const watcher = this.watchers.get(projectId);
+    const watcher = this.watchers.get(projectId)
     if (watcher) {
-      watcher.stop();
-      this.watchers.delete(projectId);
+      watcher.stop()
+      this.watchers.delete(projectId)
     }
   }
 
@@ -203,9 +204,9 @@ export class BatchFileWatcher {
    */
   stopAll(): void {
     for (const watcher of this.watchers.values()) {
-      watcher.stop();
+      watcher.stop()
     }
-    this.watchers.clear();
+    this.watchers.clear()
   }
 
   /**
@@ -215,7 +216,7 @@ export class BatchFileWatcher {
    * @returns The project's file watcher or undefined if not found
    */
   getWatcher(projectId: string): FileWatcher | undefined {
-    return this.watchers.get(projectId);
+    return this.watchers.get(projectId)
   }
 
   /**
@@ -224,6 +225,6 @@ export class BatchFileWatcher {
    * @returns Array of watcher status objects
    */
   getAllStatuses(): WatcherStatus[] {
-    return Array.from(this.watchers.values()).map(w => w.getStatus());
+    return Array.from(this.watchers.values()).map(w => w.getStatus())
   }
 }

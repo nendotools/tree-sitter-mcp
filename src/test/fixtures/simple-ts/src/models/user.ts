@@ -2,49 +2,49 @@
  * User model with basic operations
  */
 export interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  createdAt: Date;
+  id: string
+  name: string
+  email: string
+  createdAt: Date
 }
 
 export class User {
-  private data: UserData;
+  private data: UserData
 
   constructor(userData: UserData) {
-    this.data = userData;
+    this.data = userData
   }
 
   getId(): string {
-    return this.data.id;
+    return this.data.id
   }
 
   getName(): string {
-    return this.data.name;
+    return this.data.name
   }
 
   getEmail(): string {
-    return this.data.email;
+    return this.data.email
   }
 
   updateName(newName: string): void {
-    this.data.name = newName;
+    this.data.name = newName
   }
 
   updateEmail(newEmail: string): void {
     if (!this.isValidEmail(newEmail)) {
-      throw new Error('Invalid email format');
+      throw new Error('Invalid email format')
     }
-    this.data.email = newEmail;
+    this.data.email = newEmail
   }
 
   private isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
   }
 
   toJSON(): UserData {
-    return { ...this.data };
+    return { ...this.data }
   }
 }
 
@@ -54,5 +54,5 @@ export function createUser(name: string, email: string): User {
     name,
     email,
     createdAt: new Date(),
-  });
+  })
 }

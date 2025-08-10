@@ -2,35 +2,35 @@
  * Language parser registry for Tree-Sitter - Central registry for all supported language parsers
  */
 
-import JavaScript from 'tree-sitter-javascript';
-import TypeScript from 'tree-sitter-typescript';
-import Python from 'tree-sitter-python';
-import Go from 'tree-sitter-go';
-import Rust from 'tree-sitter-rust';
-import Java from 'tree-sitter-java';
-import C from 'tree-sitter-c';
-import Cpp from 'tree-sitter-cpp';
+import JavaScript from 'tree-sitter-javascript'
+import TypeScript from 'tree-sitter-typescript'
+import Python from 'tree-sitter-python'
+import Go from 'tree-sitter-go'
+import Rust from 'tree-sitter-rust'
+import Java from 'tree-sitter-java'
+import C from 'tree-sitter-c'
+import Cpp from 'tree-sitter-cpp'
 
-import { LANGUAGE_EXTENSIONS } from '../constants/index.js';
-import type { LanguageParser, ParseResult } from '../types/index.js';
-import { BaseParser } from './base-parser.js';
+import { LANGUAGE_EXTENSIONS } from '../constants/index.js'
+import type { LanguageParser, ParseResult } from '../types/index.js'
+import { BaseParser } from './base-parser.js'
 
 /**
  * Configuration for a language parser including grammar and supported file extensions
  */
 interface LanguageConfig {
   /** Human-readable language name */
-  name: string;
+  name: string
   /** Tree-Sitter grammar for the language */
-  grammar: any;
+  grammar: any
   /** Array of file extensions (including dot) */
-  extensions: string[];
+  extensions: string[]
   /** Optional syntax highlighting and query configurations */
   queries?: {
-    highlights?: string;
-    locals?: string;
-    tags?: string;
-  };
+    highlights?: string
+    locals?: string
+    tags?: string
+  }
 }
 
 // Available language configurations
@@ -80,7 +80,7 @@ const LANGUAGE_CONFIGS: LanguageConfig[] = [
     grammar: Cpp,
     extensions: LANGUAGE_EXTENSIONS.cpp || [],
   },
-];
+]
 
 /**
  * Central registry for managing language parsers and file parsing operations
@@ -93,14 +93,14 @@ const LANGUAGE_CONFIGS: LanguageConfig[] = [
  * Supports 8+ programming languages with automatic parser selection based on file extensions.
  */
 class ParserRegistry {
-  private parsers: Map<string, LanguageParser> = new Map();
-  private extensionMap: Map<string, string> = new Map();
+  private parsers: Map<string, LanguageParser> = new Map()
+  private extensionMap: Map<string, string> = new Map()
 
   /**
    * Creates a new parser registry and initializes all supported language parsers
    */
   constructor() {
-    this.initializeParsers();
+    this.initializeParsers()
   }
 
   /**
@@ -108,8 +108,8 @@ class ParserRegistry {
    */
   private initializeParsers(): void {
     for (const config of LANGUAGE_CONFIGS) {
-      const parser = new BaseParser(config.name, config.grammar, config.extensions);
-      this.registerParser(parser);
+      const parser = new BaseParser(config.name, config.grammar, config.extensions)
+      this.registerParser(parser)
     }
   }
 
@@ -119,10 +119,10 @@ class ParserRegistry {
    * @param parser - Language parser to register
    */
   registerParser(parser: LanguageParser): void {
-    this.parsers.set(parser.name, parser);
+    this.parsers.set(parser.name, parser)
 
     for (const ext of parser.extensions) {
-      this.extensionMap.set(ext, parser.name);
+      this.extensionMap.set(ext, parser.name)
     }
   }
 
@@ -133,7 +133,7 @@ class ParserRegistry {
    * @returns Language parser or undefined if not found
    */
   getParser(language: string): LanguageParser | undefined {
-    return this.parsers.get(language);
+    return this.parsers.get(language)
   }
 
   /**
@@ -143,19 +143,19 @@ class ParserRegistry {
    * @returns Language parser or undefined if no suitable parser found
    */
   getParserForFile(filePath: string): LanguageParser | undefined {
-    const ext = this.getFileExtension(filePath);
-    if (!ext) return undefined;
+    const ext = this.getFileExtension(filePath)
+    if (!ext) return undefined
 
-    const language = this.extensionMap.get(ext);
-    if (!language) return undefined;
+    const language = this.extensionMap.get(ext)
+    if (!language) return undefined
 
-    return this.parsers.get(language);
+    return this.parsers.get(language)
   }
 
   private getFileExtension(filePath: string): string | undefined {
-    const lastDot = filePath.lastIndexOf('.');
-    if (lastDot === -1) return undefined;
-    return filePath.substring(lastDot);
+    const lastDot = filePath.lastIndexOf('.')
+    if (lastDot === -1) return undefined
+    return filePath.substring(lastDot)
   }
 
   /**
@@ -165,7 +165,7 @@ class ParserRegistry {
    * @returns True if a suitable parser exists
    */
   canParse(filePath: string): boolean {
-    return this.getParserForFile(filePath) !== undefined;
+    return this.getParserForFile(filePath) !== undefined
   }
 
   /**
@@ -176,10 +176,10 @@ class ParserRegistry {
    * @returns Parse result or null if no suitable parser found
    */
   async parseFile(filePath: string, content: string): Promise<ParseResult | null> {
-    const parser = this.getParserForFile(filePath);
-    if (!parser) return null;
+    const parser = this.getParserForFile(filePath)
+    if (!parser) return null
 
-    return parser.parse(content, filePath);
+    return parser.parse(content, filePath)
   }
 
   /**
@@ -188,7 +188,7 @@ class ParserRegistry {
    * @returns Array of language names
    */
   getSupportedLanguages(): string[] {
-    return Array.from(this.parsers.keys());
+    return Array.from(this.parsers.keys())
   }
 
   /**
@@ -197,14 +197,14 @@ class ParserRegistry {
    * @returns Array of file extensions (including dots)
    */
   getSupportedExtensions(): string[] {
-    return Array.from(this.extensionMap.keys());
+    return Array.from(this.extensionMap.keys())
   }
 }
 
 /**
  * Singleton registry instance
  */
-let registry: ParserRegistry | null = null;
+let registry: ParserRegistry | null = null
 
 /**
  * Gets the singleton parser registry instance
@@ -213,9 +213,9 @@ let registry: ParserRegistry | null = null;
  */
 export function getParserRegistry(): ParserRegistry {
   if (!registry) {
-    registry = new ParserRegistry();
+    registry = new ParserRegistry()
   }
-  return registry;
+  return registry
 }
 
 /**
@@ -223,15 +223,15 @@ export function getParserRegistry(): ParserRegistry {
  *
  * @returns Array of objects containing language name and supported extensions
  */
-export function listSupportedLanguages(): Array<{ name: string; extensions: string[] }> {
-  const reg = getParserRegistry();
+export function listSupportedLanguages(): Array<{ name: string, extensions: string[] }> {
+  const reg = getParserRegistry()
   return Array.from(reg['parsers'].values()).map(parser => ({
     name: parser.name,
     extensions: parser.extensions,
-  }));
+  }))
 }
 
 /**
  * Export ParserRegistry class for testing purposes
  */
-export { ParserRegistry };
+export { ParserRegistry }

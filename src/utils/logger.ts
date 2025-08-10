@@ -2,11 +2,11 @@
  * Configurable logger utility with console and file output support
  */
 
-import chalk from 'chalk';
-import { writeFileSync, appendFileSync, mkdirSync, existsSync } from 'fs';
-import { resolve } from 'path';
-import { LOG_LEVELS } from '../constants/cli-constants.js';
-import type { Logger, LogLevel } from '../types/cli-types.js';
+import chalk from 'chalk'
+import { writeFileSync, appendFileSync, mkdirSync, existsSync } from 'fs'
+import { resolve } from 'path'
+import { LOG_LEVELS } from '../constants/cli-constants.js'
+import type { Logger, LogLevel } from '../types/cli-types.js'
 
 /**
  * Console and file logger implementation with level-based filtering
@@ -19,11 +19,11 @@ import type { Logger, LogLevel } from '../types/cli-types.js';
  * - Timestamp formatting for all log entries
  */
 export class ConsoleLogger implements Logger {
-  private level: LogLevel;
-  private quiet: boolean;
-  private useColors: boolean;
-  private logToFile: boolean;
-  private logFilePath?: string;
+  private level: LogLevel
+  private quiet: boolean
+  private useColors: boolean
+  private logToFile: boolean
+  private logFilePath?: string
 
   /**
    * Creates a new console logger instance
@@ -32,21 +32,21 @@ export class ConsoleLogger implements Logger {
    */
   constructor(
     options: {
-      level?: LogLevel;
-      quiet?: boolean;
-      useColors?: boolean;
-      logToFile?: boolean;
-      logFilePath?: string;
-    } = {}
+      level?: LogLevel
+      quiet?: boolean
+      useColors?: boolean
+      logToFile?: boolean
+      logFilePath?: string
+    } = {},
   ) {
-    this.level = options.level || LOG_LEVELS.INFO;
-    this.quiet = options.quiet || false;
-    this.useColors = options.useColors ?? process.stdout.isTTY;
-    this.logToFile = options.logToFile || false;
-    this.logFilePath = options.logFilePath;
+    this.level = options.level || LOG_LEVELS.INFO
+    this.quiet = options.quiet || false
+    this.useColors = options.useColors ?? process.stdout.isTTY
+    this.logToFile = options.logToFile || false
+    this.logFilePath = options.logFilePath
 
     if (this.logToFile && this.logFilePath) {
-      this.initializeLogFile();
+      this.initializeLogFile()
     }
   }
 
@@ -54,15 +54,15 @@ export class ConsoleLogger implements Logger {
    * Initializes the log file and creates necessary directories
    */
   private initializeLogFile(): void {
-    if (!this.logFilePath) return;
+    if (!this.logFilePath) return
 
-    const logDir = resolve(this.logFilePath, '..');
+    const logDir = resolve(this.logFilePath, '..')
     if (!existsSync(logDir)) {
-      mkdirSync(logDir, { recursive: true });
+      mkdirSync(logDir, { recursive: true })
     }
 
-    const timestamp = new Date().toISOString();
-    writeFileSync(this.logFilePath, `=== Tree-Sitter MCP Log Started ${timestamp} ===\n`);
+    const timestamp = new Date().toISOString()
+    writeFileSync(this.logFilePath, `=== Tree-Sitter MCP Log Started ${timestamp} ===\n`)
   }
 
   /**
@@ -73,7 +73,7 @@ export class ConsoleLogger implements Logger {
    */
   private shouldLog(level: LogLevel): boolean {
     if (this.quiet && level !== LOG_LEVELS.ERROR) {
-      return false;
+      return false
     }
 
     const levels = [
@@ -82,12 +82,12 @@ export class ConsoleLogger implements Logger {
       LOG_LEVELS.INFO,
       LOG_LEVELS.DEBUG,
       LOG_LEVELS.VERBOSE,
-    ];
+    ]
 
-    const currentLevelIndex = levels.indexOf(this.level);
-    const messageLevelIndex = levels.indexOf(level);
+    const currentLevelIndex = levels.indexOf(this.level)
+    const messageLevelIndex = levels.indexOf(level)
 
-    return messageLevelIndex <= currentLevelIndex;
+    return messageLevelIndex <= currentLevelIndex
   }
 
   /**
@@ -98,70 +98,70 @@ export class ConsoleLogger implements Logger {
    * @returns Formatted log message string
    */
   private format(level: LogLevel, message: string): string {
-    const timestamp = new Date().toISOString();
+    const timestamp = new Date().toISOString()
 
     if (!this.useColors) {
-      return `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+      return `[${timestamp}] [${level.toUpperCase()}] ${message}`
     }
 
-    let coloredLevel: string;
+    let coloredLevel: string
     switch (level) {
       case LOG_LEVELS.ERROR:
-        coloredLevel = chalk.red(`[${level.toUpperCase()}]`);
-        break;
+        coloredLevel = chalk.red(`[${level.toUpperCase()}]`)
+        break
       case LOG_LEVELS.WARN:
-        coloredLevel = chalk.yellow(`[${level.toUpperCase()}]`);
-        break;
+        coloredLevel = chalk.yellow(`[${level.toUpperCase()}]`)
+        break
       case LOG_LEVELS.INFO:
-        coloredLevel = chalk.blue(`[${level.toUpperCase()}]`);
-        break;
+        coloredLevel = chalk.blue(`[${level.toUpperCase()}]`)
+        break
       case LOG_LEVELS.DEBUG:
-        coloredLevel = chalk.gray(`[${level.toUpperCase()}]`);
-        break;
+        coloredLevel = chalk.gray(`[${level.toUpperCase()}]`)
+        break
       case LOG_LEVELS.VERBOSE:
-        coloredLevel = chalk.dim(`[${level.toUpperCase()}]`);
-        break;
+        coloredLevel = chalk.dim(`[${level.toUpperCase()}]`)
+        break
       default:
-        coloredLevel = `[${(level as string).toUpperCase()}]`;
+        coloredLevel = `[${(level as string).toUpperCase()}]`
     }
 
-    return `${chalk.dim(timestamp)} ${coloredLevel} ${message}`;
+    return `${chalk.dim(timestamp)} ${coloredLevel} ${message}`
   }
 
   error(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LOG_LEVELS.ERROR)) {
-      console.error(this.format(LOG_LEVELS.ERROR, message), ...args);
-      this.writeToFile(LOG_LEVELS.ERROR, message, ...args);
+      console.error(this.format(LOG_LEVELS.ERROR, message), ...args)
+      this.writeToFile(LOG_LEVELS.ERROR, message, ...args)
     }
   }
 
   warn(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LOG_LEVELS.WARN)) {
-      console.warn(this.format(LOG_LEVELS.WARN, message), ...args);
-      this.writeToFile(LOG_LEVELS.WARN, message, ...args);
+      console.warn(this.format(LOG_LEVELS.WARN, message), ...args)
+      this.writeToFile(LOG_LEVELS.WARN, message, ...args)
     }
   }
 
   info(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LOG_LEVELS.INFO)) {
-      console.info(this.format(LOG_LEVELS.INFO, message), ...args);
-      this.writeToFile(LOG_LEVELS.INFO, message, ...args);
+      console.info(this.format(LOG_LEVELS.INFO, message), ...args)
+      this.writeToFile(LOG_LEVELS.INFO, message, ...args)
     }
   }
 
   debug(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LOG_LEVELS.DEBUG)) {
       // eslint-disable-next-line no-console
-      console.debug(this.format(LOG_LEVELS.DEBUG, message), ...args);
-      this.writeToFile(LOG_LEVELS.DEBUG, message, ...args);
+      console.debug(this.format(LOG_LEVELS.DEBUG, message), ...args)
+      this.writeToFile(LOG_LEVELS.DEBUG, message, ...args)
     }
   }
 
   verbose(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LOG_LEVELS.VERBOSE)) {
       // eslint-disable-next-line no-console
-      console.log(this.format(LOG_LEVELS.VERBOSE, message), ...args);
-      this.writeToFile(LOG_LEVELS.VERBOSE, message, ...args);
+      console.log(this.format(LOG_LEVELS.VERBOSE, message), ...args)
+      this.writeToFile(LOG_LEVELS.VERBOSE, message, ...args)
     }
   }
 
@@ -171,7 +171,7 @@ export class ConsoleLogger implements Logger {
    * @param level - New log level to set
    */
   setLevel(level: LogLevel): void {
-    this.level = level;
+    this.level = level
   }
 
   /**
@@ -180,7 +180,7 @@ export class ConsoleLogger implements Logger {
    * @param quiet - True to enable quiet mode (errors only)
    */
   setQuiet(quiet: boolean): void {
-    this.quiet = quiet;
+    this.quiet = quiet
   }
 
   /**
@@ -192,12 +192,13 @@ export class ConsoleLogger implements Logger {
    */
   private writeToFile(level: LogLevel, message: string, ...args: unknown[]): void {
     if (this.logToFile && this.logFilePath) {
-      const timestamp = new Date().toISOString();
-      const fileMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}${args.length > 0 ? ' ' + args.join(' ') : ''}\n`;
+      const timestamp = new Date().toISOString()
+      const fileMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}${args.length > 0 ? ' ' + args.join(' ') : ''}\n`
       try {
-        appendFileSync(this.logFilePath, fileMessage);
-      } catch (error) {
-        console.error('Failed to write to log file:', error);
+        appendFileSync(this.logFilePath, fileMessage)
+      }
+      catch (error) {
+        console.error('Failed to write to log file:', error)
       }
     }
   }
@@ -206,7 +207,7 @@ export class ConsoleLogger implements Logger {
 /**
  * Global singleton logger instance
  */
-let logger: Logger = new ConsoleLogger();
+let logger: Logger = new ConsoleLogger()
 
 /**
  * Sets the global logger instance
@@ -214,7 +215,7 @@ let logger: Logger = new ConsoleLogger();
  * @param newLogger - New logger instance to use globally
  */
 export function setLogger(newLogger: Logger): void {
-  logger = newLogger;
+  logger = newLogger
 }
 
 /**
@@ -223,5 +224,5 @@ export function setLogger(newLogger: Logger): void {
  * @returns Current logger instance
  */
 export function getLogger(): Logger {
-  return logger;
+  return logger
 }

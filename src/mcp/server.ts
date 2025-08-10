@@ -2,18 +2,18 @@
  * MCP Server implementation for Tree-Sitter service
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { resolve } from 'path';
-import { findProjectRoot } from '../utils/project-detection.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { resolve } from 'path'
+import { findProjectRoot } from '../utils/project-detection.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   Tool,
   TextContent,
-} from '@modelcontextprotocol/sdk/types.js';
+} from '@modelcontextprotocol/sdk/types.js'
 
-import { MCP_TOOLS } from '../constants/index.js';
+import { MCP_TOOLS } from '../constants/index.js'
 import type {
   Config,
   InitializeProjectArgs,
@@ -22,22 +22,22 @@ import type {
   UpdateFileArgs,
   ProjectStatusArgs,
   DestroyProjectArgs,
-} from '../types/index.js';
-import { setLogger, ConsoleLogger } from '../utils/logger.js';
-import { LOG_LEVELS } from '../constants/cli-constants.js';
-import { TreeManager } from '../core/tree-manager.js';
-import { BatchFileWatcher } from '../core/file-watcher.js';
-import { getParserRegistry } from '../parsers/registry.js';
-import * as tools from './tools/index.js';
+} from '../types/index.js'
+import { setLogger, ConsoleLogger } from '../utils/logger.js'
+import { LOG_LEVELS } from '../constants/cli-constants.js'
+import { TreeManager } from '../core/tree-manager.js'
+import { BatchFileWatcher } from '../core/file-watcher.js'
+import { getParserRegistry } from '../parsers/registry.js'
+import * as tools from './tools/index.js'
 
 export async function startMCPServer(_config: Config): Promise<void> {
   // Enable debug logging if TREE_SITTER_MCP_DEBUG environment variable is set
-  const enableDebugLogging = process.env.TREE_SITTER_MCP_DEBUG === 'true';
+  const enableDebugLogging = process.env.TREE_SITTER_MCP_DEBUG === 'true'
 
   // Always write startup debug info to a global log file for Claude Code troubleshooting
-  const { homedir } = await import('os');
-  const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log');
-  const timestamp = new Date().toISOString();
+  const { homedir } = await import('os')
+  const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log')
+  const timestamp = new Date().toISOString()
   const startupInfo = `[${timestamp}] MCP Server Startup:
   - Mode: MCP Server (confirmed)
   - CWD: ${process.cwd()}
@@ -49,42 +49,44 @@ export async function startMCPServer(_config: Config): Promise<void> {
   - TREE_SITTER_MCP_DEBUG: ${process.env.TREE_SITTER_MCP_DEBUG || 'undefined'}
   - Parent PID: ${process.ppid || 'undefined'}
   - Process Title: ${process.title || 'undefined'}
-\n`;
+\n`
 
   try {
-    const { appendFileSync } = await import('fs');
-    appendFileSync(globalLogPath, startupInfo);
-  } catch {
+    const { appendFileSync } = await import('fs')
+    appendFileSync(globalLogPath, startupInfo)
+  }
+  catch {
     // Ignore write errors
   }
 
-  let logger: ConsoleLogger;
+  let logger: ConsoleLogger
   if (enableDebugLogging) {
-    const projectRoot = findProjectRoot();
-    const logFilePath = resolve(projectRoot, 'logs', 'mcp-server.log');
+    const projectRoot = findProjectRoot()
+    const logFilePath = resolve(projectRoot, 'logs', 'mcp-server.log')
     logger = new ConsoleLogger({
       level: LOG_LEVELS.VERBOSE,
       logToFile: true,
       logFilePath,
       useColors: false,
-    });
-    setLogger(logger);
-    logger.info('Starting MCP server with debug file logging enabled');
-    logger.info(`Process cwd: ${process.cwd()}`);
-    logger.info(`Log file: ${logFilePath}`);
-  } else {
+    })
+    setLogger(logger)
+    logger.info('Starting MCP server with debug file logging enabled')
+    logger.info(`Process cwd: ${process.cwd()}`)
+    logger.info(`Log file: ${logFilePath}`)
+  }
+  else {
     logger = new ConsoleLogger({
       level: LOG_LEVELS.INFO,
       logToFile: false,
       useColors: false,
-    });
-    setLogger(logger);
-    logger.info('Starting MCP server');
+    })
+    setLogger(logger)
+    logger.info('Starting MCP server')
   }
 
-  const parserRegistry = getParserRegistry();
-  const treeManager = new TreeManager(parserRegistry);
-  const fileWatcher = new BatchFileWatcher(treeManager);
+  const parserRegistry = getParserRegistry()
+  const treeManager = new TreeManager(parserRegistry)
+  const fileWatcher = new BatchFileWatcher(treeManager)
   const server = new Server(
     {
       name: 'tree-sitter-mcp',
@@ -94,8 +96,8 @@ export async function startMCPServer(_config: Config): Promise<void> {
       capabilities: {
         tools: {},
       },
-    }
-  );
+    },
+  )
 
   server.setRequestHandler(ListToolsRequestSchema, () => {
     return {
@@ -285,71 +287,72 @@ export async function startMCPServer(_config: Config): Promise<void> {
           },
         },
       ] as Tool[],
-    };
-  });
+    }
+  })
 
-  server.setRequestHandler(CallToolRequestSchema, async request => {
-    const { name, arguments: args } = request.params;
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params
 
-    logger.debug(`Tool called: ${name}`, args);
+    logger.debug(`Tool called: ${name}`, args)
 
     try {
-      let result: TextContent;
+      let result: TextContent
 
       switch (name) {
         case MCP_TOOLS.INITIALIZE_PROJECT:
           result = await tools.initializeProject(
             args as unknown as InitializeProjectArgs,
             treeManager,
-            fileWatcher
-          );
-          break;
+            fileWatcher,
+          )
+          break
 
         case MCP_TOOLS.SEARCH_CODE:
           result = await tools.searchCode(
             args as unknown as SearchCodeArgs,
             treeManager,
-            fileWatcher
-          );
-          break;
+            fileWatcher,
+          )
+          break
 
         case MCP_TOOLS.FIND_USAGE:
           result = await tools.findUsage(
             args as unknown as FindUsageArgs,
             treeManager,
-            fileWatcher
-          );
-          break;
+            fileWatcher,
+          )
+          break
 
         case MCP_TOOLS.UPDATE_FILE:
-          result = await tools.updateFile(args as unknown as UpdateFileArgs, treeManager);
-          break;
+          result = await tools.updateFile(args as unknown as UpdateFileArgs, treeManager)
+          break
 
         case MCP_TOOLS.PROJECT_STATUS:
           result = tools.projectStatus(
             args as unknown as ProjectStatusArgs,
             treeManager,
-            fileWatcher
-          );
-          break;
+            fileWatcher,
+          )
+          break
 
         case MCP_TOOLS.DESTROY_PROJECT:
           result = tools.destroyProject(
             args as unknown as DestroyProjectArgs,
             treeManager,
-            fileWatcher
-          );
-          break;
+            fileWatcher,
+          )
+          break
 
         default:
-          throw new Error(`Unknown tool: ${name}`);
+          throw new Error(`Unknown tool: ${name}`)
       }
 
       return {
         content: [result],
-      };
-    } catch (error) {
-      logger.error(`Tool error (${name}):`, error);
+      }
+    }
+    catch (error) {
+      logger.error(`Tool error (${name}):`, error)
 
       return {
         content: [
@@ -359,30 +362,30 @@ export async function startMCPServer(_config: Config): Promise<void> {
           },
         ],
         isError: true,
-      };
+      }
     }
-  });
+  })
 
-  const transport = new StdioServerTransport();
+  const transport = new StdioServerTransport()
 
   // Handle shutdown
   process.on('SIGINT', () => {
-    logger.info('Shutting down MCP server...');
-    fileWatcher.stopAll();
+    logger.info('Shutting down MCP server...')
+    fileWatcher.stopAll()
     void server.close().then(() => {
-      process.exit(0);
-    });
-  });
+      process.exit(0)
+    })
+  })
 
   process.on('SIGTERM', () => {
-    logger.info('Shutting down MCP server...');
-    fileWatcher.stopAll();
+    logger.info('Shutting down MCP server...')
+    fileWatcher.stopAll()
     void server.close().then(() => {
-      process.exit(0);
-    });
-  });
+      process.exit(0)
+    })
+  })
 
-  logger.info('Starting Tree-Sitter MCP server...');
-  await server.connect(transport);
-  logger.info('MCP server started successfully');
+  logger.info('Starting Tree-Sitter MCP server...')
+  await server.connect(transport)
+  logger.info('MCP server started successfully')
 }

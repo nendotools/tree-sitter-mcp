@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
+  "exclude": ["node_modules", "dist", "src/test/fixtures"],
   "compilerOptions": {
     // Modern Node.js + ESM configuration
     "target": "ES2023",

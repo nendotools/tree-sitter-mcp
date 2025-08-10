@@ -17,7 +17,7 @@ export const LANGUAGE_PROJECT_INDICATORS = [
   'pom.xml', // Java
   'build.gradle',
   'tsconfig.json', // TypeScript
-] as const;
+] as const
 
 // Directories to ignore during mono-repo scanning
 export const MONO_REPO_IGNORE_DIRS = new Set([
@@ -39,13 +39,13 @@ export const MONO_REPO_IGNORE_DIRS = new Set([
   '.idea',
   'coverage',
   '.nyc_output',
-]);
+])
 
 // Default settings for mono-repo detection
 export const MONO_REPO = {
   DEFAULT_MAX_DEPTH: 3,
   MIN_INDICATORS_REQUIRED: 1,
-} as const;
+} as const
 
 // Language mappings for project indicators
 export const INDICATOR_LANGUAGE_MAP = {
@@ -58,8 +58,8 @@ export const INDICATOR_LANGUAGE_MAP = {
   'go.mod': ['go'],
   'pyproject.toml': ['python'],
   'requirements.txt': ['python'],
-  Pipfile: ['python'],
+  'Pipfile': ['python'],
   'composer.json': ['php'],
   'pom.xml': ['java'],
   'build.gradle': ['java'],
-} as const;
+} as const

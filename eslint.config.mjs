@@ -10,7 +10,7 @@ export default ts.config(
   { files: ['**/*.{js,mjs,cjs,ts}'] },
   {
     files: ['**/*.{js,mjs,cjs,ts}'],
-    languageOptions: { 
+    languageOptions: {
       globals: { ...globals.node, ...globals.es2023 }
     },
   },
@@ -28,17 +28,10 @@ export default ts.config(
         'error',
         { argsIgnorePattern: '^_' }
       ],
-      'no-console': ['warn', { 
-        allow: ['warn', 'error', 'info'] 
+      'no-console': ['warn', {
+        allow: ['warn', 'error', 'info']
       }],
-      '@stylistic/indent-binary-ops': 'off',
-      '@stylistic/semi': 'off',
-      '@stylistic/member-delimiter-style': 'off',
-      '@stylistic/comma-dangle': 'off',
-      '@stylistic/brace-style': 'off',
-      '@stylistic/arrow-parens': 'off',
-      '@stylistic/operator-linebreak': 'off',
-      '@stylistic/quote-props': 'off',
+      '@stylistic/eol-last': 'off',
     },
   },
   {
@@ -47,6 +40,8 @@ export default ts.config(
       'node_modules/',
       '*.d.ts',
       'coverage/',
+      'src/test/fixtures/',
     ],
   },
 )
+

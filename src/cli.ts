@@ -10,49 +10,50 @@
  * - Language listing and project analysis commands
  */
 
-import { Command } from 'commander';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import chalk from 'chalk';
+import { Command } from 'commander'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+import chalk from 'chalk'
 
-import { SERVICE } from './constants/service-constants.js';
-import { LOG_LEVELS } from './constants/cli-constants.js';
-import type { CLIOptions, Config } from './types/index.js';
-import { ConsoleLogger, setLogger, getLogger } from './utils/logger.js';
-import { startMCPServer } from './mcp/server.js';
-import { runStandaloneMode } from './standalone/index.js';
-import { runSetup } from './setup.js';
-import { listSupportedLanguages } from './parsers/registry.js';
+import { SERVICE } from './constants/service-constants.js'
+import { LOG_LEVELS } from './constants/cli-constants.js'
+import type { CLIOptions, Config } from './types/index.js'
+import { ConsoleLogger, setLogger, getLogger } from './utils/logger.js'
+import { startMCPServer } from './mcp/server.js'
+import { runStandaloneMode } from './standalone/index.js'
+import { runSetup } from './setup.js'
+import { listSupportedLanguages } from './parsers/registry.js'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 /**
  * Package.json interface for version information
  */
 interface PackageJson {
-  version: string;
-  [key: string]: unknown;
+  version: string
+  [key: string]: unknown
 }
 
 /**
  * Load package.json with fallback for different execution contexts
  */
-let packageJson: PackageJson;
+let packageJson: PackageJson
 try {
   packageJson = JSON.parse(
-    readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')
-  ) as PackageJson;
-} catch {
-  packageJson = { version: '1.0.0' } as PackageJson;
+    readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'),
+  ) as PackageJson
+}
+catch {
+  packageJson = { version: '1.0.0' } as PackageJson
 }
 
 /**
  * Main CLI program configuration
  */
-const program = new Command();
+const program = new Command()
 
 program
   .name(SERVICE.NAME)
@@ -74,24 +75,25 @@ program
       level: options.verbose ? LOG_LEVELS.VERBOSE : LOG_LEVELS.INFO,
       quiet: options.quiet || false,
       useColors: true,
-    });
-    setLogger(logger);
+    })
+    setLogger(logger)
 
     if (process.env.TREE_SITTER_MCP_DEBUG === 'true') {
       try {
-        const { homedir } = await import('os');
-        const { appendFileSync } = await import('fs');
-        const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log');
-        const timestamp = new Date().toISOString();
+        const { homedir } = await import('os')
+        const { appendFileSync } = await import('fs')
+        const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log')
+        const timestamp = new Date().toISOString()
         const cliStartupInfo = `[${timestamp}] CLI Startup:
   - Raw Args: ${JSON.stringify(process.argv)}
   - Parsed Options: ${JSON.stringify(options)}
   - Process CWD: ${process.cwd()}
   - stdin.isTTY: ${process.stdin.isTTY}
   - Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}
-\n`;
-        appendFileSync(globalLogPath, cliStartupInfo);
-      } catch {
+\n`
+        appendFileSync(globalLogPath, cliStartupInfo)
+      }
+      catch {
         // Ignore errors writing to global debug log
       }
     }
@@ -99,46 +101,48 @@ program
     try {
       // Handle special commands first
       if (options.listLanguages) {
-        handleListLanguages();
-        process.exit(0);
+        handleListLanguages()
+        process.exit(0)
       }
 
       if (options.setup) {
-        await handleSetup();
-        process.exit(0);
+        await handleSetup()
+        process.exit(0)
       }
 
       // Parse configuration
-      const config = parseConfig(options);
+      const config = parseConfig(options)
 
       // Debug logging for mode detection
-      logger.debug(`CLI args: ${process.argv.join(' ')}`);
-      logger.debug(`--mcp flag: ${options.mcp || false}`);
-      logger.debug(`stdin.isTTY: ${process.stdin.isTTY}`);
-      logger.debug(`Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}`);
+      logger.debug(`CLI args: ${process.argv.join(' ')}`)
+      logger.debug(`--mcp flag: ${options.mcp || false}`)
+      logger.debug(`stdin.isTTY: ${process.stdin.isTTY}`)
+      logger.debug(`Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}`)
 
       // Determine execution mode
-      const shouldRunMCP = options.mcp || !process.stdin.isTTY;
+      const shouldRunMCP = options.mcp || !process.stdin.isTTY
       logger.debug(
-        `Mode decision: ${shouldRunMCP ? 'MCP Server' : 'Standalone'} (--mcp=${options.mcp || false}, !stdin.isTTY=${!process.stdin.isTTY})`
-      );
+        `Mode decision: ${shouldRunMCP ? 'MCP Server' : 'Standalone'} (--mcp=${options.mcp || false}, !stdin.isTTY=${!process.stdin.isTTY})`,
+      )
 
       if (shouldRunMCP) {
         // Run in MCP mode
-        logger.info('Starting Tree-Sitter MCP server...');
-        logger.debug('Mode: MCP Server');
-        await startMCPServer(config);
-      } else {
-        // Run in standalone mode
-        logger.info('Running Tree-Sitter analysis...');
-        logger.debug('Mode: Standalone');
-        await runStandaloneMode(config);
+        logger.info('Starting Tree-Sitter MCP server...')
+        logger.debug('Mode: MCP Server')
+        await startMCPServer(config)
       }
-    } catch (error) {
-      logger.error('Fatal error:', error);
-      process.exit(1);
+      else {
+        // Run in standalone mode
+        logger.info('Running Tree-Sitter analysis...')
+        logger.debug('Mode: Standalone')
+        await runStandaloneMode(config)
+      }
     }
-  });
+    catch (error) {
+      logger.error('Fatal error:', error)
+      process.exit(1)
+    }
+  })
 
 // Add subcommands
 program
@@ -152,15 +156,15 @@ program
   .option('--config-only', 'Only create configuration file')
   .helpOption('-h, --help', 'Display help for setup command')
   .action(async () => {
-    await handleSetup();
-  });
+    await handleSetup()
+  })
 
 program
   .command('languages')
   .description('List all supported programming languages')
   .action(() => {
-    handleListLanguages();
-  });
+    handleListLanguages()
+  })
 
 program
   .command('analyze [directory]')
@@ -173,12 +177,12 @@ program
     async (
       directory: string = '.',
       options: {
-        languages?: string;
-        output?: string;
-        pretty?: boolean;
-      }
+        languages?: string
+        output?: string
+        pretty?: boolean
+      },
     ) => {
-      const opts = program.opts() as CLIOptions;
+      const opts = program.opts() as CLIOptions
       const config: Config = {
         workingDir: resolve(directory),
         languages: options.languages ? options.languages.split(',') : [],
@@ -186,15 +190,15 @@ program
         ignoreDirs: [],
         verbose: opts.verbose,
         quiet: opts.quiet,
-      };
+      }
 
       await runStandaloneMode({
         ...config,
         output: options.output as string | undefined,
         pretty: options.pretty as boolean | undefined,
-      });
-    }
-  );
+      })
+    },
+  )
 
 /**
  * Parses CLI options and optional config file into a unified configuration
@@ -216,25 +220,26 @@ function parseConfig(options: CLIOptions): Config {
     ignoreDirs: options.ignore ? options.ignore.split(',').map(d => d.trim()) : [],
     verbose: options.verbose,
     quiet: options.quiet,
-  };
+  }
 
   if (options.config) {
     try {
-      const configPath = resolve(options.config);
-      const configFile = JSON.parse(readFileSync(configPath, 'utf-8')) as Partial<Config>;
+      const configPath = resolve(options.config)
+      const configFile = JSON.parse(readFileSync(configPath, 'utf-8')) as Partial<Config>
 
       config = {
         ...configFile,
         ...config,
         languages: options.languages ? config.languages : configFile.languages || config.languages,
         ignoreDirs: options.ignore ? config.ignoreDirs : configFile.ignoreDirs || config.ignoreDirs,
-      };
-    } catch (error) {
-      throw new Error(`Failed to load config file: ${String(error)}`);
+      }
+    }
+    catch (error) {
+      throw new Error(`Failed to load config file: ${String(error)}`)
     }
   }
 
-  return config;
+  return config
 }
 
 /**
@@ -244,18 +249,18 @@ function parseConfig(options: CLIOptions): Config {
  * with color-coded output for better readability.
  */
 function handleListLanguages(): void {
-  const logger = getLogger();
-  const languages = listSupportedLanguages();
+  const logger = getLogger()
+  const languages = listSupportedLanguages()
 
-  logger.info(chalk.cyan('\nSupported Languages:\n'));
+  logger.info(chalk.cyan('\nSupported Languages:\n'))
 
-  languages.forEach(lang => {
-    logger.info(`  ${chalk.green('•')} ${chalk.bold(lang.name)}`);
-    logger.info(`    Extensions: ${chalk.dim(lang.extensions.join(', '))}`);
-  });
+  languages.forEach((lang) => {
+    logger.info(`  ${chalk.green('•')} ${chalk.bold(lang.name)}`)
+    logger.info(`    Extensions: ${chalk.dim(lang.extensions.join(', '))}`)
+  })
 
-  logger.info(chalk.dim(`\n  Total: ${languages.length} languages supported`));
-  logger.info('');
+  logger.info(chalk.dim(`\n  Total: ${languages.length} languages supported`))
+  logger.info('')
 }
 
 /**
@@ -265,7 +270,7 @@ function handleListLanguages(): void {
  * configuration generation, and installation instructions.
  */
 async function handleSetup(): Promise<void> {
-  await runSetup();
+  await runSetup()
 }
 
 // Enhanced help text
@@ -314,13 +319,13 @@ ${chalk.cyan('More Information:')}
   
   Repository: ${chalk.underline('https://github.com/your-username/tree-sitter-mcp')}
   MCP Docs:   ${chalk.underline('https://modelcontextprotocol.io')}
-`
-);
+`,
+)
 
 // Parse arguments and run
-program.parse(process.argv);
+program.parse(process.argv)
 
 // Show help if no arguments provided AND stdin is a TTY (not piped from MCP client)
 if (process.argv.length === 2 && process.stdin.isTTY) {
-  program.help();
+  program.help()
 }
