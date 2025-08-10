@@ -9,74 +9,64 @@ A Model Context Protocol (MCP) server that provides fast, in-memory code search 
 - **Automatic synchronization**. File watchers keep the index current with 2-second debouncing.
 - **Multi-language support**. JavaScript, TypeScript, Python, Go, Rust, Java, C/C++.
 
-## Requirements
+## Quick Setup
 
-- Node.js 18 or newer
-- VS Code, Cursor, Windsurf, Claude Desktop, or any other MCP client
-
-## Getting Started
-
-First, install the Tree-Sitter MCP server with your client.
-
-**Standard config** works in most tools:
-
-```json
-{
-  "mcpServers": {
-    "tree-sitter": {
-      "command": "npx",
-      "args": [
-        "tree-sitter-mcp@latest"
-      ]
-    }
-  }
-}
-```
-
-### VS Code / Cursor / Windsurf
-
-Add to your MCP settings file (in VS Code: `Cmd+Shift+P` → "MCP: Edit Settings"):
-
-```json
-{
-  "mcpServers": {
-    "tree-sitter": {
-      "command": "npx",
-      "args": ["tree-sitter-mcp@latest"]
-    }
-  }
-}
-```
-
-### Claude Desktop
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "tree-sitter": {
-      "command": "npx",
-      "args": ["tree-sitter-mcp@latest"]
-    }
-  }
-}
-```
-
-### Local Development
+**Install and configure automatically:**
 
 ```bash
-git clone <repository-url>
-cd tree-sitter-mcp
-npm install
-npm run build
-
-# Run MCP server
-npm run mcp
-
-# Or install globally
-npm install -g .
+npm install -g tree-sitter-mcp
 tree-sitter-mcp setup
+```
+
+This will auto-detect your MCP clients (Claude Desktop, VS Code, Cursor, Windsurf) and configure them automatically.
+
+## Manual Setup
+
+### Use with NPX (Recommended)
+
+Add this to your MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "tree-sitter": {
+      "command": "npx",
+      "args": ["tree-sitter-mcp@latest"]
+    }
+  }
+}
+```
+
+### Configuration Locations
+
+**Claude Desktop:**
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+**VS Code / Cursor / Windsurf:**
+- Open command palette (`Cmd+Shift+P` or `Ctrl+Shift+P`)
+- Run "MCP: Edit Settings"
+- Add the configuration above
+
+### Global Installation
+
+If you prefer a global installation:
+
+```bash
+npm install -g tree-sitter-mcp
+```
+
+Then use this configuration:
+
+```json
+{
+  "mcpServers": {
+    "tree-sitter": {
+      "command": "tree-sitter-mcp"
+    }
+  }
+}
 ```
 
 ## Configuration
@@ -91,15 +81,6 @@ Create a config file at `~/.config/tree-sitter-mcp/config.json`:
   "maxMemoryMB": 1024,
   "ignoreDirs": ["node_modules", ".git", "dist"]
 }
-```
-
-### Command Line Options
-
-```bash
-tree-sitter-mcp --help           # Show all options
-tree-sitter-mcp --languages      # List supported languages
-tree-sitter-mcp --verbose        # Enable verbose logging
-tree-sitter-mcp --config ./custom-config.json
 ```
 
 ## Tools
@@ -172,15 +153,6 @@ Tree-Sitter MCP maintains an in-memory index of your codebase's abstract syntax 
 - Search time: <100ms for indexed nodes
 - Memory usage: 100-500MB per project
 - File watch latency: 2-second debounced updates
-
-## Development
-
-```bash
-npm run dev       # Run with hot reload
-npm run build     # Build for production
-npm test          # Run tests
-npm run typecheck # Check types
-```
 
 ## License
 
