@@ -244,7 +244,7 @@ async function npmSetup(): Promise<void> {
     mcpServers: {
       'tree-sitter': {
         command: 'npx',
-        args: ['tree-sitter-mcp@latest'],
+        args: ['@nendo/tree-sitter-mcp@latest'],
       },
     },
   }
@@ -366,7 +366,7 @@ async function manualSetup(): Promise<void> {
               mcpServers: {
                 'tree-sitter': {
                   command: 'npx',
-                  args: ['tree-sitter-mcp@latest'],
+                  args: ['@nendo/tree-sitter-mcp@latest'],
                 },
               },
             },
@@ -379,7 +379,7 @@ async function manualSetup(): Promise<void> {
 
     case 'global':
       logger.info(chalk.white('1. Install globally:\n'))
-      logger.info(chalk.gray('   npm install -g tree-sitter-mcp\n'))
+      logger.info(chalk.gray('   npm install -g @nendo/tree-sitter-mcp\n'))
       logger.info(chalk.white('2. Add this to your MCP client configuration:\n'))
       logger.info(
         chalk.gray(
@@ -609,7 +609,7 @@ async function configureClient(client: MCPClient, method: 'npx' | 'global'): Pro
 
       const config
         = method === 'npx'
-          ? { command: 'npx', args: ['tree-sitter-mcp@latest'] }
+          ? { command: 'npx', args: ['@nendo/tree-sitter-mcp@latest'] }
           : { command: 'tree-sitter-mcp', args: ['--mcp'] }
 
       logger.info(
@@ -655,7 +655,7 @@ async function configureClaudeDesktop(configPath: string, method: 'npx' | 'globa
   if (method === 'npx') {
     config.mcpServers['tree-sitter'] = {
       command: 'npx',
-      args: ['tree-sitter-mcp@latest'],
+      args: ['@nendo/tree-sitter-mcp@latest'],
     }
   }
   else {
@@ -689,8 +689,8 @@ async function configureClaudeCode(_configPath: string, method: 'npx' | 'global'
     if (method === 'npx') {
       // Check if package is published to npm
       try {
-        execSync('npm view tree-sitter-mcp version', { stdio: 'pipe' })
-        mcpCommand = 'claude mcp add tree-sitter -s user "npx tree-sitter-mcp@latest"'
+        execSync('npm view @nendo/tree-sitter-mcp version', { stdio: 'pipe' })
+        mcpCommand = 'claude mcp add tree-sitter -s user "npx @nendo/tree-sitter-mcp@latest"'
         logger.info(chalk.dim('  Using published npm package'))
       }
       catch {
@@ -785,7 +785,7 @@ async function configureCLIClient(client: MCPClient, method: 'npx' | 'global'): 
   if (method === 'npx') {
     config.mcpServers['tree-sitter'] = {
       command: 'npx',
-      args: ['tree-sitter-mcp@latest'],
+      args: ['@nendo/tree-sitter-mcp@latest'],
     }
   }
   else {
@@ -915,7 +915,7 @@ async function customizeConfig(defaultConfig: any): Promise<any> {
 
 function checkGlobalInstallation(): boolean {
   try {
-    const result = execSync('npm list -g tree-sitter-mcp', {
+    const result = execSync('npm list -g @nendo/tree-sitter-mcp', {
       encoding: 'utf-8',
       stdio: 'pipe',
     })

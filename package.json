@@ -1,6 +1,6 @@
 {
-  "name": "tree-sitter-mcp",
-  "version": "0.9.0",
+  "name": "@nendo/tree-sitter-mcp",
+  "version": "0.9.1",
   "description": "Fast in-memory code search and analysis MCP service using tree-sitter",
   "keywords": [
     "mcp",
@@ -36,7 +36,7 @@
     "prepare": "npm run build",
     "setup": "tsx src/setup.ts",
     "global-install": "npm run build && npm link",
-    "global-uninstall": "npm unlink -g tree-sitter-mcp"
+    "global-uninstall": "npm unlink -g @nendo/tree-sitter-mcp"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.2",

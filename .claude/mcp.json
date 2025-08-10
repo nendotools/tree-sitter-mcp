@@ -1,7 +1,7 @@
 {
-  "name": "tree-sitter-mcp",
+  "name": "@nendo/tree-sitter-mcp",
   "description": "Fast in-memory code search and analysis using Tree-Sitter parsers",
-  "version": "1.0.0",
+  "version": "0.9.0",
   "tools": [
     {
       "name": "initialize_project",
@@ -27,6 +27,6 @@
   "agent": "agents/treesitter-code-agent.md",
   "setup": {
     "command": "yarn setup",
-    "install": "yarn global add tree-sitter-mcp"
+    "install": "yarn global add @nendo/tree-sitter-mcp"
   }
 }

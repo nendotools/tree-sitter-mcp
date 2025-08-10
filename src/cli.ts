@@ -218,22 +218,22 @@ program.addHelpText(
 ${chalk.cyan('Examples:')}
   
   ${chalk.dim('# Run as MCP server')}
-  $ tree-sitter-mcp --mcp
+  $ @nendo/tree-sitter-mcp --mcp
   
   ${chalk.dim('# Analyze current directory')}
-  $ tree-sitter-mcp analyze
+  $ @nendo/tree-sitter-mcp analyze
   
   ${chalk.dim('# Analyze specific directory with filters')}
-  $ tree-sitter-mcp analyze ./src --languages typescript,javascript
+  $ @nendo/tree-sitter-mcp analyze ./src --languages typescript,javascript
   
   ${chalk.dim('# Use configuration file')}
-  $ tree-sitter-mcp --mcp --config ./config.json
+  $ @nendo/tree-sitter-mcp --mcp --config ./config.json
   
   ${chalk.dim('# Run interactive setup')}
-  $ tree-sitter-mcp setup
+  $ @nendo/tree-sitter-mcp setup
   
   ${chalk.dim('# List supported languages')}
-  $ tree-sitter-mcp languages
+  $ @nendo/tree-sitter-mcp languages
 
 ${chalk.cyan('Configuration File Format:')}
   

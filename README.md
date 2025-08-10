@@ -14,8 +14,8 @@ A Model Context Protocol (MCP) server that provides fast, in-memory code search 
 **Install and configure automatically:**
 
 ```bash
-npm install -g tree-sitter-mcp
-tree-sitter-mcp setup
+npm install -g @nendo/tree-sitter-mcp
+@nendo/tree-sitter-mcp setup
 ```
 
 This will auto-detect your MCP clients (Claude Desktop, Claude Code, VS Code, Cursor, Windsurf, Gemini CLI, Qwen CLI) and configure them automatically.
@@ -31,7 +31,7 @@ Add this to your MCP client configuration:
   "mcpServers": {
     "tree-sitter": {
       "command": "npx",
-      "args": ["tree-sitter-mcp@latest"]
+      "args": ["@nendo/tree-sitter-mcp@latest"]
     }
   }
 }
@@ -64,7 +64,7 @@ Add this to your MCP client configuration:
 If you prefer a global installation:
 
 ```bash
-npm install -g tree-sitter-mcp
+npm install -g @nendo/tree-sitter-mcp
 ```
 
 Then use this configuration:
@@ -73,7 +73,7 @@ Then use this configuration:
 {
   "mcpServers": {
     "tree-sitter": {
-      "command": "tree-sitter-mcp"
+      "command": "@nendo/tree-sitter-mcp"
     }
   }
 }
@@ -168,7 +168,7 @@ To enable detailed debug logging for troubleshooting, you need to modify your MC
   "mcpServers": {
     "tree-sitter": {
       "command": "npx",
-      "args": ["tree-sitter-mcp@latest"],
+      "args": ["@nendo/tree-sitter-mcp@latest"],
       "env": {
         "TREE_SITTER_MCP_DEBUG": "true"
       }
@@ -182,7 +182,7 @@ To enable detailed debug logging for troubleshooting, you need to modify your MC
 {
   "mcpServers": {
     "tree-sitter": {
-      "command": "tree-sitter-mcp",
+      "command": "@nendo/tree-sitter-mcp",
       "env": {
         "TREE_SITTER_MCP_DEBUG": "true"
       }
