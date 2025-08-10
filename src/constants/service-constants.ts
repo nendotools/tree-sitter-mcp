@@ -7,7 +7,7 @@ export const SERVICE = {
   NAME: 'tree-sitter-mcp',
   VERSION: '1.0.0',
   DESCRIPTION: 'Fast in-memory code search and analysis MCP service',
-} as const
+} as const;
 
 // Memory management configuration
 export const MEMORY = {
@@ -16,20 +16,20 @@ export const MEMORY = {
   EVICTION_POLICY: 'LRU',
   DEFAULT_NODE_SIZE_BYTES: 500,
   DEFAULT_INDEX_ENTRY_BYTES: 50,
-} as const
+} as const;
 
 // File watching configuration
 export const WATCHER = {
   POLL_INTERVAL_MS: 2000,
   DEBOUNCE_MS: 500,
   MAX_FILE_SIZE_MB: 10,
-} as const
+} as const;
 
 // Directory configuration
 export const DIRECTORIES = {
   DEFAULT_WORKING_DIR: '.',
   DEFAULT_MAX_DEPTH: 10,
-} as const
+} as const;
 
 // Default directories to ignore (mutable array for compatibility)
 export const DEFAULT_IGNORE_DIRS = [
@@ -48,4 +48,4 @@ export const DEFAULT_IGNORE_DIRS = [
   'tmp',
   'temp',
   'logs',
-]
+];

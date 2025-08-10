@@ -2,29 +2,29 @@
  * Language parser registry for Tree-Sitter
  */
 
-import JavaScript from 'tree-sitter-javascript'
-import TypeScript from 'tree-sitter-typescript'
-import Python from 'tree-sitter-python'
-import Go from 'tree-sitter-go'
-import Rust from 'tree-sitter-rust'
-import Java from 'tree-sitter-java'
-import C from 'tree-sitter-c'
-import Cpp from 'tree-sitter-cpp'
+import JavaScript from 'tree-sitter-javascript';
+import TypeScript from 'tree-sitter-typescript';
+import Python from 'tree-sitter-python';
+import Go from 'tree-sitter-go';
+import Rust from 'tree-sitter-rust';
+import Java from 'tree-sitter-java';
+import C from 'tree-sitter-c';
+import Cpp from 'tree-sitter-cpp';
 
-import { LANGUAGE_EXTENSIONS } from '../constants/index.js'
-import type { LanguageParser, ParseResult } from '../types/index.js'
-import { BaseParser } from './base-parser.js'
+import { LANGUAGE_EXTENSIONS } from '../constants/index.js';
+import type { LanguageParser, ParseResult } from '../types/index.js';
+import { BaseParser } from './base-parser.js';
 
 // Language configuration
 interface LanguageConfig {
-  name: string
-  grammar: any
-  extensions: string[]
+  name: string;
+  grammar: any;
+  extensions: string[];
   queries?: {
-    highlights?: string
-    locals?: string
-    tags?: string
-  }
+    highlights?: string;
+    locals?: string;
+    tags?: string;
+  };
 }
 
 // Available language configurations
@@ -74,89 +74,89 @@ const LANGUAGE_CONFIGS: LanguageConfig[] = [
     grammar: Cpp,
     extensions: LANGUAGE_EXTENSIONS.cpp || [],
   },
-]
+];
 
 class ParserRegistry {
-  private parsers: Map<string, LanguageParser> = new Map()
-  private extensionMap: Map<string, string> = new Map()
+  private parsers: Map<string, LanguageParser> = new Map();
+  private extensionMap: Map<string, string> = new Map();
 
   constructor() {
-    this.initializeParsers()
+    this.initializeParsers();
   }
 
   private initializeParsers(): void {
     for (const config of LANGUAGE_CONFIGS) {
-      const parser = new BaseParser(config.name, config.grammar, config.extensions)
-      this.registerParser(parser)
+      const parser = new BaseParser(config.name, config.grammar, config.extensions);
+      this.registerParser(parser);
     }
   }
 
   registerParser(parser: LanguageParser): void {
-    this.parsers.set(parser.name, parser)
+    this.parsers.set(parser.name, parser);
 
     // Map extensions to language names
     for (const ext of parser.extensions) {
-      this.extensionMap.set(ext, parser.name)
+      this.extensionMap.set(ext, parser.name);
     }
   }
 
   getParser(language: string): LanguageParser | undefined {
-    return this.parsers.get(language)
+    return this.parsers.get(language);
   }
 
   getParserForFile(filePath: string): LanguageParser | undefined {
-    const ext = this.getFileExtension(filePath)
-    if (!ext) return undefined
+    const ext = this.getFileExtension(filePath);
+    if (!ext) return undefined;
 
-    const language = this.extensionMap.get(ext)
-    if (!language) return undefined
+    const language = this.extensionMap.get(ext);
+    if (!language) return undefined;
 
-    return this.parsers.get(language)
+    return this.parsers.get(language);
   }
 
   private getFileExtension(filePath: string): string | undefined {
-    const lastDot = filePath.lastIndexOf('.')
-    if (lastDot === -1) return undefined
-    return filePath.substring(lastDot)
+    const lastDot = filePath.lastIndexOf('.');
+    if (lastDot === -1) return undefined;
+    return filePath.substring(lastDot);
   }
 
   canParse(filePath: string): boolean {
-    return this.getParserForFile(filePath) !== undefined
+    return this.getParserForFile(filePath) !== undefined;
   }
 
   async parseFile(filePath: string, content: string): Promise<ParseResult | null> {
-    const parser = this.getParserForFile(filePath)
-    if (!parser) return null
+    const parser = this.getParserForFile(filePath);
+    if (!parser) return null;
 
-    return parser.parse(content, filePath)
+    return parser.parse(content, filePath);
   }
 
   getSupportedLanguages(): string[] {
-    return Array.from(this.parsers.keys())
+    return Array.from(this.parsers.keys());
   }
 
   getSupportedExtensions(): string[] {
-    return Array.from(this.extensionMap.keys())
+    return Array.from(this.extensionMap.keys());
   }
 }
 
 // Singleton instance
-let registry: ParserRegistry | null = null
+let registry: ParserRegistry | null = null;
 
 export function getParserRegistry(): ParserRegistry {
   if (!registry) {
-    registry = new ParserRegistry()
+    registry = new ParserRegistry();
   }
-  return registry
+  return registry;
 }
 
-export function listSupportedLanguages(): Array<{ name: string, extensions: string[] }> {
-  const reg = getParserRegistry()
+export function listSupportedLanguages(): Array<{ name: string; extensions: string[] }> {
+  const reg = getParserRegistry();
   return Array.from(reg['parsers'].values()).map(parser => ({
     name: parser.name,
     extensions: parser.extensions,
-  }))
+  }));
 }
 
 // Export for testing
-export { ParserRegistry }
+export { ParserRegistry };

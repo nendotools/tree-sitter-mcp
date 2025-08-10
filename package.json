@@ -1,6 +1,6 @@
 {
   "name": "@nendo/tree-sitter-mcp",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Fast in-memory code search and analysis MCP service using tree-sitter",
   "keywords": [
     "mcp",
@@ -16,7 +16,7 @@
     "node": ">=18.0.0"
   },
   "bin": {
-    "tree-sitter-mcp": "./dist/cli.js"
+    "tree-sitter-mcp": "dist/cli.js"
   },
   "files": [
     "dist",

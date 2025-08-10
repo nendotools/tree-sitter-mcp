@@ -1,28 +1,28 @@
-import { homedir } from 'os'
-import { join, dirname } from 'path'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
-import { execSync } from 'child_process'
-import chalk from 'chalk'
-import inquirer from 'inquirer'
-import { fileURLToPath } from 'url'
-import { getLogger } from './utils/logger.js'
+import { homedir } from 'os';
+import { join, dirname } from 'path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { execSync } from 'child_process';
+import chalk from 'chalk';
+import inquirer from 'inquirer';
+import { fileURLToPath } from 'url';
+import { getLogger } from './utils/logger.js';
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 interface MCPConfig {
   mcpServers?: {
     [key: string]: {
-      command: string
-      args?: string[]
-      env?: Record<string, string>
-    }
-  }
+      command: string;
+      args?: string[];
+      env?: Record<string, string>;
+    };
+  };
 }
 
 interface MCPClient {
-  name: string
-  configPath: string
+  name: string;
+  configPath: string;
   type:
     | 'claude-desktop'
     | 'vscode'
@@ -31,75 +31,68 @@ interface MCPClient {
     | 'claude-code'
     | 'gemini-cli'
     | 'qwen-cli'
-    | 'other'
+    | 'other';
 }
 
-type SetupMode = 'quick' | 'manual' | 'npm' | 'global' | 'config-only'
+type SetupMode = 'quick' | 'manual' | 'npm' | 'global' | 'config-only';
 
 export async function runSetup(): Promise<void> {
-  const logger = getLogger()
+  const logger = getLogger();
 
-  const args = process.argv.slice(2)
-  let mode: SetupMode | undefined
+  const args = process.argv.slice(2);
+  let mode: SetupMode | undefined;
 
   if (args.includes('--quick')) {
-    mode = 'quick'
-  }
-  else if (args.includes('--npm') || args.includes('--npx')) {
-    mode = 'npm'
-  }
-  else if (args.includes('--global')) {
-    mode = 'global'
-  }
-  else if (args.includes('--manual')) {
-    mode = 'manual'
-  }
-  else if (args.includes('--config-only')) {
-    mode = 'config-only'
+    mode = 'quick';
+  } else if (args.includes('--npm') || args.includes('--npx')) {
+    mode = 'npm';
+  } else if (args.includes('--global')) {
+    mode = 'global';
+  } else if (args.includes('--manual')) {
+    mode = 'manual';
+  } else if (args.includes('--config-only')) {
+    mode = 'config-only';
   }
 
   if (!mode) {
-    logger.info(chalk.cyan.bold('\nTree-Sitter MCP Setup\n'))
-    logger.info(chalk.dim('Fast, in-memory code search for LLMs\n'))
-  }
-  else {
-    logger.info(chalk.cyan.bold('\nTree-Sitter MCP Setup\n'))
+    logger.info(chalk.cyan.bold('\nTree-Sitter MCP Setup\n'));
+    logger.info(chalk.dim('Fast, in-memory code search for LLMs\n'));
+  } else {
+    logger.info(chalk.cyan.bold('\nTree-Sitter MCP Setup\n'));
   }
 
   try {
     if (!mode) {
-      mode = await chooseSetupMode()
+      mode = await chooseSetupMode();
     }
 
     switch (mode) {
       case 'quick':
-        await quickSetup()
-        break
+        await quickSetup();
+        break;
       case 'manual':
-        await manualSetup()
-        break
+        await manualSetup();
+        break;
       case 'npm':
-        await npmSetup()
-        break
+        await npmSetup();
+        break;
       case 'global':
-        await globalSetup()
-        break
+        await globalSetup();
+        break;
       case 'config-only':
-        await configOnlySetup()
-        break
+        await configOnlySetup();
+        break;
     }
 
-    logger.info(chalk.green.bold('\n[SUCCESS] Setup complete!\n'))
-    logger.info(chalk.dim('For more information:'))
-    logger.info(chalk.white('  https://github.com/your-username/tree-sitter-mcp\n'))
-  }
-  catch (error) {
+    logger.info(chalk.green.bold('\n[SUCCESS] Setup complete!\n'));
+    logger.info(chalk.dim('For more information:'));
+    logger.info(chalk.white('  https://github.com/your-username/tree-sitter-mcp\n'));
+  } catch (error) {
     if (error instanceof Error && error.message === 'User cancelled') {
-      logger.info(chalk.yellow('\nSetup cancelled\n'))
-    }
-    else {
-      logger.error('Setup failed:', error)
-      process.exit(1)
+      logger.info(chalk.yellow('\nSetup cancelled\n'));
+    } else {
+      logger.error('Setup failed:', error);
+      process.exit(1);
     }
   }
 }
@@ -133,24 +126,24 @@ async function chooseSetupMode(): Promise<SetupMode> {
         },
       ],
     },
-  ])
+  ]);
 
-  return mode as SetupMode
+  return mode as SetupMode;
 }
 
 async function quickSetup(): Promise<void> {
-  const logger = getLogger()
+  const logger = getLogger();
 
-  logger.info(chalk.cyan('\n[DETECT] Scanning for MCP clients...\n'))
+  logger.info(chalk.cyan('\n[DETECT] Scanning for MCP clients...\n'));
 
-  const clients = detectMCPClients()
+  const clients = detectMCPClients();
 
   if (clients.length === 0) {
-    logger.info(chalk.yellow('No MCP clients detected.\n'))
+    logger.info(chalk.yellow('No MCP clients detected.\n'));
 
     if (process.argv.includes('--auto')) {
-      logger.info(chalk.dim('Run without --auto flag for manual setup options.'))
-      return
+      logger.info(chalk.dim('Run without --auto flag for manual setup options.'));
+      return;
     }
 
     const { proceed } = await inquirer.prompt([
@@ -160,33 +153,32 @@ async function quickSetup(): Promise<void> {
         message: 'Would you like to see manual setup instructions instead?',
         default: true,
       },
-    ])
+    ]);
 
     if (proceed) {
-      await manualSetup()
+      await manualSetup();
     }
-    return
+    return;
   }
 
-  logger.info(chalk.green(`Found ${clients.length} MCP client(s):\n`))
-  clients.forEach((client) => {
-    logger.info(`  • ${chalk.bold(client.name)}`)
-    logger.info(`    ${chalk.dim(client.configPath)}`)
-  })
+  logger.info(chalk.green(`Found ${clients.length} MCP client(s):\n`));
+  clients.forEach(client => {
+    logger.info(`  • ${chalk.bold(client.name)}`);
+    logger.info(`    ${chalk.dim(client.configPath)}`);
+  });
 
-  const isAuto = process.argv.includes('--auto')
+  const isAuto = process.argv.includes('--auto');
 
-  let selectedClients: MCPClient[]
-  let installMethod: 'npx' | 'global'
-  let installAgent: boolean = true
+  let selectedClients: MCPClient[];
+  let installMethod: 'npx' | 'global';
+  let installAgent: boolean = true;
 
   if (isAuto) {
-    selectedClients = clients
-    installMethod = 'npx'
-    installAgent = true // Auto mode includes agent by default
-    logger.info(chalk.cyan('\n[AUTO] Configuring all detected clients with npx...\n'))
-  }
-  else {
+    selectedClients = clients;
+    installMethod = 'npx';
+    installAgent = true; // Auto mode includes agent by default
+    logger.info(chalk.cyan('\n[AUTO] Configuring all detected clients with npx...\n'));
+  } else {
     const clientSelection = await inquirer.prompt([
       {
         type: 'checkbox',
@@ -198,13 +190,13 @@ async function quickSetup(): Promise<void> {
           checked: true,
         })),
       },
-    ])
+    ]);
 
-    selectedClients = clientSelection.selectedClients
+    selectedClients = clientSelection.selectedClients;
 
     if (selectedClients.length === 0) {
-      logger.info(chalk.yellow('\nNo clients selected.\n'))
-      return
+      logger.info(chalk.yellow('\nNo clients selected.\n'));
+      return;
     }
 
     const selections = await inquirer.prompt([
@@ -230,25 +222,25 @@ async function quickSetup(): Promise<void> {
         default: true,
         when: () => selectedClients.some(client => client.type === 'claude-code'),
       },
-    ])
+    ]);
 
-    installMethod = selections.installMethod
-    installAgent = selections.installAgent !== false // Default to true if not asked
+    installMethod = selections.installMethod;
+    installAgent = selections.installAgent !== false; // Default to true if not asked
   }
 
   for (const client of selectedClients) {
-    logger.info(chalk.cyan(`\n[CONFIG] Setting up ${client.name}...`))
-    await configureClient(client, installMethod, installAgent)
+    logger.info(chalk.cyan(`\n[CONFIG] Setting up ${client.name}...`));
+    await configureClient(client, installMethod, installAgent);
   }
 
-  await createDefaultConfig()
+  await createDefaultConfig();
 }
 
 async function npmSetup(): Promise<void> {
-  const logger = getLogger()
+  const logger = getLogger();
 
-  logger.info(chalk.cyan('\n=== NPM/NPX Setup ===\n'))
-  logger.info(chalk.white('Add this to your MCP client configuration:\n'))
+  logger.info(chalk.cyan('\n=== NPM/NPX Setup ===\n'));
+  logger.info(chalk.white('Add this to your MCP client configuration:\n'));
 
   const config = {
     mcpServers: {
@@ -257,33 +249,33 @@ async function npmSetup(): Promise<void> {
         args: ['@nendo/tree-sitter-mcp@latest'],
       },
     },
-  }
+  };
 
-  logger.info(chalk.gray(JSON.stringify(config, null, 2)))
+  logger.info(chalk.gray(JSON.stringify(config, null, 2)));
 
-  logger.info(chalk.cyan('\nConfiguration locations:\n'))
+  logger.info(chalk.cyan('\nConfiguration locations:\n'));
 
-  logger.info(chalk.white('Claude Desktop:'))
+  logger.info(chalk.white('Claude Desktop:'));
   logger.info(
-    chalk.dim('  macOS: ~/Library/Application Support/Claude/claude_desktop_config.json'),
-  )
-  logger.info(chalk.dim('  Linux: ~/.config/Claude/claude_desktop_config.json'))
-  logger.info(chalk.dim('  Windows: %APPDATA%\\Claude\\claude_desktop_config.json\n'))
+    chalk.dim('  macOS: ~/Library/Application Support/Claude/claude_desktop_config.json')
+  );
+  logger.info(chalk.dim('  Linux: ~/.config/Claude/claude_desktop_config.json'));
+  logger.info(chalk.dim('  Windows: %APPDATA%\\Claude\\claude_desktop_config.json\n'));
 
-  logger.info(chalk.white('VS Code / Cursor / Windsurf:'))
-  logger.info(chalk.dim('  1. Open command palette (Cmd+Shift+P or Ctrl+Shift+P)'))
-  logger.info(chalk.dim('  2. Run "MCP: Edit Settings"'))
-  logger.info(chalk.dim('  3. Add the configuration shown above\n'))
+  logger.info(chalk.white('VS Code / Cursor / Windsurf:'));
+  logger.info(chalk.dim('  1. Open command palette (Cmd+Shift+P or Ctrl+Shift+P)'));
+  logger.info(chalk.dim('  2. Run "MCP: Edit Settings"'));
+  logger.info(chalk.dim('  3. Add the configuration shown above\n'));
 
-  await createDefaultConfig()
+  await createDefaultConfig();
 }
 
 async function globalSetup(): Promise<void> {
-  const logger = getLogger()
+  const logger = getLogger();
 
-  logger.info(chalk.cyan('\n=== Global Installation ===\n'))
+  logger.info(chalk.cyan('\n=== Global Installation ===\n'));
 
-  const isGlobal = checkGlobalInstallation()
+  const isGlobal = checkGlobalInstallation();
 
   if (!isGlobal) {
     const { proceed } = await inquirer.prompt([
@@ -293,21 +285,20 @@ async function globalSetup(): Promise<void> {
         message: 'Install tree-sitter-mcp globally?',
         default: true,
       },
-    ])
+    ]);
 
     if (!proceed) {
-      return
+      return;
     }
 
-    logger.info(chalk.yellow('\nInstalling globally...'))
-    installGlobally()
-    logger.info(chalk.green('[OK] Installed globally\n'))
-  }
-  else {
-    logger.info(chalk.green('[OK] Already installed globally\n'))
+    logger.info(chalk.yellow('\nInstalling globally...'));
+    installGlobally();
+    logger.info(chalk.green('[OK] Installed globally\n'));
+  } else {
+    logger.info(chalk.green('[OK] Already installed globally\n'));
   }
 
-  logger.info(chalk.white('Add this to your MCP client configuration:\n'))
+  logger.info(chalk.white('Add this to your MCP client configuration:\n'));
 
   const config = {
     mcpServers: {
@@ -316,9 +307,9 @@ async function globalSetup(): Promise<void> {
         args: [],
       },
     },
-  }
+  };
 
-  logger.info(chalk.gray(JSON.stringify(config, null, 2)))
+  logger.info(chalk.gray(JSON.stringify(config, null, 2)));
 
   const { showLocations } = await inquirer.prompt([
     {
@@ -327,20 +318,20 @@ async function globalSetup(): Promise<void> {
       message: '\nShow configuration file locations?',
       default: true,
     },
-  ])
+  ]);
 
   if (showLocations) {
-    logger.info(chalk.cyan('\nConfiguration locations:\n'))
-    showConfigLocations()
+    logger.info(chalk.cyan('\nConfiguration locations:\n'));
+    showConfigLocations();
   }
 
-  await createDefaultConfig()
+  await createDefaultConfig();
 }
 
 async function manualSetup(): Promise<void> {
-  const logger = getLogger()
+  const logger = getLogger();
 
-  logger.info(chalk.cyan('\n=== Manual Setup Instructions ===\n'))
+  logger.info(chalk.cyan('\n=== Manual Setup Instructions ===\n'));
 
   const { method } = await inquirer.prompt([
     {
@@ -362,13 +353,13 @@ async function manualSetup(): Promise<void> {
         },
       ],
     },
-  ])
+  ]);
 
-  logger.info(chalk.cyan('\nConfiguration:\n'))
+  logger.info(chalk.cyan('\nConfiguration:\n'));
 
   switch (method) {
     case 'npx':
-      logger.info(chalk.white('Add this to your MCP client configuration:\n'))
+      logger.info(chalk.white('Add this to your MCP client configuration:\n'));
       logger.info(
         chalk.gray(
           JSON.stringify(
@@ -381,16 +372,16 @@ async function manualSetup(): Promise<void> {
               },
             },
             null,
-            2,
-          ),
-        ),
-      )
-      break
+            2
+          )
+        )
+      );
+      break;
 
     case 'global':
-      logger.info(chalk.white('1. Install globally:\n'))
-      logger.info(chalk.gray('   npm install -g @nendo/tree-sitter-mcp\n'))
-      logger.info(chalk.white('2. Add this to your MCP client configuration:\n'))
+      logger.info(chalk.white('1. Install globally:\n'));
+      logger.info(chalk.gray('   npm install -g @nendo/tree-sitter-mcp\n'));
+      logger.info(chalk.white('2. Add this to your MCP client configuration:\n'));
       logger.info(
         chalk.gray(
           JSON.stringify(
@@ -403,19 +394,19 @@ async function manualSetup(): Promise<void> {
               },
             },
             null,
-            2,
-          ),
-        ),
-      )
-      break
+            2
+          )
+        )
+      );
+      break;
 
     case 'local':
-      logger.info(chalk.white('1. Clone and build:\n'))
-      logger.info(chalk.gray('   git clone https://github.com/your-username/tree-sitter-mcp.git'))
-      logger.info(chalk.gray('   cd tree-sitter-mcp'))
-      logger.info(chalk.gray('   npm install'))
-      logger.info(chalk.gray('   npm run build\n'))
-      logger.info(chalk.white('2. Add this to your MCP client configuration:\n'))
+      logger.info(chalk.white('1. Clone and build:\n'));
+      logger.info(chalk.gray('   git clone https://github.com/your-username/tree-sitter-mcp.git'));
+      logger.info(chalk.gray('   cd tree-sitter-mcp'));
+      logger.info(chalk.gray('   npm install'));
+      logger.info(chalk.gray('   npm run build\n'));
+      logger.info(chalk.white('2. Add this to your MCP client configuration:\n'));
       logger.info(
         chalk.gray(
           JSON.stringify(
@@ -428,11 +419,11 @@ async function manualSetup(): Promise<void> {
               },
             },
             null,
-            2,
-          ),
-        ),
-      )
-      break
+            2
+          )
+        )
+      );
+      break;
   }
 
   const { showLocations } = await inquirer.prompt([
@@ -442,57 +433,57 @@ async function manualSetup(): Promise<void> {
       message: '\nShow configuration file locations?',
       default: true,
     },
-  ])
+  ]);
 
   if (showLocations) {
-    logger.info(chalk.cyan('\nConfiguration locations:\n'))
-    showConfigLocations()
+    logger.info(chalk.cyan('\nConfiguration locations:\n'));
+    showConfigLocations();
   }
 
-  await createDefaultConfig()
+  await createDefaultConfig();
 }
 
 async function configOnlySetup(): Promise<void> {
-  const logger = getLogger()
+  const logger = getLogger();
 
-  logger.info(chalk.cyan('\n[CONFIG] Creating configuration file...\n'))
+  logger.info(chalk.cyan('\n[CONFIG] Creating configuration file...\n'));
 
-  await createDefaultConfig(true)
+  await createDefaultConfig(true);
 }
 
 function showConfigLocations(): void {
-  const logger = getLogger()
+  const logger = getLogger();
 
-  logger.info(chalk.white('Claude Desktop:'))
+  logger.info(chalk.white('Claude Desktop:'));
   logger.info(
-    chalk.dim('  macOS: ~/Library/Application Support/Claude/claude_desktop_config.json'),
-  )
-  logger.info(chalk.dim('  Linux: ~/.config/Claude/claude_desktop_config.json'))
-  logger.info(chalk.dim('  Windows: %APPDATA%\\Claude\\claude_desktop_config.json\n'))
+    chalk.dim('  macOS: ~/Library/Application Support/Claude/claude_desktop_config.json')
+  );
+  logger.info(chalk.dim('  Linux: ~/.config/Claude/claude_desktop_config.json'));
+  logger.info(chalk.dim('  Windows: %APPDATA%\\Claude\\claude_desktop_config.json\n'));
 
-  logger.info(chalk.white('Claude Code:'))
-  logger.info(chalk.dim('  ~/.claude.json'))
-  logger.info(chalk.dim('  ~/.claude/settings.local.json\n'))
+  logger.info(chalk.white('Claude Code:'));
+  logger.info(chalk.dim('  ~/.claude.json'));
+  logger.info(chalk.dim('  ~/.claude/settings.local.json\n'));
 
-  logger.info(chalk.white('Gemini CLI:'))
-  logger.info(chalk.dim('  ~/.gemini/settings.json\n'))
+  logger.info(chalk.white('Gemini CLI:'));
+  logger.info(chalk.dim('  ~/.gemini/settings.json\n'));
 
-  logger.info(chalk.white('Qwen CLI:'))
-  logger.info(chalk.dim('  ~/.cursor/mcp.json\n'))
+  logger.info(chalk.white('Qwen CLI:'));
+  logger.info(chalk.dim('  ~/.cursor/mcp.json\n'));
 
-  logger.info(chalk.white('VS Code / Cursor / Windsurf:'))
-  logger.info(chalk.dim('  Open command palette → "MCP: Edit Settings"\n'))
+  logger.info(chalk.white('VS Code / Cursor / Windsurf:'));
+  logger.info(chalk.dim('  Open command palette → "MCP: Edit Settings"\n'));
 }
 
 function detectMCPClients(): MCPClient[] {
-  const clients: MCPClient[] = []
-  const home = homedir()
+  const clients: MCPClient[] = [];
+  const home = homedir();
 
   const claudeConfigPaths = [
     join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'), // macOS
     join(home, '.config', 'Claude', 'claude_desktop_config.json'), // Linux
     join(home, 'AppData', 'Roaming', 'Claude', 'claude_desktop_config.json'), // Windows
-  ]
+  ];
 
   for (const path of claudeConfigPaths) {
     if (existsSync(path)) {
@@ -500,8 +491,8 @@ function detectMCPClients(): MCPClient[] {
         name: 'Claude Desktop',
         configPath: path,
         type: 'claude-desktop',
-      })
-      break
+      });
+      break;
     }
   }
 
@@ -509,7 +500,7 @@ function detectMCPClients(): MCPClient[] {
     join(home, '.vscode', 'mcp', 'settings.json'),
     join(home, 'Library', 'Application Support', 'Code', 'User', 'settings.json'), // macOS
     join(home, '.config', 'Code', 'User', 'settings.json'), // Linux
-  ]
+  ];
 
   for (const path of vscodeConfigPaths) {
     if (existsSync(path)) {
@@ -517,15 +508,15 @@ function detectMCPClients(): MCPClient[] {
         name: 'VS Code',
         configPath: path,
         type: 'vscode',
-      })
-      break
+      });
+      break;
     }
   }
 
   const cursorConfigPaths = [
     join(home, '.cursor', 'mcp', 'settings.json'),
     join(home, 'Library', 'Application Support', 'Cursor', 'User', 'settings.json'), // macOS
-  ]
+  ];
 
   for (const path of cursorConfigPaths) {
     if (existsSync(path)) {
@@ -533,25 +524,25 @@ function detectMCPClients(): MCPClient[] {
         name: 'Cursor',
         configPath: path,
         type: 'cursor',
-      })
-      break
+      });
+      break;
     }
   }
 
-  const windsurfConfigPath = join(home, '.windsurf', 'mcp-config.json')
+  const windsurfConfigPath = join(home, '.windsurf', 'mcp-config.json');
   if (existsSync(windsurfConfigPath)) {
     clients.push({
       name: 'Windsurf',
       configPath: windsurfConfigPath,
       type: 'windsurf',
-    })
+    });
   }
 
   const claudeCodeConfigPaths = [
     join(home, '.claude', 'settings.json'), // User-scoped settings (preferred)
     join(home, '.claude.json'),
     join(home, '.claude', 'settings.local.json'),
-  ]
+  ];
 
   for (const path of claudeCodeConfigPaths) {
     if (existsSync(path)) {
@@ -559,12 +550,12 @@ function detectMCPClients(): MCPClient[] {
         name: 'Claude Code',
         configPath: path,
         type: 'claude-code',
-      })
-      break
+      });
+      break;
     }
   }
 
-  const geminiConfigPaths = [join(home, '.gemini', 'settings.json')]
+  const geminiConfigPaths = [join(home, '.gemini', 'settings.json')];
 
   for (const path of geminiConfigPaths) {
     if (existsSync(path)) {
@@ -572,12 +563,12 @@ function detectMCPClients(): MCPClient[] {
         name: 'Gemini CLI',
         configPath: path,
         type: 'gemini-cli',
-      })
-      break
+      });
+      break;
     }
   }
 
-  const qwenConfigPaths = [join(home, '.cursor', 'mcp.json')]
+  const qwenConfigPaths = [join(home, '.cursor', 'mcp.json')];
 
   for (const path of qwenConfigPaths) {
     if (existsSync(path)) {
@@ -585,266 +576,267 @@ function detectMCPClients(): MCPClient[] {
         name: 'Qwen CLI',
         configPath: path,
         type: 'qwen-cli',
-      })
-      break
+      });
+      break;
     }
   }
 
-  return clients
+  return clients;
 }
 
-async function configureClient(client: MCPClient, method: 'npx' | 'global', installAgent: boolean = true): Promise<void> {
-  const logger = getLogger()
+async function configureClient(
+  client: MCPClient,
+  method: 'npx' | 'global',
+  installAgent: boolean = true
+): Promise<void> {
+  const logger = getLogger();
 
   switch (client.type) {
     case 'claude-desktop':
-      await configureClaudeDesktop(client.configPath, method)
-      break
+      await configureClaudeDesktop(client.configPath, method);
+      break;
 
     case 'claude-code':
-      await configureClaudeCode(client.configPath, method, installAgent)
-      break
+      await configureClaudeCode(client.configPath, method, installAgent);
+      break;
 
     case 'gemini-cli':
     case 'qwen-cli':
-      await configureCLIClient(client, method)
-      break
+      await configureCLIClient(client, method);
+      break;
 
     case 'vscode':
     case 'cursor':
     case 'windsurf': {
-      logger.info(chalk.yellow(`  Automatic configuration for ${client.name} not yet supported`))
-      logger.info(chalk.dim(`  Please add the configuration manually using:`))
-      logger.info(chalk.dim(`  Command palette → "MCP: Edit Settings"`))
+      logger.info(chalk.yellow(`  Automatic configuration for ${client.name} not yet supported`));
+      logger.info(chalk.dim(`  Please add the configuration manually using:`));
+      logger.info(chalk.dim(`  Command palette → "MCP: Edit Settings"`));
 
-      const config
-        = method === 'npx'
+      const config =
+        method === 'npx'
           ? { command: 'npx', args: ['@nendo/tree-sitter-mcp@latest'] }
-          : { command: 'tree-sitter-mcp', args: [] }
+          : { command: 'tree-sitter-mcp', args: [] };
 
       logger.info(
-        chalk.gray('\n' + JSON.stringify({ mcpServers: { 'tree-sitter': config } }, null, 2)),
-      )
-      break
+        chalk.gray('\n' + JSON.stringify({ mcpServers: { 'tree-sitter': config } }, null, 2))
+      );
+      break;
     }
 
     default:
-      logger.info(chalk.yellow(`  Unknown client type: ${client.type}`))
+      logger.info(chalk.yellow(`  Unknown client type: ${client.type}`));
   }
 }
 
 async function configureClaudeDesktop(configPath: string, method: 'npx' | 'global'): Promise<void> {
-  const logger = getLogger()
-  let config: MCPConfig = {}
+  const logger = getLogger();
+  let config: MCPConfig = {};
 
   if (existsSync(configPath)) {
     try {
-      const content = readFileSync(configPath, 'utf-8')
-      config = JSON.parse(content) as MCPConfig
-      logger.info(chalk.dim('  Updating existing configuration...'))
+      const content = readFileSync(configPath, 'utf-8');
+      config = JSON.parse(content) as MCPConfig;
+      logger.info(chalk.dim('  Updating existing configuration...'));
+    } catch {
+      logger.info(chalk.yellow('  Warning: Could not parse existing config, creating backup...'));
+      const backupPath = `${configPath}.backup`;
+      writeFileSync(backupPath, readFileSync(configPath, 'utf-8'));
+      logger.info(chalk.dim(`  Backup saved to: ${backupPath}`));
     }
-    catch {
-      logger.info(chalk.yellow('  Warning: Could not parse existing config, creating backup...'))
-      const backupPath = `${configPath}.backup`
-      writeFileSync(backupPath, readFileSync(configPath, 'utf-8'))
-      logger.info(chalk.dim(`  Backup saved to: ${backupPath}`))
-    }
-  }
-  else {
-    logger.info(chalk.dim('  Creating new configuration...'))
-    const dir = dirname(configPath)
+  } else {
+    logger.info(chalk.dim('  Creating new configuration...'));
+    const dir = dirname(configPath);
     if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true })
+      mkdirSync(dir, { recursive: true });
     }
   }
 
   if (!config.mcpServers) {
-    config.mcpServers = {}
+    config.mcpServers = {};
   }
 
   if (method === 'npx') {
     config.mcpServers['tree-sitter'] = {
       command: 'npx',
       args: ['@nendo/tree-sitter-mcp@latest'],
-    }
-  }
-  else {
+    };
+  } else {
     config.mcpServers['tree-sitter'] = {
       command: 'tree-sitter-mcp',
       args: ['--mcp'],
-    }
+    };
   }
 
-  writeFileSync(configPath, JSON.stringify(config, null, 2))
-  logger.info(chalk.green('  [OK] Claude Desktop configured'))
+  writeFileSync(configPath, JSON.stringify(config, null, 2));
+  logger.info(chalk.green('  [OK] Claude Desktop configured'));
 }
 
-async function configureClaudeCode(_configPath: string, method: 'npx' | 'global', installAgent: boolean = true): Promise<void> {
-  const logger = getLogger()
-  const home = homedir()
+async function configureClaudeCode(
+  _configPath: string,
+  method: 'npx' | 'global',
+  installAgent: boolean = true
+): Promise<void> {
+  const logger = getLogger();
+  const home = homedir();
 
   try {
     // Remove existing tree-sitter MCP if present
-    logger.info(chalk.dim('  Removing existing tree-sitter MCP if present...'))
+    logger.info(chalk.dim('  Removing existing tree-sitter MCP if present...'));
     try {
-      execSync('claude mcp remove tree-sitter -s user', { stdio: 'pipe' })
-    }
-    catch {
+      execSync('claude mcp remove tree-sitter -s user', { stdio: 'pipe' });
+    } catch {
       // Ignore errors if tree-sitter MCP doesn't exist
     }
 
     // Add tree-sitter MCP using claude mcp add-json command with correct format
-    let mcpConfig: any
+    let mcpConfig: any;
 
     if (method === 'npx') {
       // Check if package is published to npm
       try {
-        execSync('npm view @nendo/tree-sitter-mcp version', { stdio: 'pipe' })
+        execSync('npm view @nendo/tree-sitter-mcp version', { stdio: 'pipe' });
         mcpConfig = {
           type: 'stdio',
           command: 'npx',
           args: ['@nendo/tree-sitter-mcp@latest', '--mcp'],
           env: { TREE_SITTER_MCP_DEBUG: 'true' },
-        }
-        logger.info(chalk.dim('  Using published npm package'))
-      }
-      catch {
+        };
+        logger.info(chalk.dim('  Using published npm package'));
+      } catch {
         // Package not published, use absolute path to local build with node
-        const localCliPath = join(__dirname, '..', 'dist', 'cli.js')
+        const localCliPath = join(__dirname, '..', 'dist', 'cli.js');
         if (existsSync(localCliPath)) {
           // Find node executable path
-          const nodePath = execSync('which node', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+          const nodePath = execSync('which node', { encoding: 'utf-8', stdio: 'pipe' }).trim();
           mcpConfig = {
             type: 'stdio',
             command: nodePath,
             args: [localCliPath, '--mcp'],
             env: { TREE_SITTER_MCP_DEBUG: 'true' },
-          }
-          logger.info(chalk.yellow('  Package not published, using local development build'))
-        }
-        else {
-          throw new Error('Local build not found. Run "npm run build" first.')
+          };
+          logger.info(chalk.yellow('  Package not published, using local development build'));
+        } else {
+          throw new Error('Local build not found. Run "npm run build" first.');
         }
       }
-    }
-    else {
+    } else {
       // For global method, try to use global command, fallback to local if needed
       try {
-        const globalPath = execSync('which tree-sitter-mcp', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+        const globalPath = execSync('which tree-sitter-mcp', {
+          encoding: 'utf-8',
+          stdio: 'pipe',
+        }).trim();
         // Find node executable path for global installations
-        const nodePath = execSync('which node', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+        const nodePath = execSync('which node', { encoding: 'utf-8', stdio: 'pipe' }).trim();
         mcpConfig = {
           type: 'stdio',
           command: nodePath,
           args: [globalPath, '--mcp'],
           env: { TREE_SITTER_MCP_DEBUG: 'true' },
-        }
-        logger.info(chalk.dim('  Using globally installed command'))
-      }
-      catch {
+        };
+        logger.info(chalk.dim('  Using globally installed command'));
+      } catch {
         // Global command not available, use local build
-        const localCliPath = join(__dirname, '..', 'dist', 'cli.js')
+        const localCliPath = join(__dirname, '..', 'dist', 'cli.js');
         if (existsSync(localCliPath)) {
-          const nodePath = execSync('which node', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+          const nodePath = execSync('which node', { encoding: 'utf-8', stdio: 'pipe' }).trim();
           mcpConfig = {
             type: 'stdio',
             command: nodePath,
             args: [localCliPath, '--mcp'],
             env: { TREE_SITTER_MCP_DEBUG: 'true' },
-          }
-          logger.info(chalk.yellow('  Global command not found, using local development build'))
-        }
-        else {
-          throw new Error('Neither global command nor local build found. Run "npm run build" and/or "npm run global-install".')
+          };
+          logger.info(chalk.yellow('  Global command not found, using local development build'));
+        } else {
+          throw new Error(
+            'Neither global command nor local build found. Run "npm run build" and/or "npm run global-install".'
+          );
         }
       }
     }
 
-    const mcpCommand = `claude mcp add-json tree-sitter '${JSON.stringify(mcpConfig)}'`
-    logger.info(chalk.dim(`  Adding tree-sitter MCP with JSON config...`))
-    execSync(mcpCommand, { stdio: 'pipe' })
-    logger.info(chalk.green('  [OK] Tree-sitter MCP added to user scope'))
+    const mcpCommand = `claude mcp add-json tree-sitter '${JSON.stringify(mcpConfig)}'`;
+    logger.info(chalk.dim(`  Adding tree-sitter MCP with JSON config...`));
+    execSync(mcpCommand, { stdio: 'pipe' });
+    logger.info(chalk.green('  [OK] Tree-sitter MCP added to user scope'));
 
     // Copy agent to ~/.claude/agents directory if requested
     if (installAgent) {
-      const agentsDir = join(home, '.claude', 'agents')
-      const agentSourcePath = join(__dirname, '..', 'agents', 'treesitter-code-agent.md')
-      const agentDestPath = join(agentsDir, 'treesitter-code-agent.md')
+      const agentsDir = join(home, '.claude', 'agents');
+      const agentSourcePath = join(__dirname, '..', 'agents', 'treesitter-code-agent.md');
+      const agentDestPath = join(agentsDir, 'treesitter-code-agent.md');
 
       if (existsSync(agentSourcePath)) {
         if (!existsSync(agentsDir)) {
-          mkdirSync(agentsDir, { recursive: true })
+          mkdirSync(agentsDir, { recursive: true });
         }
 
-        const agentContent = readFileSync(agentSourcePath, 'utf-8')
-        writeFileSync(agentDestPath, agentContent)
-        logger.info(chalk.green('  [OK] Tree-sitter agent copied to ~/.claude/agents'))
+        const agentContent = readFileSync(agentSourcePath, 'utf-8');
+        writeFileSync(agentDestPath, agentContent);
+        logger.info(chalk.green('  [OK] Tree-sitter agent copied to ~/.claude/agents'));
+      } else {
+        logger.info(chalk.yellow('  Warning: Agent file not found, skipping agent copy'));
       }
-      else {
-        logger.info(chalk.yellow('  Warning: Agent file not found, skipping agent copy'))
-      }
+    } else {
+      logger.info(chalk.dim('  Skipping agent installation'));
     }
-    else {
-      logger.info(chalk.dim('  Skipping agent installation'))
-    }
-  }
-  catch (error) {
-    logger.error(chalk.red('  [ERROR] Failed to configure Claude Code:'), error instanceof Error ? error.message : error)
-    throw error
+  } catch (error) {
+    logger.error(
+      chalk.red('  [ERROR] Failed to configure Claude Code:'),
+      error instanceof Error ? error.message : error
+    );
+    throw error;
   }
 }
 
 async function configureCLIClient(client: MCPClient, method: 'npx' | 'global'): Promise<void> {
-  const logger = getLogger()
-  let config: MCPConfig = {}
+  const logger = getLogger();
+  let config: MCPConfig = {};
 
   if (existsSync(client.configPath)) {
     try {
-      const content = readFileSync(client.configPath, 'utf-8')
-      config = JSON.parse(content) as MCPConfig
-      logger.info(chalk.dim('  Updating existing configuration...'))
+      const content = readFileSync(client.configPath, 'utf-8');
+      config = JSON.parse(content) as MCPConfig;
+      logger.info(chalk.dim('  Updating existing configuration...'));
+    } catch {
+      logger.info(chalk.yellow('  Warning: Could not parse existing config, creating backup...'));
+      const backupPath = `${client.configPath}.backup`;
+      writeFileSync(backupPath, readFileSync(client.configPath, 'utf-8'));
+      logger.info(chalk.dim(`  Backup saved to: ${backupPath}`));
     }
-    catch {
-      logger.info(chalk.yellow('  Warning: Could not parse existing config, creating backup...'))
-      const backupPath = `${client.configPath}.backup`
-      writeFileSync(backupPath, readFileSync(client.configPath, 'utf-8'))
-      logger.info(chalk.dim(`  Backup saved to: ${backupPath}`))
-    }
-  }
-  else {
-    logger.info(chalk.dim('  Creating new configuration...'))
-    const dir = dirname(client.configPath)
+  } else {
+    logger.info(chalk.dim('  Creating new configuration...'));
+    const dir = dirname(client.configPath);
     if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true })
+      mkdirSync(dir, { recursive: true });
     }
   }
 
   if (!config.mcpServers) {
-    config.mcpServers = {}
+    config.mcpServers = {};
   }
 
   if (method === 'npx') {
     config.mcpServers['tree-sitter'] = {
       command: 'npx',
       args: ['@nendo/tree-sitter-mcp@latest'],
-    }
-  }
-  else {
+    };
+  } else {
     config.mcpServers['tree-sitter'] = {
       command: 'tree-sitter-mcp',
       args: ['--mcp'],
-    }
+    };
   }
 
-  writeFileSync(client.configPath, JSON.stringify(config, null, 2))
-  logger.info(chalk.green(`  [OK] ${client.name} configured`))
+  writeFileSync(client.configPath, JSON.stringify(config, null, 2));
+  logger.info(chalk.green(`  [OK] ${client.name} configured`));
 }
 
 async function createDefaultConfig(interactive: boolean = false): Promise<void> {
-  const logger = getLogger()
-  const home = homedir()
-  const configDir = join(home, '.config', 'tree-sitter-mcp')
-  const configPath = join(configDir, 'config.json')
+  const logger = getLogger();
+  const home = homedir();
+  const configDir = join(home, '.config', 'tree-sitter-mcp');
+  const configPath = join(configDir, 'config.json');
 
   if (existsSync(configPath)) {
     if (interactive) {
@@ -855,22 +847,21 @@ async function createDefaultConfig(interactive: boolean = false): Promise<void> 
           message: 'Configuration file already exists. Overwrite?',
           default: false,
         },
-      ])
+      ]);
 
       if (!overwrite) {
-        logger.info(chalk.dim('\nKeeping existing configuration.'))
-        return
+        logger.info(chalk.dim('\nKeeping existing configuration.'));
+        return;
       }
-    }
-    else {
-      logger.info(chalk.dim('\n[INFO] Configuration already exists at:'))
-      logger.info(chalk.cyan(`   ${configPath}`))
-      return
+    } else {
+      logger.info(chalk.dim('\n[INFO] Configuration already exists at:'));
+      logger.info(chalk.cyan(`   ${configPath}`));
+      return;
     }
   }
 
   if (!existsSync(configDir)) {
-    mkdirSync(configDir, { recursive: true })
+    mkdirSync(configDir, { recursive: true });
   }
 
   const defaultConfig = {
@@ -896,7 +887,7 @@ async function createDefaultConfig(interactive: boolean = false): Promise<void> 
     maxProjects: 4,
     maxMemoryMB: 1024,
     watcherPollInterval: 2000,
-  }
+  };
 
   if (interactive) {
     const { customize } = await inquirer.prompt([
@@ -906,22 +897,20 @@ async function createDefaultConfig(interactive: boolean = false): Promise<void> 
         message: 'Would you like to customize the configuration?',
         default: false,
       },
-    ])
+    ]);
 
     if (customize) {
-      const customConfig = await customizeConfig(defaultConfig)
-      writeFileSync(configPath, JSON.stringify(customConfig, null, 2))
+      const customConfig = await customizeConfig(defaultConfig);
+      writeFileSync(configPath, JSON.stringify(customConfig, null, 2));
+    } else {
+      writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
     }
-    else {
-      writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2))
-    }
-  }
-  else {
-    writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2))
+  } else {
+    writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
   }
 
-  logger.info(chalk.green('\n[OK] Configuration created at:'))
-  logger.info(chalk.cyan(`   ${configPath}`))
+  logger.info(chalk.green('\n[OK] Configuration created at:'));
+  logger.info(chalk.cyan(`   ${configPath}`));
 }
 
 async function customizeConfig(defaultConfig: any): Promise<any> {
@@ -944,14 +933,14 @@ async function customizeConfig(defaultConfig: any): Promise<any> {
       message: 'File watcher poll interval (ms):',
       default: defaultConfig.watcherPollInterval,
     },
-  ])
+  ]);
 
   return {
     ...defaultConfig,
     maxProjects,
     maxMemoryMB,
     watcherPollInterval,
-  }
+  };
 }
 
 function checkGlobalInstallation(): boolean {
@@ -959,34 +948,31 @@ function checkGlobalInstallation(): boolean {
     const result = execSync('npm list -g @nendo/tree-sitter-mcp', {
       encoding: 'utf-8',
       stdio: 'pipe',
-    })
-    return result.includes('tree-sitter-mcp')
-  }
-  catch {
-    return false
+    });
+    return result.includes('tree-sitter-mcp');
+  } catch {
+    return false;
   }
 }
 
 function installGlobally(): void {
-  const logger = getLogger()
+  const logger = getLogger();
   try {
-    logger.info(chalk.dim('Running: npm install -g .'))
+    logger.info(chalk.dim('Running: npm install -g .'));
     execSync('npm install -g .', {
       stdio: 'inherit',
       cwd: join(__dirname, '..'),
-    })
-  }
-  catch (error) {
-    throw new Error(`Failed to install globally: ${error}`)
+    });
+  } catch (error) {
+    throw new Error(`Failed to install globally: ${error}`);
   }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   try {
-    await runSetup()
-  }
-  catch (error) {
-    const logger = getLogger()
-    logger.error('Setup script error:', error)
+    await runSetup();
+  } catch (error) {
+    const logger = getLogger();
+    logger.error('Setup script error:', error);
   }
 }

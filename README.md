@@ -6,6 +6,7 @@ A Model Context Protocol (MCP) server that provides fast, in-memory code search 
 
 - **Fast and lightweight**. In-memory AST indexing delivers <100ms search times.
 - **Semantic understanding**. Search by function, class, method, interface - not just text.
+- **Mono-repo supported**. Sub-project reference isolation with optional cross-referencing.
 - **Automatic synchronization**. File watchers keep the index current with 2-second debouncing.
 - **Multi-language support**. JavaScript, TypeScript, Python, Go, Rust, Java, C/C++.
 
@@ -42,14 +43,40 @@ Search for code elements across your project with semantic understanding.
 - `exactMatch` - Use exact string matching (default: false)
 - `pathPattern` - Filter files by glob pattern
 
-**Example:**
+**Mono-repo Parameters:**
 
+- `subProjects` - Array of specific sub-projects to search within
+- `excludeSubProjects` - Array of sub-projects to exclude from search
+- `crossProjectSearch` - Boolean to search across multiple sub-projects
+
+**Examples:**
+
+Standard search:
 ```json
 {
   "projectId": "my-app",
   "query": "handleRequest",
   "types": ["function", "method"],
   "languages": ["typescript"]
+}
+```
+
+Mono-repo: Search only in specific sub-project:
+```json
+{
+  "projectId": "my-monorepo",
+  "query": "DatabaseManager",
+  "subProjects": ["backend"]
+}
+```
+
+Mono-repo: Search across all sub-projects for shared interfaces:
+```json
+{
+  "projectId": "my-monorepo", 
+  "query": "ConfigInterface",
+  "crossProjectSearch": true,
+  "types": ["interface", "class"]
 }
 ```
 

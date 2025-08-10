@@ -31,6 +31,14 @@ export default ts.config(
       'no-console': ['warn', { 
         allow: ['warn', 'error', 'info'] 
       }],
+      '@stylistic/indent-binary-ops': 'off',
+      '@stylistic/semi': 'off',
+      '@stylistic/member-delimiter-style': 'off',
+      '@stylistic/comma-dangle': 'off',
+      '@stylistic/brace-style': 'off',
+      '@stylistic/arrow-parens': 'off',
+      '@stylistic/operator-linebreak': 'off',
+      '@stylistic/quote-props': 'off',
     },
   },
   {

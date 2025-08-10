@@ -2,107 +2,105 @@
  * File walker for traversing directories
  */
 
-import { readdir, stat, readFile } from 'fs/promises'
-import { join, relative } from 'path'
-import { DEFAULT_IGNORE_DIRS, WATCHER, DIRECTORIES } from '../constants/index.js'
-import type { Config, ParseResult } from '../types/index.js'
-import { getLogger } from '../utils/logger.js'
-import { ParserRegistry } from '../parsers/registry.js'
+import { readdir, stat, readFile } from 'fs/promises';
+import { join, relative } from 'path';
+import { DEFAULT_IGNORE_DIRS, WATCHER, DIRECTORIES } from '../constants/index.js';
+import type { Config, ParseResult } from '../types/index.js';
+import { getLogger } from '../utils/logger.js';
+import { ParserRegistry } from '../parsers/registry.js';
 
 export class FileWalker {
-  private parserRegistry: ParserRegistry
-  private config: Config
-  private ignoreDirs: Set<string>
-  private logger = getLogger()
+  private parserRegistry: ParserRegistry;
+  private config: Config;
+  private ignoreDirs: Set<string>;
+  private logger = getLogger();
 
   constructor(parserRegistry: ParserRegistry, config: Config) {
-    this.parserRegistry = parserRegistry
-    this.config = config
-    this.ignoreDirs = new Set(config.ignoreDirs || DEFAULT_IGNORE_DIRS)
+    this.parserRegistry = parserRegistry;
+    this.config = config;
+    this.ignoreDirs = new Set(config.ignoreDirs || DEFAULT_IGNORE_DIRS);
   }
 
   async walk(): Promise<ParseResult[]> {
-    const results: ParseResult[] = []
-    this.logger.debug(`Starting file walk from: ${this.config.workingDir}`)
-    await this.walkDirectory(this.config.workingDir, results, 0)
-    this.logger.info(`File walk completed, found ${results.length} files`)
-    return results
+    const results: ParseResult[] = [];
+    this.logger.debug(`Starting file walk from: ${this.config.workingDir}`);
+    await this.walkDirectory(this.config.workingDir, results, 0);
+    this.logger.info(`File walk completed, found ${results.length} files`);
+    return results;
   }
 
   private async walkDirectory(dir: string, results: ParseResult[], depth: number): Promise<void> {
-    const maxDepth = this.config.maxDepth ?? DIRECTORIES.DEFAULT_MAX_DEPTH
+    const maxDepth = this.config.maxDepth ?? DIRECTORIES.DEFAULT_MAX_DEPTH;
     if (depth > maxDepth) {
-      this.logger.debug(`Skipping directory ${dir} - depth ${depth} > maxDepth ${maxDepth}`)
-      return
+      this.logger.debug(`Skipping directory ${dir} - depth ${depth} > maxDepth ${maxDepth}`);
+      return;
     }
 
-    this.logger.debug(`Walking directory: ${dir} at depth ${depth}`)
+    this.logger.debug(`Walking directory: ${dir} at depth ${depth}`);
 
     try {
-      const entries = await readdir(dir, { withFileTypes: true })
-      this.logger.debug(`Found ${entries.length} entries in ${dir}`)
+      const entries = await readdir(dir, { withFileTypes: true });
+      this.logger.debug(`Found ${entries.length} entries in ${dir}`);
 
       for (const entry of entries) {
-        const fullPath = join(dir, entry.name)
+        const fullPath = join(dir, entry.name);
 
         if (entry.isDirectory()) {
           if (this.ignoreDirs.has(entry.name)) {
-            this.logger.debug(`Ignoring directory: ${entry.name}`)
+            this.logger.debug(`Ignoring directory: ${entry.name}`);
+          } else {
+            this.logger.debug(`Recursing into directory: ${entry.name}`);
+            await this.walkDirectory(fullPath, results, depth + 1);
           }
-          else {
-            this.logger.debug(`Recursing into directory: ${entry.name}`)
-            await this.walkDirectory(fullPath, results, depth + 1)
-          }
-        }
-        else if (entry.isFile()) {
-          this.logger.debug(`Processing file: ${entry.name}`)
-          await this.processFile(fullPath, results)
+        } else if (entry.isFile()) {
+          this.logger.debug(`Processing file: ${entry.name}`);
+          await this.processFile(fullPath, results);
         }
       }
-    }
-    catch (error) {
-      this.logger.error(`Error walking directory ${dir}:`, error)
+    } catch (error) {
+      this.logger.error(`Error walking directory ${dir}:`, error);
     }
   }
 
   private async processFile(filePath: string, results: ParseResult[]): Promise<void> {
     // Check if we can parse this file
     if (!this.parserRegistry.canParse(filePath)) {
-      return
+      return;
     }
 
     // Check file size
     try {
-      const stats = await stat(filePath)
+      const stats = await stat(filePath);
       if (stats.size > WATCHER.MAX_FILE_SIZE_MB * 1024 * 1024) {
-        this.logger.debug(`Skipping large file: ${filePath}`)
-        return
+        this.logger.debug(`Skipping large file: ${filePath}`);
+        return;
       }
 
       // Check language filter
-      const parser = this.parserRegistry.getParserForFile(filePath)
-      if (!parser) return
+      const parser = this.parserRegistry.getParserForFile(filePath);
+      if (!parser) return;
 
       if (this.config.languages && this.config.languages.length > 0) {
         if (!this.config.languages.includes(parser.name)) {
-          return
+          return;
         }
       }
 
       // Read and parse file
-      const content = await readFile(filePath, 'utf-8')
-      const result = await this.parserRegistry.parseFile(filePath, content)
+      const content = await readFile(filePath, 'utf-8');
+      const result = await this.parserRegistry.parseFile(filePath, content);
 
       if (result) {
         // Convert absolute path to relative
-        const relativePath = relative(this.config.workingDir, filePath)
-        result.file.path = relativePath
-        results.push(result)
-        this.logger.debug(`Successfully parsed file: ${filePath} with ${result.elements.length} elements`)
+        const relativePath = relative(this.config.workingDir, filePath);
+        result.file.path = relativePath;
+        results.push(result);
+        this.logger.debug(
+          `Successfully parsed file: ${filePath} with ${result.elements.length} elements`
+        );
       }
-    }
-    catch (error) {
-      this.logger.error(`Error processing file ${filePath}:`, error)
+    } catch (error) {
+      this.logger.error(`Error processing file ${filePath}:`, error);
     }
   }
 }

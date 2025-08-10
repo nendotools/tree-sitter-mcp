@@ -14,7 +14,7 @@ export const ERRORS = {
   WATCHER_NOT_RUNNING: 'File watcher not running',
   INITIALIZATION_FAILED: 'Failed to initialize project',
   SEARCH_FAILED: 'Search operation failed',
-} as const
+} as const;
 
 // Success messages
 export const SUCCESS = {
@@ -24,4 +24,4 @@ export const SUCCESS = {
   WATCHER_STARTED: 'File watcher started',
   WATCHER_STOPPED: 'File watcher stopped',
   SETUP_COMPLETE: 'Setup completed successfully',
-} as const
+} as const;

@@ -3,13 +3,13 @@
  */
 
 // Re-export all tree-sitter related types
-export * from './tree-types.js'
+export * from './tree-types.js';
 
 // Re-export all project management types
-export * from './project-types.js'
+export * from './project-types.js';
 
 // Re-export all MCP tool types
-export * from './mcp-types.js'
+export * from './mcp-types.js';
 
 // Re-export all CLI types
-export * from './cli-types.js'
+export * from './cli-types.js';
