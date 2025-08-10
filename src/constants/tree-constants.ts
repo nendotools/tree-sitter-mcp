@@ -30,7 +30,11 @@ export const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
   c: ['.c', '.h'],
   cpp: ['.cpp', '.cc', '.cxx', '.hpp', '.h', '.hxx'],
   ruby: ['.rb'],
-  php: ['.php'],
+  csharp: ['.cs'],
+  php: ['.php', '.phtml'],
+  kotlin: ['.kt', '.kts'],
+  scala: ['.scala', '.sc'],
+  elixir: ['.ex', '.exs'],
   vue: ['.vue'],
 } as const
 

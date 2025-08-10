@@ -9,6 +9,18 @@ color: blue
 
 I use Tree-Sitter MCP tools for semantic code understanding through AST parsing rather than text matching.
 
+## Language Support
+
+Supports 15+ programming languages with full AST parsing:
+- **Web/Frontend**: JavaScript, TypeScript
+- **Systems**: C, C++, Go, Rust  
+- **Enterprise/JVM**: Java, Kotlin, Scala
+- **Scripting**: Python, Ruby, PHP
+- **Microsoft**: C#
+- **Functional**: Elixir, Scala
+
+Each language provides semantic search for functions, classes, methods, interfaces, structs, and other language-specific constructs.
+
 ## Core Workflow
 
 1. **initialize_project** - Sets up project scope and enables file watching
@@ -24,7 +36,7 @@ I use Tree-Sitter MCP tools for semantic code understanding through AST parsing 
   "projectId": "unique-name", 
   "directory": "/path/to/project",
   "autoWatch": true,
-  "languages": ["typescript", "javascript"]
+  "languages": ["typescript", "javascript", "python", "go", "rust"]
 }
 ```
 
@@ -33,9 +45,9 @@ I use Tree-Sitter MCP tools for semantic code understanding through AST parsing 
 {
   "projectId": "unique-name",
   "query": "handleRequest", 
-  "types": ["function", "method"],
+  "types": ["function", "method", "class"],
   "exactMatch": true,
-  "pathPattern": "**/*.ts"
+  "pathPattern": "**/*.{ts,js,py,go,rs}"
 }
 ```
 
@@ -78,9 +90,10 @@ Results include sub-project information to maintain context and avoid confusion.
 3. `search_code` (pathPattern="**/*test*") → map test coverage
 
 **Codebase Exploration:**
-1. `initialize_project` → `search_code` (types=["class","interface"]) → catalog components
-2. `search_code` (query="main|index|app") → find entry points
+1. `initialize_project` → `search_code` (types=["class","interface","struct","trait"]) → catalog components
+2. `search_code` (query="main|index|app|module") → find entry points  
 3. `find_usage` (key_classes) → build dependency graphs
+4. Cross-language analysis for polyglot codebases
 
 ## Implementation Notes
 

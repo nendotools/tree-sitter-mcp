@@ -10,6 +10,12 @@ import Rust from 'tree-sitter-rust'
 import Java from 'tree-sitter-java'
 import C from 'tree-sitter-c'
 import Cpp from 'tree-sitter-cpp'
+import Ruby from 'tree-sitter-ruby'
+import CSharp from 'tree-sitter-c-sharp'
+import PHP from 'tree-sitter-php'
+import Kotlin from 'tree-sitter-kotlin'
+import Scala from 'tree-sitter-scala'
+import Elixir from 'tree-sitter-elixir'
 
 import { LANGUAGE_EXTENSIONS } from '../constants/index.js'
 import type { LanguageParser, ParseResult } from '../types/index.js'
@@ -79,6 +85,36 @@ const LANGUAGE_CONFIGS: LanguageConfig[] = [
     name: 'cpp',
     grammar: Cpp,
     extensions: LANGUAGE_EXTENSIONS.cpp || [],
+  },
+  {
+    name: 'ruby',
+    grammar: Ruby,
+    extensions: LANGUAGE_EXTENSIONS.ruby || [],
+  },
+  {
+    name: 'csharp',
+    grammar: CSharp,
+    extensions: LANGUAGE_EXTENSIONS.csharp || [],
+  },
+  {
+    name: 'php',
+    grammar: PHP.php,
+    extensions: LANGUAGE_EXTENSIONS.php || [],
+  },
+  {
+    name: 'kotlin',
+    grammar: Kotlin,
+    extensions: LANGUAGE_EXTENSIONS.kotlin || [],
+  },
+  {
+    name: 'scala',
+    grammar: Scala,
+    extensions: LANGUAGE_EXTENSIONS.scala || [],
+  },
+  {
+    name: 'elixir',
+    grammar: Elixir,
+    extensions: LANGUAGE_EXTENSIONS.elixir || [],
   },
 ]
 

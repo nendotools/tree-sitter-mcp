@@ -8,7 +8,7 @@ A Model Context Protocol (MCP) server that provides fast, in-memory code search 
 - **Semantic understanding**. Search by function, class, method, interface - not just text.
 - **Mono-repo supported**. Sub-project reference isolation with optional cross-referencing.
 - **Automatic synchronization**. File watchers keep the index current with 2-second debouncing.
-- **Multi-language support**. JavaScript, TypeScript, Python, Go, Rust, Java, C/C++.
+- **Multi-language support**. 15+ languages including JavaScript, TypeScript, Python, Go, Rust, Java, C/C++, Ruby, C#, PHP, Kotlin, Scala, and Elixir.
 
 ## Setup
 
@@ -159,15 +159,22 @@ Tree-Sitter MCP maintains an in-memory index of your codebase's abstract syntax 
 
 ## Supported Languages
 
-| Language   | Extensions            | Search Elements                |
-| ---------- | --------------------- | ------------------------------ |
-| JavaScript | `.js`, `.jsx`, `.mjs` | Functions, Classes, Variables  |
-| TypeScript | `.ts`, `.tsx`         | + Interfaces, Types, Enums     |
-| Python     | `.py`                 | Functions, Classes, Methods    |
-| Go         | `.go`                 | Functions, Structs, Interfaces |
-| Rust       | `.rs`                 | Functions, Structs, Traits     |
-| Java       | `.java`               | Classes, Methods, Interfaces   |
-| C/C++      | `.c`, `.cpp`, `.h`    | Functions, Structs, Classes    |
+| Language   | Extensions                  | Search Elements                      |
+| ---------- | --------------------------- | ------------------------------------ |
+| JavaScript | `.js`, `.jsx`, `.mjs`       | Functions, Classes, Variables        |
+| TypeScript | `.ts`, `.tsx`               | + Interfaces, Types, Enums           |
+| Python     | `.py`                       | Functions, Classes, Methods          |
+| Go         | `.go`                       | Functions, Structs, Interfaces       |
+| Rust       | `.rs`                       | Functions, Structs, Traits           |
+| Java       | `.java`                     | Classes, Methods, Interfaces         |
+| C          | `.c`, `.h`                  | Functions, Structs, Variables        |
+| C++        | `.cpp`, `.cc`, `.cxx`, `.hpp` | Functions, Classes, Structs        |
+| Ruby       | `.rb`                       | Classes, Methods, Modules            |
+| C#         | `.cs`                       | Classes, Methods, Interfaces         |
+| PHP        | `.php`, `.phtml`            | Classes, Functions, Methods          |
+| Kotlin     | `.kt`, `.kts`               | Classes, Functions, Objects          |
+| Scala      | `.scala`, `.sc`             | Classes, Objects, Traits             |
+| Elixir     | `.ex`, `.exs`               | Modules, Functions, Structs          |
 
 ## Performance
 
