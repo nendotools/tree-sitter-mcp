@@ -178,10 +178,12 @@ async function quickSetup(): Promise<void> {
 
   let selectedClients: MCPClient[]
   let installMethod: 'npx' | 'global'
+  let installAgent: boolean = true
 
   if (isAuto) {
     selectedClients = clients
     installMethod = 'npx'
+    installAgent = true // Auto mode includes agent by default
     logger.info(chalk.cyan('\n[AUTO] Configuring all detected clients with npx...\n'))
   }
   else {
@@ -205,7 +207,7 @@ async function quickSetup(): Promise<void> {
       return
     }
 
-    const methodSelection = await inquirer.prompt([
+    const selections = await inquirer.prompt([
       {
         type: 'list',
         name: 'installMethod',
@@ -221,14 +223,22 @@ async function quickSetup(): Promise<void> {
           },
         ],
       },
+      {
+        type: 'confirm',
+        name: 'installAgent',
+        message: 'Install the Tree-Sitter agent for Claude Code?',
+        default: true,
+        when: () => selectedClients.some(client => client.type === 'claude-code'),
+      },
     ])
 
-    installMethod = methodSelection.installMethod
+    installMethod = selections.installMethod
+    installAgent = selections.installAgent !== false // Default to true if not asked
   }
 
   for (const client of selectedClients) {
     logger.info(chalk.cyan(`\n[CONFIG] Setting up ${client.name}...`))
-    await configureClient(client, installMethod)
+    await configureClient(client, installMethod, installAgent)
   }
 
   await createDefaultConfig()
@@ -583,7 +593,7 @@ function detectMCPClients(): MCPClient[] {
   return clients
 }
 
-async function configureClient(client: MCPClient, method: 'npx' | 'global'): Promise<void> {
+async function configureClient(client: MCPClient, method: 'npx' | 'global', installAgent: boolean = true): Promise<void> {
   const logger = getLogger()
 
   switch (client.type) {
@@ -592,7 +602,7 @@ async function configureClient(client: MCPClient, method: 'npx' | 'global'): Pro
       break
 
     case 'claude-code':
-      await configureClaudeCode(client.configPath, method)
+      await configureClaudeCode(client.configPath, method, installAgent)
       break
 
     case 'gemini-cli':
@@ -669,7 +679,7 @@ async function configureClaudeDesktop(configPath: string, method: 'npx' | 'globa
   logger.info(chalk.green('  [OK] Claude Desktop configured'))
 }
 
-async function configureClaudeCode(_configPath: string, method: 'npx' | 'global'): Promise<void> {
+async function configureClaudeCode(_configPath: string, method: 'npx' | 'global', installAgent: boolean = true): Promise<void> {
   const logger = getLogger()
   const home = homedir()
 
@@ -755,22 +765,27 @@ async function configureClaudeCode(_configPath: string, method: 'npx' | 'global'
     execSync(mcpCommand, { stdio: 'pipe' })
     logger.info(chalk.green('  [OK] Tree-sitter MCP added to user scope'))
 
-    // Copy agent to ~/.claude/agents directory
-    const agentsDir = join(home, '.claude', 'agents')
-    const agentSourcePath = join(__dirname, '..', 'agents', 'treesitter-code-agent.md')
-    const agentDestPath = join(agentsDir, 'treesitter-code-agent.md')
+    // Copy agent to ~/.claude/agents directory if requested
+    if (installAgent) {
+      const agentsDir = join(home, '.claude', 'agents')
+      const agentSourcePath = join(__dirname, '..', 'agents', 'treesitter-code-agent.md')
+      const agentDestPath = join(agentsDir, 'treesitter-code-agent.md')
 
-    if (existsSync(agentSourcePath)) {
-      if (!existsSync(agentsDir)) {
-        mkdirSync(agentsDir, { recursive: true })
+      if (existsSync(agentSourcePath)) {
+        if (!existsSync(agentsDir)) {
+          mkdirSync(agentsDir, { recursive: true })
+        }
+
+        const agentContent = readFileSync(agentSourcePath, 'utf-8')
+        writeFileSync(agentDestPath, agentContent)
+        logger.info(chalk.green('  [OK] Tree-sitter agent copied to ~/.claude/agents'))
       }
-
-      const agentContent = readFileSync(agentSourcePath, 'utf-8')
-      writeFileSync(agentDestPath, agentContent)
-      logger.info(chalk.green('  [OK] Tree-sitter agent copied to ~/.claude/agents'))
+      else {
+        logger.info(chalk.yellow('  Warning: Agent file not found, skipping agent copy'))
+      }
     }
     else {
-      logger.info(chalk.yellow('  Warning: Agent file not found, skipping agent copy'))
+      logger.info(chalk.dim('  Skipping agent installation'))
     }
   }
   catch (error) {

@@ -9,88 +9,20 @@ A Model Context Protocol (MCP) server that provides fast, in-memory code search 
 - **Automatic synchronization**. File watchers keep the index current with 2-second debouncing.
 - **Multi-language support**. JavaScript, TypeScript, Python, Go, Rust, Java, C/C++.
 
-## Quick Setup
+## Setup
 
-**Install and configure automatically:**
-
-```bash
-npm install -g @nendo/tree-sitter-mcp
-@nendo/tree-sitter-mcp setup
-```
-
-This will auto-detect your MCP clients (Claude Desktop, Claude Code, VS Code, Cursor, Windsurf, Gemini CLI, Qwen CLI) and configure them automatically.
-
-## Manual Setup
-
-### Use with NPX (Recommended)
-
-Add this to your MCP client configuration:
-
-```json
-{
-  "mcpServers": {
-    "tree-sitter": {
-      "command": "npx",
-      "args": ["@nendo/tree-sitter-mcp@latest"]
-    }
-  }
-}
-```
-
-### Configuration Locations
-
-**Claude Desktop:**
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Linux: `~/.config/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-
-**Claude Code:**
-- `~/.claude.json`
-- `~/.claude/settings.local.json`
-
-**Gemini CLI:**
-- `~/.gemini/settings.json`
-
-**Qwen CLI:**
-- `~/.cursor/mcp.json`
-
-**VS Code / Cursor / Windsurf:**
-- Open command palette (`Cmd+Shift+P` or `Ctrl+Shift+P`)
-- Run "MCP: Edit Settings"
-- Add the configuration above
-
-### Global Installation
-
-If you prefer a global installation:
+**Quick setup (automatic):**
 
 ```bash
 npm install -g @nendo/tree-sitter-mcp
+tree-sitter-mcp setup --quick --auto
 ```
 
-Then use this configuration:
+**Interactive setup:**
 
-```json
-{
-  "mcpServers": {
-    "tree-sitter": {
-      "command": "@nendo/tree-sitter-mcp"
-    }
-  }
-}
-```
-
-## Configuration
-
-Create a config file at `~/.config/tree-sitter-mcp/config.json`:
-
-```json
-{
-  "workingDir": "./src",
-  "languages": ["typescript", "javascript"],
-  "maxProjects": 4,
-  "maxMemoryMB": 1024,
-  "ignoreDirs": ["node_modules", ".git", "dist"]
-}
+```bash
+npm install -g @nendo/tree-sitter-mcp
+tree-sitter-mcp setup
 ```
 
 ## Tools
@@ -98,9 +30,11 @@ Create a config file at `~/.config/tree-sitter-mcp/config.json`:
 The server provides the following MCP tools:
 
 ### `search_code`
+
 Search for code elements across your project with semantic understanding.
 
 **Parameters:**
+
 - `projectId` - Unique identifier for the project
 - `query` - Search term (function name, class name, etc.)
 - `types` - Filter by element types: `function`, `method`, `class`, `interface`
@@ -109,6 +43,7 @@ Search for code elements across your project with semantic understanding.
 - `pathPattern` - Filter files by glob pattern
 
 **Example:**
+
 ```json
 {
   "projectId": "my-app",
@@ -119,24 +54,30 @@ Search for code elements across your project with semantic understanding.
 ```
 
 ### `initialize_project`
+
 Pre-load a project into memory for faster searches.
 
 **Parameters:**
+
 - `projectId` - Unique identifier
 - `directory` - Project root directory
 - `languages` - Languages to index
 - `autoWatch` - Enable file watching (default: true)
 
 ### `project_status`
+
 Get memory usage and indexing statistics.
 
 ### `update_file`
+
 Manually trigger re-parsing of a specific file.
 
 ### `find_usage`
+
 Find all lines where a specific function, variable, class, or identifier is used.
 
 **Parameters:**
+
 - `projectId` - Project to search in
 - `identifier` - Function, variable, class, or identifier name
 - `languages` - Filter by programming languages
@@ -146,6 +87,7 @@ Find all lines where a specific function, variable, class, or identifier is used
 - `caseSensitive` - Case sensitive search (default: false)
 
 **Example:**
+
 ```json
 {
   "projectId": "my-app",
@@ -156,19 +98,19 @@ Find all lines where a specific function, variable, class, or identifier is used
 ```
 
 ### `destroy_project`
+
 Free memory by removing a project from the index.
 
 ## Debug Logging
 
-To enable detailed debug logging for troubleshooting, you need to modify your MCP client configuration to set the environment variable.
+To enable debug logging, add the `env` section to your MCP configuration:
 
-**For NPX users, update your MCP config:**
 ```json
 {
   "mcpServers": {
     "tree-sitter": {
       "command": "npx",
-      "args": ["@nendo/tree-sitter-mcp@latest"],
+      "args": ["@nendo/tree-sitter-mcp@latest", "--mcp"],
       "env": {
         "TREE_SITTER_MCP_DEBUG": "true"
       }
@@ -177,27 +119,7 @@ To enable detailed debug logging for troubleshooting, you need to modify your MC
 }
 ```
 
-**For global installation users:**
-```json
-{
-  "mcpServers": {
-    "tree-sitter": {
-      "command": "@nendo/tree-sitter-mcp",
-      "env": {
-        "TREE_SITTER_MCP_DEBUG": "true"
-      }
-    }
-  }
-}
-```
-
-This will:
-- Enable verbose logging output
-- Write detailed logs to `logs/mcp-server.log` in the project directory
-- Show file walking, parsing, and indexing details
-- Display memory usage and performance metrics
-
-**Note:** Debug logging is disabled by default for optimal performance. Remember to remove the `env` section when troubleshooting is complete.
+This writes detailed logs to `logs/mcp-server.log` in the project directory.
 
 ## How It Works
 
@@ -210,15 +132,15 @@ Tree-Sitter MCP maintains an in-memory index of your codebase's abstract syntax 
 
 ## Supported Languages
 
-| Language | Extensions | Search Elements |
-|----------|-----------|-----------------|
-| JavaScript | `.js`, `.jsx`, `.mjs` | Functions, Classes, Variables |
-| TypeScript | `.ts`, `.tsx` | + Interfaces, Types, Enums |
-| Python | `.py` | Functions, Classes, Methods |
-| Go | `.go` | Functions, Structs, Interfaces |
-| Rust | `.rs` | Functions, Structs, Traits |
-| Java | `.java` | Classes, Methods, Interfaces |
-| C/C++ | `.c`, `.cpp`, `.h` | Functions, Structs, Classes |
+| Language   | Extensions            | Search Elements                |
+| ---------- | --------------------- | ------------------------------ |
+| JavaScript | `.js`, `.jsx`, `.mjs` | Functions, Classes, Variables  |
+| TypeScript | `.ts`, `.tsx`         | + Interfaces, Types, Enums     |
+| Python     | `.py`                 | Functions, Classes, Methods    |
+| Go         | `.go`                 | Functions, Structs, Interfaces |
+| Rust       | `.rs`                 | Functions, Structs, Traits     |
+| Java       | `.java`               | Classes, Methods, Interfaces   |
+| C/C++      | `.c`, `.cpp`, `.h`    | Functions, Structs, Classes    |
 
 ## Performance
 
@@ -238,3 +160,4 @@ Contributions are welcome! Please open an issue or pull request.
 ## Acknowledgments
 
 Built with [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) and the [Model Context Protocol](https://modelcontextprotocol.io).
+
