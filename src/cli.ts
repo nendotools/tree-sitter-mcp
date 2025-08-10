@@ -83,8 +83,11 @@ program
       // Parse configuration
       const config = parseConfig(options)
 
+      // Auto-detect MCP mode: if --mcp is specified OR if stdin is piped (MCP clients pipe JSON-RPC via stdin)
+      const shouldRunMCP = options.mcp || !process.stdin.isTTY
+
       // Run in appropriate mode
-      if (options.mcp) {
+      if (shouldRunMCP) {
         logger.info(chalk.cyan('Starting Tree-Sitter MCP server...'))
         await startMCPServer(config)
       }
@@ -262,7 +265,7 @@ ${chalk.cyan('More Information:')}
 // Parse arguments and run
 program.parse(process.argv)
 
-// Show help if no arguments provided
-if (process.argv.length === 2) {
+// Show help if no arguments provided AND stdin is a TTY (not piped from MCP client)
+if (process.argv.length === 2 && process.stdin.isTTY) {
   program.help()
 }

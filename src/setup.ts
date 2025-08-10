@@ -303,7 +303,7 @@ async function globalSetup(): Promise<void> {
     mcpServers: {
       'tree-sitter': {
         command: 'tree-sitter-mcp',
-        args: ['--mcp'],
+        args: [],
       },
     },
   }
@@ -388,7 +388,7 @@ async function manualSetup(): Promise<void> {
               mcpServers: {
                 'tree-sitter': {
                   command: 'tree-sitter-mcp',
-                  args: ['--mcp'],
+                  args: [],
                 },
               },
             },
@@ -413,7 +413,7 @@ async function manualSetup(): Promise<void> {
               mcpServers: {
                 'tree-sitter': {
                   command: 'node',
-                  args: ['/path/to/tree-sitter-mcp/dist/cli.js', '--mcp'],
+                  args: ['/path/to/tree-sitter-mcp/dist/cli.js'],
                 },
               },
             },
@@ -610,7 +610,7 @@ async function configureClient(client: MCPClient, method: 'npx' | 'global'): Pro
       const config
         = method === 'npx'
           ? { command: 'npx', args: ['@nendo/tree-sitter-mcp@latest'] }
-          : { command: 'tree-sitter-mcp', args: ['--mcp'] }
+          : { command: 'tree-sitter-mcp', args: [] }
 
       logger.info(
         chalk.gray('\n' + JSON.stringify({ mcpServers: { 'tree-sitter': config } }, null, 2)),
@@ -697,7 +697,7 @@ async function configureClaudeCode(_configPath: string, method: 'npx' | 'global'
         // Package not published, use absolute path to local build
         const localCliPath = join(__dirname, '..', 'dist', 'cli.js')
         if (existsSync(localCliPath)) {
-          mcpCommand = `claude mcp add tree-sitter -s user "node ${localCliPath} --mcp"`
+          mcpCommand = `claude mcp add tree-sitter -s user "node ${localCliPath}"`
           logger.info(chalk.yellow('  Package not published, using local development build'))
         }
         else {
@@ -709,14 +709,14 @@ async function configureClaudeCode(_configPath: string, method: 'npx' | 'global'
       // For global method, try to use global command, fallback to local if needed
       try {
         execSync('which tree-sitter-mcp', { stdio: 'pipe' })
-        mcpCommand = 'claude mcp add tree-sitter -s user "tree-sitter-mcp --mcp"'
+        mcpCommand = 'claude mcp add tree-sitter -s user "tree-sitter-mcp"'
         logger.info(chalk.dim('  Using globally installed command'))
       }
       catch {
         // Global command not available, use local build
         const localCliPath = join(__dirname, '..', 'dist', 'cli.js')
         if (existsSync(localCliPath)) {
-          mcpCommand = `claude mcp add tree-sitter -s user "node ${localCliPath} --mcp"`
+          mcpCommand = `claude mcp add tree-sitter -s user "node ${localCliPath}"`
           logger.info(chalk.yellow('  Global command not found, using local development build'))
         }
         else {

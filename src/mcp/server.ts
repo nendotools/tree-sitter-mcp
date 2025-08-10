@@ -33,6 +33,20 @@ import * as tools from './tools/index.js'
 export async function startMCPServer(_config: Config): Promise<void> {
   const enableDebugLogging = process.env.TREE_SITTER_MCP_DEBUG === 'true'
 
+  // Always write startup debug info to a global log file for Claude Code troubleshooting
+  const { homedir } = await import('os')
+  const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log')
+  const timestamp = new Date().toISOString()
+  const startupInfo = `[${timestamp}] MCP Server Startup - CWD: ${process.cwd()}, Args: ${JSON.stringify(process.argv)}, Env: TREE_SITTER_MCP_DEBUG=${process.env.TREE_SITTER_MCP_DEBUG}\n`
+
+  try {
+    const { appendFileSync } = await import('fs')
+    appendFileSync(globalLogPath, startupInfo)
+  }
+  catch {
+    // Ignore write errors for global debug log
+  }
+
   let logger: ConsoleLogger
   if (enableDebugLogging) {
     const projectRoot = findProjectRoot()
