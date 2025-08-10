@@ -1,0 +1,19 @@
+{
+  "name": "mono-repo-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mono-repository test fixture with multiple sub-projects",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "clean": "npm run clean --workspaces"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}

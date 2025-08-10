@@ -313,8 +313,21 @@ export class TreeManager {
       memoryUsage: project.memoryUsage,
     };
 
+    // Count nodes by language and type
     for (const nodes of project.nodeIndex.values()) {
-      stats.totalNodes += nodes.length;
+      for (const node of nodes) {
+        stats.totalNodes++;
+        
+        // Count by language
+        if (node.language) {
+          stats.languages[node.language] = (stats.languages[node.language] || 0) + 1;
+        }
+        
+        // Count by node type
+        if (node.type) {
+          stats.nodeTypes[node.type] = (stats.nodeTypes[node.type] || 0) + 1;
+        }
+      }
     }
 
     return stats;

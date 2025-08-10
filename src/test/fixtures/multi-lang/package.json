@@ -1,0 +1,20 @@
+{
+  "name": "multi-lang-fixture",
+  "version": "1.0.0",
+  "description": "Multi-language test fixture with TS, Python, Go, Rust",
+  "type": "module",
+  "scripts": {
+    "build:ts": "tsc",
+    "build:go": "cd go && go build .",
+    "build:rust": "cd rust && cargo build",
+    "test": "npm run test:ts && npm run test:python && npm run test:go && npm run test:rust",
+    "test:ts": "vitest run --config ts/vitest.config.ts",
+    "test:python": "cd python && python -m pytest",
+    "test:go": "cd go && go test .",
+    "test:rust": "cd rust && cargo test"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}
