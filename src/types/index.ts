@@ -13,3 +13,6 @@ export * from './mcp-types.js'
 
 // Re-export all CLI types
 export * from './cli-types.js'
+
+// Re-export all error types
+export * from './error-types.js'

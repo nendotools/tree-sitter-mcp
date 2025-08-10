@@ -8,6 +8,7 @@ import chalk from 'chalk'
 import { DIRECTORIES, DEFAULT_IGNORE_DIRS } from '../../constants/service-constants.js'
 import { SUCCESS } from '../../constants/messages.js'
 import type { InitializeProjectArgs, Config } from '../../types/index.js'
+import { ErrorFactory } from '../../types/error-types.js'
 import { TreeManager } from '../../core/tree-manager.js'
 import { BatchFileWatcher } from '../../core/file-watcher.js'
 import { getLogger } from '../../utils/logger.js'
@@ -43,9 +44,27 @@ export async function initializeProject(
   const logger = getLogger()
 
   try {
+    // Validate project ID
+    if (!args.projectId || args.projectId.trim().length === 0) {
+      throw ErrorFactory.validationError('projectId', args.projectId)
+    }
+
+    // Check if project already exists
+    if (treeManager.getProject(args.projectId)) {
+      throw ErrorFactory.projectAlreadyExists(args.projectId)
+    }
+
     const projectDir = args.directory ? resolve(args.directory) : findProjectRoot()
     const monoRepoInfo = await findProjectRootWithMonoRepo(args.directory)
     logger.info(`Using project directory: ${projectDir}`)
+
+    // Validate directory exists (findProjectRoot will throw if not found)
+    try {
+      await import('fs/promises').then(fs => fs.access(projectDir))
+    }
+    catch {
+      throw ErrorFactory.directoryNotFound(projectDir)
+    }
 
     if (monoRepoInfo.isMonoRepo && monoRepoInfo.subProjects.length > 0) {
       logger.info(`Detected mono-repo with ${monoRepoInfo.subProjects.length} sub-projects`)
@@ -112,6 +131,13 @@ export async function initializeProject(
   }
   catch (error) {
     logger.error('Failed to initialize project:', error)
-    throw error
+
+    // Re-throw structured errors as-is
+    if (error instanceof Error && error.name === 'McpOperationError') {
+      throw error
+    }
+
+    // Wrap other errors in a system error
+    throw ErrorFactory.systemError('project initialization', error instanceof Error ? error.message : String(error))
   }
 }

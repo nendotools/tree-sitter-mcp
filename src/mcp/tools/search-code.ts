@@ -6,6 +6,7 @@ import { TextContent } from '@modelcontextprotocol/sdk/types.js'
 import { DIRECTORIES, DEFAULT_IGNORE_DIRS } from '../../constants/service-constants.js'
 import { SEARCH } from '../../constants/tree-constants.js'
 import type { SearchCodeArgs, Config, SearchOptions, NodeType } from '../../types/index.js'
+import { ErrorFactory } from '../../types/error-types.js'
 import { TreeManager } from '../../core/tree-manager.js'
 import { BatchFileWatcher } from '../../core/file-watcher.js'
 import { getLogger } from '../../utils/logger.js'
@@ -35,6 +36,15 @@ export async function searchCode(
   const logger = getLogger()
 
   try {
+    // Validate required parameters
+    if (!args.projectId || args.projectId.trim().length === 0) {
+      throw ErrorFactory.validationError('projectId', args.projectId)
+    }
+
+    if (!args.query || args.query.trim().length === 0) {
+      throw ErrorFactory.invalidQuery(args.query || 'empty')
+    }
+
     let project = treeManager.getProject(args.projectId)
 
     if (!project) {
@@ -67,6 +77,8 @@ export async function searchCode(
       pathPattern: args.pathPattern,
       exactMatch: args.exactMatch,
       caseSensitive: args.caseSensitive,
+      priorityType: args.priorityType,
+      fuzzyThreshold: args.fuzzyThreshold,
       includeContext: true,
       scope: {
         subProjects: args.subProjects,
@@ -124,6 +136,13 @@ export async function searchCode(
   }
   catch (error) {
     logger.error('Search failed:', error)
-    throw error
+
+    // Re-throw structured errors as-is
+    if (error instanceof Error && error.name === 'McpOperationError') {
+      throw error
+    }
+
+    // Wrap other errors in a system error
+    throw ErrorFactory.systemError('code search', error instanceof Error ? error.message : String(error))
   }
 }

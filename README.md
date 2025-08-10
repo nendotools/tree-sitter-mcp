@@ -5,6 +5,7 @@ A Model Context Protocol (MCP) server that provides fast, in-memory code search 
 ## Key Features
 
 - **Fast and lightweight**. In-memory AST indexing delivers <100ms search times.
+- **Intelligent fuzzy matching**. Smart ranking with exact matches, prefix matching, word boundaries, and character sequences.
 - **Semantic understanding**. Search by function, class, method, interface - not just text.
 - **Mono-repo supported**. Sub-project reference isolation with optional cross-referencing.
 - **Automatic synchronization**. File watchers keep the index current with 2-second debouncing.
@@ -41,6 +42,8 @@ Search for code elements across your project with semantic understanding.
 - `types` - Filter by element types: `function`, `method`, `class`, `interface`
 - `languages` - Filter by programming languages
 - `exactMatch` - Use exact string matching (default: false)
+- `priorityType` - Boost specific types in ranking: `function`, `method`, `class`, `interface`, `variable`
+- `fuzzyThreshold` - Minimum match score to include (default: 30)
 - `pathPattern` - Filter files by glob pattern
 
 **Mono-repo Parameters:**
@@ -51,12 +54,23 @@ Search for code elements across your project with semantic understanding.
 
 **Examples:**
 
-Standard search:
+Fuzzy search with priority:
 ```json
 {
   "projectId": "my-app",
   "query": "handleRequest",
   "types": ["function", "method"],
+  "priorityType": "method",
+  "languages": ["typescript"]
+}
+```
+
+Exact search:
+```json
+{
+  "projectId": "my-app",
+  "query": "handleRequest",
+  "exactMatch": true,
   "languages": ["typescript"]
 }
 ```
@@ -127,6 +141,43 @@ Find all lines where a specific function, variable, class, or identifier is used
 ### `destroy_project`
 
 Free memory by removing a project from the index.
+
+## Error Handling
+
+All MCP tools return structured JSON error responses for AI-friendly consumption. When a tool fails, the response will be a JSON object with the following structure:
+
+```json
+{
+  "category": "project|filesystem|parsing|search|validation|system",
+  "message": "Human-readable error description",
+  "code": "ERROR_CODE_IDENTIFIER",
+  "context": {
+    "key": "additional error details"
+  }
+}
+```
+
+**Error Categories:**
+
+- `project` - Project-related errors (not found, already exists)
+- `filesystem` - File system errors (path not found, permission denied)
+- `parsing` - Language parsing errors (unsupported language, syntax errors)
+- `search` - Search-related errors (invalid query, no results context)
+- `validation` - Parameter validation errors (missing required fields)
+- `system` - Internal system errors (memory exhausted, unexpected failures)
+
+**Example Error Response:**
+
+```json
+{
+  "category": "project",
+  "message": "Project \"my-app\" not found",
+  "code": "PROJECT_NOT_FOUND",
+  "context": {
+    "projectId": "my-app"
+  }
+}
+```
 
 ## Debug Logging
 

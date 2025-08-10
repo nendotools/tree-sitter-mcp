@@ -433,21 +433,152 @@ export class TreeManager {
   }
 
   /**
-   * Checks if a name matches the search query
+   * Splits identifier into words for fuzzy matching
+   *
+   * @param name - Identifier to split
+   * @returns Array of words
+   */
+  private splitIntoWords(name: string): string[] {
+    // Handle snake_case and ALL_CAPS first
+    if (name.includes('_')) {
+      return name.split('_').filter(Boolean)
+    }
+    
+    // Handle camelCase and mixed patterns
+    // Split on transitions: lowercase->uppercase, digit->letter, letter->digit
+    return name
+      .replace(/([a-z])([A-Z])/g, '$1|$2')        // camelCase: user|Name
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1|$2')  // XMLHttp: XML|Http  
+      .replace(/([a-zA-Z])(\d)/g, '$1|$2')        // letter->digit: user|2
+      .replace(/(\d)([a-zA-Z])/g, '$1|$2')        // digit->letter: 2|Name
+      .split('|')
+      .filter(Boolean)
+  }
+
+  /**
+   * Calculates fuzzy match score between query and name
+   *
+   * @param name - Node name to check
+   * @param query - Search query (original case)
+   * @param options - Search options
+   * @returns Match score (0 = no match, higher = better match)
+   */
+  private calculateFuzzyScore(name: string, query: string, options: SearchOptions): number {
+    const nameLower = name.toLowerCase()
+    const queryLower = query.toLowerCase()
+    
+    // Handle empty query
+    if (query.length === 0) {
+      return 0
+    }
+    
+    if (options.exactMatch) {
+      return nameLower === queryLower ? 100 : 0
+    }
+
+    let baseScore = 0
+
+    // 1. Exact match (case insensitive)
+    if (nameLower === queryLower) {
+      baseScore = name === query ? 100 : 90 // Exact case gets higher score
+    }
+    // 2. Exact prefix match
+    else if (nameLower.startsWith(queryLower)) {
+      baseScore = name.startsWith(query) ? 85 : 75 // Exact case gets higher score
+    }
+    // 3. Word boundary prefix match
+    else {
+      const nameWords = this.splitIntoWords(name)
+      
+      // Check if query matches any word boundary
+      for (const nameWord of nameWords) {
+        if (nameWord.toLowerCase().startsWith(queryLower)) {
+          baseScore = Math.max(baseScore, nameWord.startsWith(query) ? 70 : 60)
+        }
+        // Check if query is exact match for a word
+        else if (nameWord.toLowerCase() === queryLower) {
+          baseScore = Math.max(baseScore, nameWord === query ? 75 : 65)
+        }
+      }
+    }
+    
+    // 4. Substring match (current behavior)
+    if (baseScore === 0 && nameLower.includes(queryLower)) {
+      baseScore = name.includes(query) ? 55 : 50 // Exact case gets higher score
+    }
+    
+    // 5. Character sequence match (fuzzy)
+    if (baseScore === 0) {
+      const sequenceScore = this.calculateSequenceMatch(nameLower, queryLower)
+      if (sequenceScore > 0) {
+        baseScore = Math.min(40, sequenceScore)
+      }
+    }
+    
+    // Apply bonuses
+    if (baseScore > 0) {
+      // Position bonus
+      const queryPos = nameLower.indexOf(queryLower)
+      if (queryPos === 0) {
+        baseScore += 5 // Starts at beginning
+      } else if (queryPos <= 2) {
+        baseScore += 2 // Within first few characters
+      }
+      
+      // Length ratio bonus
+      const lengthRatio = query.length / name.length
+      if (lengthRatio >= 0.5 && lengthRatio <= 1.0) {
+        baseScore += 5
+      }
+    }
+    
+    return baseScore
+  }
+
+  /**
+   * Calculates character sequence matching score
+   *
+   * @param name - Name to check (lowercase)
+   * @param query - Query to match (lowercase)
+   * @returns Sequence match score
+   */
+  private calculateSequenceMatch(name: string, query: string): number {
+    if (query.length === 0) return 0
+    if (query.length > name.length) return 0
+    
+    let nameIndex = 0
+    let queryIndex = 0
+    let matches = 0
+    
+    while (nameIndex < name.length && queryIndex < query.length) {
+      if (name[nameIndex] === query[queryIndex]) {
+        matches++
+        queryIndex++
+      }
+      nameIndex++
+    }
+    
+    if (queryIndex < query.length) {
+      return 0 // Didn't match all query characters
+    }
+    
+    // Score based on percentage of characters matched and compactness
+    const matchPercentage = matches / query.length
+    const compactness = query.length / (nameIndex - queryIndex + query.length)
+    
+    return Math.floor(matchPercentage * compactness * 40)
+  }
+
+  /**
+   * Checks if a name matches the search query with fuzzy scoring
    *
    * @param name - Element name to check
    * @param query - Lowercase search query
    * @param options - Search options including exact match flag
-   * @returns True if name matches query
+   * @returns Match score (0 = no match, higher = better match)
    */
-  private matchesQuery(name: string, query: string, options: SearchOptions): boolean {
-    const nameLower = name.toLowerCase()
-
-    if (options.exactMatch) {
-      return nameLower === query
-    }
-
-    return nameLower.includes(query)
+  private matchesQuery(name: string, query: string, options: SearchOptions): number {
+    return this.calculateFuzzyScore(name, query, options)
   }
 
   /**
@@ -483,13 +614,15 @@ export class TreeManager {
    * Creates a search result object from a tree node
    *
    * @param node - Tree node to create result from
+   * @param fuzzyScore - Fuzzy matching score for the name match
+   * @param options - Search options for priority type bonus
    * @returns Search result with node, score, and context
    */
-  private createSearchResult(node: TreeNode): SearchResult {
+  private createSearchResult(node: TreeNode, fuzzyScore: number, options: SearchOptions): SearchResult {
     return {
       node,
       filePath: node.path,
-      score: this.calculateScore(node),
+      score: this.calculateScore(node, fuzzyScore, options),
       context: {
         parentName: node.parent?.name,
         parentType: node.parent?.type,
@@ -501,16 +634,24 @@ export class TreeManager {
    * Calculates relevance score for a search result
    *
    * @param node - Tree node to calculate score for
+   * @param fuzzyScore - Base fuzzy matching score
+   * @param options - Search options for priority type bonus
    * @returns Numeric score for result ranking
    */
-  private calculateScore(node: TreeNode): number {
-    let score = 50
+  private calculateScore(node: TreeNode, fuzzyScore: number, options: SearchOptions): number {
+    let score = fuzzyScore
 
+    // Node type bonuses (as before)
     if (node.type === NODE_TYPES.CLASS || node.type === NODE_TYPES.INTERFACE) {
       score += 10
     }
     else if (node.type === NODE_TYPES.FUNCTION || node.type === NODE_TYPES.METHOD) {
       score += 5
+    }
+
+    // Priority type bonus
+    if (options.priorityType && node.type === options.priorityType) {
+      score += 15
     }
 
     return score
@@ -702,11 +843,10 @@ export class TreeManager {
    */
   private performSearch(project: ProjectTree, query: string, options: SearchOptions): SearchResult[] {
     const results: SearchResult[] = []
-    const lowerQuery = query.toLowerCase()
     const nodeIndexesToSearch = this.getNodeIndexesToSearch(project, options.scope)
 
     for (const { nodeIndex, subProjectName } of nodeIndexesToSearch) {
-      this.searchInNodeIndex(nodeIndex, lowerQuery, options, results, subProjectName)
+      this.searchInNodeIndex(nodeIndex, query, options, results, subProjectName)
     }
 
     return results
@@ -723,16 +863,20 @@ export class TreeManager {
    */
   private searchInNodeIndex(
     nodeIndex: Map<string, TreeNode[]>,
-    lowerQuery: string,
+    query: string,
     options: SearchOptions,
     results: SearchResult[],
     subProjectName?: string,
   ): void {
+    const threshold = options.fuzzyThreshold || 30
+
     for (const [name, nodes] of nodeIndex) {
-      if (this.matchesQuery(name, lowerQuery, options)) {
+      const fuzzyScore = this.matchesQuery(name, query, options)
+      
+      if (fuzzyScore >= threshold) {
         for (const node of nodes) {
           if (this.matchesFilters(node, options)) {
-            const result = this.createSearchResult(node)
+            const result = this.createSearchResult(node, fuzzyScore, options)
             result.subProject = subProjectName
             results.push(result)
           }

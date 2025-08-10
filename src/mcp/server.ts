@@ -23,6 +23,7 @@ import type {
   ProjectStatusArgs,
   DestroyProjectArgs,
 } from '../types/index.js'
+import { formatError } from '../types/error-types.js'
 import { setLogger, ConsoleLogger } from '../utils/logger.js'
 import { LOG_LEVELS } from '../constants/cli-constants.js'
 import { TreeManager } from '../core/tree-manager.js'
@@ -142,7 +143,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.SEARCH_CODE,
           description:
-            'Find code elements semantically with AST parsing precision. Use this INSTEAD of grep/find commands for discovering functions, classes, methods, interfaces, or variables. Provides exact definitions with context.',
+            'Find code elements semantically with AST parsing precision and intelligent fuzzy matching. Supports exact matches, prefix matching, word boundaries, and character sequences. Use this INSTEAD of grep/find commands for discovering functions, classes, methods, interfaces, or variables. Provides exact definitions with context.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -189,6 +190,14 @@ export async function startMCPServer(_config: Config): Promise<void> {
               crossProjectSearch: {
                 type: 'boolean',
                 description: 'Search across multiple sub-projects (mono-repo)',
+              },
+              priorityType: {
+                type: 'string',
+                description: 'Boost specific element types in search ranking (function, method, class, interface, variable)',
+              },
+              fuzzyThreshold: {
+                type: 'number',
+                description: 'Minimum fuzzy match score to include results (default: 30)',
               },
             },
             required: ['projectId', 'query'],
@@ -354,11 +363,12 @@ export async function startMCPServer(_config: Config): Promise<void> {
     catch (error) {
       logger.error(`Tool error (${name}):`, error)
 
+      const structuredError = formatError(error)
       return {
         content: [
           {
             type: 'text',
-            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            text: JSON.stringify(structuredError, null, 2),
           },
         ],
         isError: true,

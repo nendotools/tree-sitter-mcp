@@ -40,13 +40,15 @@ Each language provides semantic search for functions, classes, methods, interfac
 }
 ```
 
-**search_code** - Semantic element discovery
+**search_code** - Semantic element discovery with intelligent fuzzy matching
 ```json
 {
   "projectId": "unique-name",
   "query": "handleRequest", 
   "types": ["function", "method", "class"],
-  "exactMatch": true,
+  "exactMatch": false,
+  "priorityType": "method",
+  "fuzzyThreshold": 30,
   "pathPattern": "**/*.{ts,js,py,go,rs}"
 }
 ```
@@ -82,6 +84,27 @@ Each language provides semantic search for functions, classes, methods, interfac
 
 Results include sub-project information to maintain context and avoid confusion.
 
+## Fuzzy Search Capabilities
+
+**Smart Matching Hierarchy:**
+1. **Exact matches** (highest score) - `User` matches `User` exactly
+2. **Prefix matches** - `get` matches `getUserName`, `getUserById` 
+3. **Word boundaries** - `Service` matches `UserService`, `APIService`
+4. **Substring matches** - `user` matches `createUser`, `deleteUser`
+5. **Character sequences** - `usrSrv` matches `UserService` (fuzzy)
+
+**Search Parameters:**
+- `exactMatch: false` - Enables fuzzy matching (default behavior)
+- `exactMatch: true` - Forces exact name matching only
+- `priorityType: "method"` - Boosts methods in result ranking (+15 score bonus)
+- `fuzzyThreshold: 30` - Minimum score to include results (filters weak matches)
+
+**Best Practices:**
+- Use `exactMatch: false` for discovery and exploration
+- Use `exactMatch: true` when you know the precise name
+- Set `priorityType` when looking for specific element types
+- Adjust `fuzzyThreshold` to control result quality (higher = stricter)
+
 ## Key Analysis Patterns
 
 **Refactoring Impact Analysis:**
@@ -95,11 +118,39 @@ Results include sub-project information to maintain context and avoid confusion.
 3. `find_usage` (key_classes) → build dependency graphs
 4. Cross-language analysis for polyglot codebases
 
+## Error Handling
+
+All tools return structured JSON errors for programmatic handling. When a tool fails, analyze the error response:
+
+```json
+{
+  "category": "project|filesystem|parsing|search|validation|system",
+  "message": "Human-readable description",
+  "code": "SPECIFIC_ERROR_CODE",
+  "context": {...}
+}
+```
+
+**Common Error Recovery:**
+
+- `PROJECT_NOT_FOUND` → Use `initialize_project` first
+- `DIRECTORY_NOT_FOUND` → Verify path and permissions
+- `VALIDATION_ERROR` → Check required parameters (projectId, query, identifier)
+- `INVALID_QUERY` → Ensure query is not empty/null
+- `UNSUPPORTED_LANGUAGE` → Check language against supported list
+
+**Error Handling Strategy:**
+1. Parse the structured error response
+2. Check error category for appropriate recovery action  
+3. Use error context for specific parameter fixes
+4. Retry with corrected parameters when applicable
+
 ## Implementation Notes
 
 - **Always initialize first** - Enables <100ms searches
 - **AST vs Text**: search_code uses AST parsing, find_usage uses text search with word boundaries
 - **Combine both** for complete analysis: definitions (AST) + usages (text)
 - **Real-time sync** - File watching maintains accuracy with 2-second debouncing
+- **Error resilience** - All failures return structured JSON for automated recovery
 
 I provide both precision and completeness by combining Tree-Sitter's semantic parsing with comprehensive text-based usage analysis.

@@ -33,6 +33,9 @@ export interface SearchCodeArgs {
   maxResults?: number
   exactMatch?: boolean
   caseSensitive?: boolean
+  // Fuzzy matching parameters
+  priorityType?: NodeType
+  fuzzyThreshold?: number
   // Mono-repo support
   subProjects?: string[]
   excludeSubProjects?: string[]
@@ -86,6 +89,9 @@ export interface SearchOptions {
   regexMatch?: boolean
   includeContext?: boolean
   caseSensitive?: boolean
+  // Fuzzy matching parameters
+  priorityType?: NodeType
+  fuzzyThreshold?: number
   // Mono-repo support
   scope?: SearchScope
 }
