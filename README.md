@@ -1,5 +1,10 @@
 # Tree-Sitter MCP
 
+[![CI](https://github.com/nendotools/tree-sitter-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/nendotools/tree-sitter-mcp/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/%40nendo%2Ftree-sitter-mcp.svg)](https://www.npmjs.com/package/@nendo/tree-sitter-mcp)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+
 A Model Context Protocol (MCP) server that provides fast, in-memory code search and analysis using [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) parsers. This server enables LLMs to efficiently navigate and understand codebases through semantic AST indexing with intelligent file watching.
 
 ## Key Features
