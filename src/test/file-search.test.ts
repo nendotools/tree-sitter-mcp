@@ -81,12 +81,12 @@ describe('File Search Tests', () => {
     it('should support empty query with path pattern', async () => {
       const results = await treeManager.search(testProjectId, '', {
         types: ['file'],
-        pathPattern: '**/*.ts',  // Use ** pattern to match any directory depth
+        pathPattern: '**/*.ts', // Use ** pattern to match any directory depth
         maxResults: 10,
       })
 
       expect(results.length).toBeGreaterThan(0)
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.node.type).toBe('file')
         expect(result.filePath.endsWith('.ts')).toBe(true)
       })
@@ -100,10 +100,10 @@ describe('File Search Tests', () => {
       })
 
       expect(results.length).toBeGreaterThan(0)
-      
+
       const hasFiles = results.some(r => r.node.type === 'file')
       const hasCodeElements = results.some(r => r.node.type !== 'file')
-      
+
       expect(hasFiles).toBe(true)
       expect(hasCodeElements).toBe(true)
     })
@@ -115,7 +115,7 @@ describe('File Search Tests', () => {
       })
 
       expect(results.length).toBeGreaterThan(0)
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.node.type).not.toBe('file')
         expect(['class', 'function'].includes(result.node.type)).toBe(true)
       })
@@ -130,7 +130,7 @@ describe('File Search Tests', () => {
       })
 
       expect(results.length).toBeGreaterThan(0)
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.filePath.endsWith('.ts')).toBe(true)
       })
     })

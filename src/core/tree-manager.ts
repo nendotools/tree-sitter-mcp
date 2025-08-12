@@ -980,7 +980,7 @@ export class TreeManager {
       // Match against filename (basename) and full path
       const filename = fileNode.name
       const fullPath = fileNode.path
-      
+
       const filenameScore = this.matchesQuery(filename, query, options)
       const pathScore = this.matchesQuery(fullPath, query, options)
       const bestScore = Math.max(filenameScore, pathScore)
@@ -1002,18 +1002,18 @@ export class TreeManager {
    */
   private shouldIncludeSubProject(
     subProjectName: string,
-    scope?: { subProjects?: string[]; excludeSubProjects?: string[] },
+    scope?: { subProjects?: string[], excludeSubProjects?: string[] },
   ): boolean {
     if (!scope) return true
-    
+
     if (scope.subProjects && scope.subProjects.length > 0) {
       return scope.subProjects.includes(subProjectName)
     }
-    
+
     if (scope.excludeSubProjects && scope.excludeSubProjects.length > 0) {
       return !scope.excludeSubProjects.includes(subProjectName)
     }
-    
+
     return true
   }
 
