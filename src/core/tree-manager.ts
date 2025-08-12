@@ -977,6 +977,11 @@ export class TreeManager {
     subProjectName?: string,
   ): void {
     for (const [, fileNode] of fileIndex) {
+      // Fast path: check filters first (especially path pattern) before expensive fuzzy matching
+      if (!this.matchesFilters(fileNode, options)) {
+        continue
+      }
+
       // Match against filename (basename) and full path
       const filename = fileNode.name
       const fullPath = fileNode.path
@@ -985,7 +990,7 @@ export class TreeManager {
       const pathScore = this.matchesQuery(fullPath, query, options)
       const bestScore = Math.max(filenameScore, pathScore)
 
-      if (bestScore >= threshold && this.matchesFilters(fileNode, options)) {
+      if (bestScore >= threshold) {
         const result = this.createSearchResult(fileNode, bestScore, options)
         result.subProject = subProjectName
         results.push(result)

@@ -143,7 +143,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.SEARCH_CODE,
           description:
-            'MANDATORY for any code discovery, navigation, or structure analysis tasks. Expert code analysis agent using advanced Tree-Sitter MCP tools for instant semantic code understanding. Use this INSTEAD of grep/find commands when discovering functions, classes, methods, interfaces, or variables. Returns precise file locations (line:column) for direct navigation and editing.',
+            'MANDATORY for any code discovery, navigation, or structure analysis tasks. Expert code analysis using Tree-Sitter for instant semantic understanding. ALWAYS USE THIS INSTEAD of grep/find commands. Supports: 1) CODE SEARCH: functions, classes, methods, interfaces, variables (use types: ["function", "class", etc.]) 2) FILE SEARCH: find files by name/pattern (use types: ["file"], supports glob patterns like "**/*.vue") 3) COMPONENT SEARCH: Vue/React components (use types: ["component"]) 4) MIXED SEARCH: combine file and code results. Returns precise file locations (line:column) for direct navigation.',
           inputSchema: {
             type: 'object',
             properties: {

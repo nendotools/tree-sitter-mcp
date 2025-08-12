@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2025-08-12
+
+### Fixed
+- **Performance**: Critical performance fix for file searches with path patterns
+- Fixed file search taking 160+ seconds by reordering filter operations
+- Now filters by path pattern first, then performs expensive fuzzy matching
+- Dramatically improved search speeds for large projects (385+ files)
+
+### Improved
+- Enhanced MCP tool descriptions with more assertive usage guidance
+- Better AI guidance for when to use file search vs code search
+- Clearer examples of search patterns and use cases
+
+## [1.4.0] - 2025-01-12
+
+### Added
+- **File-level search capability** - Search for files by name, partial name, and fuzzy matching
+- **Glob pattern support** - Find files using patterns like `**/*.vue`, `**/components/**/*.ts`
+- **Empty query support** - Use path patterns without search terms for file discovery
+- **Mixed search results** - Return both files and code elements in unified results
+- **Enhanced file index** - Dedicated file indexing alongside existing code element indexing
+
+### Enhanced
+- **Search tool flexibility** - `search_code` now supports `file` type in addition to code elements
+- **Improved error handling** - Better validation for empty queries and path patterns
+- **Documentation updates** - Updated README with file search examples and usage patterns
+
+### Use Cases
+- **Code exploration**: Find all Vue components with `types: ["file"], pathPattern: "**/*.vue"`
+- **File discovery**: Locate specific files by name or fuzzy matching
+- **Architecture analysis**: Search for files and their contained elements simultaneously
+- **Pattern-based searches**: Use glob patterns to find files in specific directories
+
+### Technical
+- 10 comprehensive test cases covering all file search scenarios
+- Maintains backward compatibility with existing code element searches
+- Enhanced fuzzy scoring for filename matching
+- Proper mono-repo support for file searches
+
 ## [1.3.0] - 2025-01-12
 
 ### Added
