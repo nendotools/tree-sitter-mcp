@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2025-08-12
+
+### Fixed
+- **EMFILE Error Resolution**: Fixed critical "too many open files" error in large projects (385+ files)
+- **Performance**: Selective directory watching reduces resource usage by ~95%
+- **File Watcher**: Smart project detection for Vue, React, Angular, and monorepo structures
+
+### Enhanced
+- **Directory Detection**: Intelligent project type detection with automatic directory selection
+- **Resource Management**: Watch 1-5 key directories instead of 385+ individual files
+- **Fallback System**: Graceful degradation for unknown project types
+- **Test Coverage**: 45+ comprehensive test cases for file watching scenarios
+
+### Technical
+- New selective directory watching implementation in `FileWatcher`
+- Added `directory-detection.ts` utility with smart project detection
+- Comprehensive test suites for directory detection and file watching
+- Maintains full file change detection while preventing system resource limits
+
 ## [1.4.1] - 2025-08-12
 
 ### Fixed

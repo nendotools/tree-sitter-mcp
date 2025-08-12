@@ -50,6 +50,9 @@ tmp/
 temp/
 .cache/
 
+# NPM packages
+*.tgz
+
 # Yarn
 .yarn/*
 !.yarn/patches

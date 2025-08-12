@@ -7,6 +7,7 @@ import { WATCHER, CHANGE_EVENTS } from '../constants/index.js'
 import type { Config, WatcherStatus } from '../types/index.js'
 import { getLogger } from '../utils/logger.js'
 import { debounce } from '../utils/helpers.js'
+import { detectCodeDirectories, getIgnorePatterns, validateDirectories, getWatchingSummary } from '../utils/directory-detection.js'
 import { TreeManager } from './tree-manager.js'
 
 /**
@@ -42,10 +43,10 @@ export class FileWatcher {
   }
 
   /**
-   * Starts watching for file changes in the project directory
+   * Starts watching for file changes using selective directory watching
    *
-   * Sets up debounced handlers for file add/change/delete events
-   * and begins monitoring the configured working directory
+   * Detects code directories automatically and watches only those directories
+   * to avoid EMFILE errors while maintaining comprehensive coverage
    */
   start(): void {
     if (this.watching) {
@@ -53,22 +54,62 @@ export class FileWatcher {
       return
     }
 
-    this.logger.info(`Starting file watcher for project ${this.projectId}`)
+    this.logger.info(`Starting selective file watcher for project ${this.projectId}`)
 
     const debouncedUpdate = debounce(
       (path: string) => this.handleFileChange(path),
       WATCHER.DEBOUNCE_MS,
     )
 
-    this.watcher = watch(this.config.workingDir, {
-      ignored: this.config.ignoreDirs || [],
-      persistent: true,
-      ignoreInitial: true,
-      awaitWriteFinish: {
-        stabilityThreshold: WATCHER.DEBOUNCE_MS,
-        pollInterval: 100,
-      },
-    })
+    try {
+      // Detect code directories to watch
+      const codeDirectories = detectCodeDirectories(this.config.workingDir)
+      const validDirectories = validateDirectories(codeDirectories)
+
+      if (validDirectories.length === 0) {
+        this.logger.warn(`No valid directories found for watching in project ${this.projectId}`)
+        return
+      }
+
+      // Log watching summary for debugging
+      const summary = getWatchingSummary(this.config.workingDir)
+      this.logger.info(`Watching ${summary.watchedCount} directories for project ${this.projectId}`)
+      this.logger.debug(`Project type: ${summary.projectType}`)
+      validDirectories.forEach(dir => this.logger.debug(`  Watching: ${dir}`))
+
+      // Combine user-specified ignore patterns with default patterns
+      const allIgnorePatterns = [
+        ...getIgnorePatterns(),
+        ...(this.config.ignoreDirs || []),
+      ]
+
+      this.watcher = watch(validDirectories, {
+        ignored: allIgnorePatterns,
+        persistent: true,
+        ignoreInitial: true,
+        depth: undefined, // Unlimited depth within watched directories
+        usePolling: false, // Use native fs.watch for better performance
+        awaitWriteFinish: {
+          stabilityThreshold: WATCHER.DEBOUNCE_MS,
+          pollInterval: 100,
+        },
+      })
+    }
+    catch (error) {
+      this.logger.error(`Failed to initialize selective directory watching for project ${this.projectId}:`, error)
+      // Fallback to watching the working directory
+      this.logger.warn(`Falling back to watching entire working directory: ${this.config.workingDir}`)
+
+      this.watcher = watch(this.config.workingDir, {
+        ignored: this.config.ignoreDirs || [],
+        persistent: true,
+        ignoreInitial: true,
+        awaitWriteFinish: {
+          stabilityThreshold: WATCHER.DEBOUNCE_MS,
+          pollInterval: 100,
+        },
+      })
+    }
 
     this.watcher
       .on('add', (path) => {

@@ -1,6 +1,6 @@
 {
   "name": "@nendo/tree-sitter-mcp",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Fast in-memory code search and analysis MCP service using tree-sitter",
   "keywords": [
     "mcp",
