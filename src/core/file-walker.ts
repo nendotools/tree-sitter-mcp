@@ -109,21 +109,21 @@ export class FileWalker {
   private async processFile(filePath: string, results: ParseResult[]): Promise<void> {
     const fileStartTime = performance.now()
     const fileName = filePath.split('/').pop() || filePath
-    
+
     this.logger.debug(`🔍 Checking file: ${fileName}`)
-    
+
     if (!this.parserRegistry.canParse(filePath)) {
       this.logger.debug(`❌ Cannot parse: ${fileName} (no parser available)`)
       return
     }
-    
+
     this.logger.debug(`✅ Can parse: ${fileName}`)
 
     try {
       const statStartTime = performance.now()
       const stats = await stat(filePath)
       const statDuration = (performance.now() - statStartTime).toFixed(2)
-      
+
       const maxSizeBytes = PARSING.MAX_FILE_SIZE_MB * 1024 * 1024
       if (stats.size > maxSizeBytes) {
         this.logger.debug(`🚫 Large file: ${fileName} (${Math.round(stats.size / 1024 / 1024)}MB > ${PARSING.MAX_FILE_SIZE_MB}MB)`)
@@ -137,7 +137,7 @@ export class FileWalker {
         this.logger.debug(`❌ No parser found: ${fileName}`)
         return
       }
-      
+
       this.logger.debug(`🔧 Using parser: ${parser.name} for ${fileName}`)
 
       if (this.config.languages && this.config.languages.length > 0) {
@@ -151,7 +151,7 @@ export class FileWalker {
       const content = await readFile(filePath, 'utf-8')
       const readDuration = (performance.now() - readStartTime).toFixed(2)
       this.logger.debug(`📖 Read: ${fileName} (${content.length} chars, ${readDuration}ms)`)
-      
+
       // Apply line-based filtering to prevent parsing problematic files
       const lines = content.split('\n')
       if (lines.length > PARSING.MAX_LINES_PER_FILE) {
@@ -165,20 +165,20 @@ export class FileWalker {
         this.logger.debug(`🚫 Long lines: ${fileName} (max ${maxLineLength} > ${PARSING.MAX_LINE_LENGTH} chars)`)
         return
       }
-      
+
       this.logger.debug(`📏 Line check OK: ${fileName} (${lines.length} lines, max ${maxLineLength} chars)`)
 
       const parseStartTime = performance.now()
       const result = await this.parserRegistry.parseFile(filePath, content)
       const parseDuration = (performance.now() - parseStartTime).toFixed(2)
-      
+
       if (result) {
         this.logger.debug(`⚡ Parse success: ${fileName} (${result.elements.length} elements, ${parseDuration}ms)`)
-        
+
         // Convert absolute path to relative for consistent indexing
         const relativePath = relative(this.config.workingDir, filePath)
         result.file.path = relativePath
-        
+
         // Log existing elements before Vue component detection
         const beforeCount = result.elements.length
         this.logger.debug(`🧩 Elements before Vue detection: ${beforeCount}`)
@@ -187,10 +187,10 @@ export class FileWalker {
             this.logger.debug(`   - ${element.name} (${element.type})`)
           }
         }
-        
+
         // Add Vue component detection based on file system patterns
         this.addVueComponentIfApplicable(result, relativePath)
-        
+
         // Log if Vue component was added
         const afterCount = result.elements.length
         if (afterCount > beforeCount) {
@@ -202,13 +202,14 @@ export class FileWalker {
             }
           }
         }
-        
+
         results.push(result)
         const totalFileDuration = (performance.now() - fileStartTime).toFixed(2)
         this.logger.debug(
           `✅ Complete: ${fileName} with ${result.elements.length} elements in ${totalFileDuration}ms`,
         )
-      } else {
+      }
+      else {
         this.logger.debug(`❌ Parse failed: ${fileName} (${parseDuration}ms)`)
       }
     }
@@ -231,7 +232,7 @@ export class FileWalker {
    */
   private addVueComponentIfApplicable(result: ParseResult, relativePath: string): void {
     this.logger.debug(`🔍 Vue check: ${relativePath}`)
-    
+
     // Only process .vue files
     if (!relativePath.endsWith('.vue')) {
       this.logger.debug(`❌ Not .vue file: ${relativePath}`)
@@ -243,11 +244,11 @@ export class FileWalker {
     // Check if file is in components directory
     const pathSegments = relativePath.split('/').filter(Boolean)
     this.logger.debug(`📁 Path segments: ${pathSegments.join(' > ')}`)
-    
-    const isInComponents = pathSegments.some(segment => 
-      segment === 'components' || 
-      segment === 'component' || 
-      segment.startsWith('components')
+
+    const isInComponents = pathSegments.some(segment =>
+      segment === 'components'
+      || segment === 'component'
+      || segment.startsWith('components'),
     )
 
     if (!isInComponents) {
@@ -293,7 +294,7 @@ export class FileWalker {
 
     // Add the component element to the result
     result.elements.push(componentElement)
-    
+
     this.logger.debug(`Added Vue component: ${componentName} from ${relativePath}`)
   }
 }

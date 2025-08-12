@@ -31,11 +31,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full project indexing: handles 190+ Vue components with 474+ code elements
 - Search responses: <10ms for indexed projects
 
-## [1.2.2] - 2024-01-XX
+## [1.2.2] - 2024-12-XX
 
 ### Added
-- Initial release with basic MCP functionality
-- Multi-language support for 15+ programming languages
+- Add badges, fix license, improve CI reliability
+- Fix rollup module error by removing package-lock and using npm install
+- Include repository in package.json
+- Disable npm cache in CI to avoid stale dependencies
+
+## [1.2.1] - 2024-12-XX
+
+### Fixed
+- Fix npm package files - include setup.js
+
+## [1.2.0] - 2024-12-XX
+
+### Added
+- Add intelligent fuzzy search with hierarchical scoring
+- Expand language support to 15 languages with comprehensive test fixtures
+- Refactor TreeManager methods and improve JSDoc documentation
+
+## [1.1.0] - 2024-11-XX
+
+### Added
+- Enhanced search capabilities and performance improvements
+
+## [1.0.1] - 2024-11-XX
+
+### Fixed
+- Bug fixes and stability improvements
+
+## [1.0.0] - 2024-11-XX
+
+### Added
+- Initial stable release with basic MCP functionality
+- Multi-language support for programming languages
 - Fast in-memory AST indexing and search
 - Mono-repo support with sub-project isolation
 - File watching with automatic synchronization
