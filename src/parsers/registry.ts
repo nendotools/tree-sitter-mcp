@@ -116,6 +116,11 @@ const LANGUAGE_CONFIGS: LanguageConfig[] = [
     grammar: Elixir,
     extensions: LANGUAGE_EXTENSIONS.elixir || [],
   },
+  {
+    name: 'vue',
+    grammar: TypeScript.typescript, // Use TypeScript parser for Vue SFC script sections
+    extensions: LANGUAGE_EXTENSIONS.vue || [],
+  },
 ]
 
 /**

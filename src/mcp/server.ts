@@ -106,7 +106,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.INITIALIZE_PROJECT,
           description:
-            'Pre-cache a project structure for faster searches and enable file watching. Optional performance optimization - search_code auto-initializes projects when needed.',
+            'Pre-cache a project structure for faster searches and enable file watching. Optional performance optimization - search_code auto-initializes projects when needed. Use proactively for large codebases or when multiple searches are planned.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -143,7 +143,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.SEARCH_CODE,
           description:
-            'Find code elements semantically with AST parsing precision and intelligent fuzzy matching. Supports exact matches, prefix matching, word boundaries, and character sequences. Use this INSTEAD of grep/find commands for discovering functions, classes, methods, interfaces, or variables. Provides exact definitions with context.',
+            'MANDATORY for any code discovery, navigation, or structure analysis tasks. Expert code analysis agent using advanced Tree-Sitter MCP tools for instant semantic code understanding. Use this INSTEAD of grep/find commands when discovering functions, classes, methods, interfaces, or variables. Returns precise file locations (line:column) for direct navigation and editing.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -207,7 +207,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.FIND_USAGE,
           description:
-            'ESSENTIAL for refactoring impact analysis and dependency mapping. Find every usage of any identifier across the codebase with containing function context. Use this BEFORE modifying any code element to understand the complete impact scope.',
+            'ESSENTIAL for refactoring impact analysis and dependency mapping. Find every usage of any identifier across the codebase with containing function context. Use this BEFORE modifying any code element to understand the complete impact scope. Returns precise file locations with line numbers and contextual information.',
           inputSchema: {
             type: 'object',
             properties: {

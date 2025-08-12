@@ -778,14 +778,34 @@ export class TreeManager {
    * @param project - Project to build indexes for
    */
   private async buildProjectIndexes(project: ProjectTree): Promise<void> {
+    // Debug TreeManager configuration
+    this.logger.debug(`🔧 TreeManager Configuration for ${project.projectId}:`)
+    this.logger.debug(`  - workingDir: ${project.config.workingDir}`)
+    this.logger.debug(`  - maxDepth: ${project.config.maxDepth}`)
+    this.logger.debug(`  - languages: ${JSON.stringify(project.config.languages)}`)
+    this.logger.debug(`  - ignoreDirs: ${JSON.stringify(Array.from(project.config.ignoreDirs || []))}`)
+
     const walker = new FileWalker(this.parserRegistry, project.config)
     const files = await walker.walk()
 
     this.logger.info(`FileWalker returned ${files.length} files for project ${project.projectId}`)
 
+    // Debug file type breakdown
+    const fileTypes: Record<string, number> = {}
     for (const file of files) {
-      await this.addFileToTree(project, file)
+      const extension = file.file.path.split('.').pop() || 'no-ext'
+      fileTypes[extension] = (fileTypes[extension] || 0) + 1
     }
+    this.logger.debug(`📁 File type breakdown: ${JSON.stringify(fileTypes, null, 2)}`)
+
+    let processedCount = 0
+    for (const file of files) {
+      this.logger.debug(`📝 Processing file ${processedCount + 1}/${files.length}: ${file.file.path}`)
+      await this.addFileToTree(project, file)
+      processedCount++
+    }
+
+    this.logger.info(`✅ TreeManager processed ${processedCount} files, indexed ${project.fileIndex.size} files`)
   }
 
   /**

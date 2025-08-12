@@ -15,6 +15,7 @@ A Model Context Protocol (MCP) server that provides fast, in-memory code search 
 - **Mono-repo supported**. Sub-project reference isolation with optional cross-referencing.
 - **Automatic synchronization**. File watchers keep the index current with 2-second debouncing.
 - **Multi-language support**. 15+ languages including JavaScript, TypeScript, Python, Go, Rust, Java, C/C++, Ruby, C#, PHP, Kotlin, Scala, and Elixir.
+- **Vue.js framework support**. Automatic component detection and indexing for Vue Single File Components (.vue files) in component directories.
 
 ## Setup
 
@@ -44,7 +45,7 @@ Search for code elements across your project with semantic understanding.
 
 - `projectId` - Unique identifier for the project
 - `query` - Search term (function name, class name, etc.)
-- `types` - Filter by element types: `function`, `method`, `class`, `interface`
+- `types` - Filter by element types: `function`, `method`, `class`, `interface`, `component`
 - `languages` - Filter by programming languages
 - `exactMatch` - Use exact string matching (default: false)
 - `priorityType` - Boost specific types in ranking: `function`, `method`, `class`, `interface`, `variable`
@@ -231,6 +232,7 @@ Tree-Sitter MCP maintains an in-memory index of your codebase's abstract syntax 
 | Kotlin     | `.kt`, `.kts`               | Classes, Functions, Objects          |
 | Scala      | `.scala`, `.sc`             | Classes, Objects, Traits             |
 | Elixir     | `.ex`, `.exs`               | Modules, Functions, Structs          |
+| Vue        | `.vue`                      | Components, Interfaces, Functions    |
 
 ## Performance
 

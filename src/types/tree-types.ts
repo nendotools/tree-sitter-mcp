@@ -17,6 +17,7 @@ export type NodeType
     | 'type'
     | 'import'
     | 'export'
+    | 'component'
 
 // Tree node representation
 export interface TreeNode {

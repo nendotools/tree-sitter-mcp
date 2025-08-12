@@ -25,6 +25,14 @@ export const WATCHER = {
   MAX_FILE_SIZE_MB: 10,
 } as const
 
+// File parsing constraints to prevent performance issues
+export const PARSING = {
+  MAX_FILE_SIZE_MB: 5,           // Skip parsing files larger than 5MB
+  MAX_LINE_LENGTH: 1000,         // Skip lines longer than 1000 characters
+  MAX_LINES_PER_FILE: 10000,     // Skip files with more than 10k lines
+  MAX_CONTEXT_LINES: 10,         // Limit context extraction to 10 lines
+} as const
+
 // Directory configuration
 export const DIRECTORIES = {
   DEFAULT_WORKING_DIR: '.',
