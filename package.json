@@ -51,6 +51,7 @@
     "chokidar": "^4.0.3",
     "commander": "^14.0.0",
     "inquirer": "^12.9.1",
+    "minimatch": "^10.0.3",
     "tree-sitter": "^0.21.1",
     "tree-sitter-c": "^0.21.0",
     "tree-sitter-c-sharp": "^0.21.3",
@@ -70,6 +71,7 @@
   "devDependencies": {
     "@eslint/js": "^9.33.0",
     "@stylistic/eslint-plugin": "^5.2.3",
+    "@types/minimatch": "^5.1.2",
     "@types/node": "^24.2.1",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",

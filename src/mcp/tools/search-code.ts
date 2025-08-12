@@ -42,7 +42,8 @@ export async function searchCode(
       throw ErrorFactory.validationError('projectId', args.projectId)
     }
 
-    if (!args.query || args.query.trim().length === 0) {
+    // Allow empty query if pathPattern is provided for file-only searches
+    if ((!args.query || args.query.trim().length === 0) && !args.pathPattern) {
       throw ErrorFactory.invalidQuery(args.query || 'empty')
     }
 
@@ -88,17 +89,20 @@ export async function searchCode(
       },
     }
 
-    const results = await treeManager.search(args.projectId, args.query, searchOptions)
+    const searchQuery = args.query || ''
+    const results = await treeManager.search(args.projectId, searchQuery, searchOptions)
 
     if (results.length === 0) {
+      const searchTerm = searchQuery || `files matching pattern "${args.pathPattern}"`
       return {
         type: 'text',
-        text: `No matches found for "${args.query}"\n\nTry:\n• Using a broader search term\n• Checking if the project is in the right directory\n• Removing type or language filters`,
+        text: `No matches found for "${searchTerm}"\n\nTry:\n• Using a broader search term\n• Checking if the project is in the right directory\n• Removing type or language filters`,
       }
     }
 
+    const searchTerm = searchQuery || `files matching pattern "${args.pathPattern}"`
     const lines = [
-      `Found ${results.length} match${results.length === 1 ? '' : 'es'} for "${args.query}":\n`,
+      `Found ${results.length} match${results.length === 1 ? '' : 'es'} for "${searchTerm}":\n`,
     ]
 
     results.forEach((result, index) => {

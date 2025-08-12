@@ -3,6 +3,7 @@
  */
 
 import { readFileSync } from 'fs'
+import { minimatch } from 'minimatch'
 import { MEMORY, NODE_TYPES, ERRORS } from '../constants/index.js'
 import type {
   Config,
@@ -581,6 +582,10 @@ export class TreeManager {
    * @returns Match score (0 = no match, higher = better match)
    */
   private matchesQuery(name: string, query: string, options: SearchOptions): number {
+    // If query is empty, return a default score for path-pattern-only searches
+    if (!query || query.trim().length === 0) {
+      return 50 // Default score for path-pattern matches
+    }
     return this.calculateFuzzyScore(name, query, options)
   }
 
@@ -605,7 +610,8 @@ export class TreeManager {
     }
 
     if (options.pathPattern) {
-      if (!node.path.includes(options.pathPattern)) {
+      // Use glob pattern matching for path patterns
+      if (!minimatch(node.path, options.pathPattern)) {
         return false
       }
     }
@@ -876,8 +882,14 @@ export class TreeManager {
     const results: SearchResult[] = []
     const nodeIndexesToSearch = this.getNodeIndexesToSearch(project, options.scope)
 
+    // Search in node indexes (code elements)
     for (const { nodeIndex, subProjectName } of nodeIndexesToSearch) {
       this.searchInNodeIndex(nodeIndex, query, options, results, subProjectName)
+    }
+
+    // Search in file indexes if 'file' type is requested
+    if (!options.types || options.types.includes('file')) {
+      this.searchInFileIndex(project, query, options, results)
     }
 
     return results
@@ -914,6 +926,95 @@ export class TreeManager {
         }
       }
     }
+  }
+
+  /**
+   * Searches within file indexes for file-type results
+   *
+   * @param project - Project to search in
+   * @param query - Search query
+   * @param options - Search options
+   * @param results - Results array to populate
+   */
+  private searchInFileIndex(
+    project: ProjectTree,
+    query: string,
+    options: SearchOptions,
+    results: SearchResult[],
+  ): void {
+    const threshold = options.fuzzyThreshold || 30
+
+    // Search main project file index
+    this.searchFileIndexMap(project.fileIndex, query, options, results, threshold)
+
+    // Search sub-project file indexes if mono-repo
+    if (project.isMonoRepo && project.subProjectFileIndex) {
+      for (const [subProjectName, fileIndex] of project.subProjectFileIndex) {
+        // Check if this sub-project should be included based on scope options
+        if (this.shouldIncludeSubProject(subProjectName, options.scope)) {
+          this.searchFileIndexMap(fileIndex, query, options, results, threshold, subProjectName)
+        }
+      }
+    }
+  }
+
+  /**
+   * Searches within a specific file index map
+   *
+   * @param fileIndex - File index to search in
+   * @param query - Search query
+   * @param options - Search options
+   * @param results - Results array to populate
+   * @param threshold - Fuzzy matching threshold
+   * @param subProjectName - Sub-project name if applicable
+   */
+  private searchFileIndexMap(
+    fileIndex: Map<string, TreeNode>,
+    query: string,
+    options: SearchOptions,
+    results: SearchResult[],
+    threshold: number,
+    subProjectName?: string,
+  ): void {
+    for (const [, fileNode] of fileIndex) {
+      // Match against filename (basename) and full path
+      const filename = fileNode.name
+      const fullPath = fileNode.path
+      
+      const filenameScore = this.matchesQuery(filename, query, options)
+      const pathScore = this.matchesQuery(fullPath, query, options)
+      const bestScore = Math.max(filenameScore, pathScore)
+
+      if (bestScore >= threshold && this.matchesFilters(fileNode, options)) {
+        const result = this.createSearchResult(fileNode, bestScore, options)
+        result.subProject = subProjectName
+        results.push(result)
+      }
+    }
+  }
+
+  /**
+   * Checks if a sub-project should be included based on scope options
+   *
+   * @param subProjectName - Name of the sub-project
+   * @param scope - Search scope options
+   * @returns True if sub-project should be included
+   */
+  private shouldIncludeSubProject(
+    subProjectName: string,
+    scope?: { subProjects?: string[]; excludeSubProjects?: string[] },
+  ): boolean {
+    if (!scope) return true
+    
+    if (scope.subProjects && scope.subProjects.length > 0) {
+      return scope.subProjects.includes(subProjectName)
+    }
+    
+    if (scope.excludeSubProjects && scope.excludeSubProjects.length > 0) {
+      return !scope.excludeSubProjects.includes(subProjectName)
+    }
+    
+    return true
   }
 
   /**

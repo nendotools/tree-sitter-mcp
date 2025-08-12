@@ -45,7 +45,7 @@ Search for code elements across your project with semantic understanding.
 
 - `projectId` - Unique identifier for the project
 - `query` - Search term (function name, class name, etc.)
-- `types` - Filter by element types: `function`, `method`, `class`, `interface`, `component`
+- `types` - Filter by element types: `function`, `method`, `class`, `interface`, `component`, `file`
 - `languages` - Filter by programming languages
 - `exactMatch` - Use exact string matching (default: false)
 - `priorityType` - Boost specific types in ranking: `function`, `method`, `class`, `interface`, `variable`
