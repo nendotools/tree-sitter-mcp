@@ -106,7 +106,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.INITIALIZE_PROJECT,
           description:
-            'Pre-cache a project structure for faster searches and enable file watching. Optional performance optimization - search_code auto-initializes projects when needed. Use proactively for large codebases or when multiple searches are planned.',
+            'Pre-cache a project structure for faster searches and enable file watching. Optional performance optimization - search_code auto-initializes projects when needed, so you typically don\'t need to call this directly. Only use when you want to initialize multiple projects upfront or need explicit control over initialization timing.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -143,7 +143,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.SEARCH_CODE,
           description:
-            'MANDATORY for any code discovery, navigation, or structure analysis tasks. Expert code analysis using Tree-Sitter for instant semantic understanding. ALWAYS USE THIS INSTEAD of grep/find commands. Supports: 1) CODE SEARCH: functions, classes, methods, interfaces, variables (use types: ["function", "class", etc.]) 2) FILE SEARCH: find files by name/pattern (use types: ["file"], supports glob patterns like "**/*.vue") 3) COMPONENT SEARCH: Vue/React components (use types: ["component"]) 4) MIXED SEARCH: combine file and code results. Returns precise file locations (line:column) for direct navigation.',
+            'MANDATORY for discovering features, APIs, code patterns, and configuration settings. Unlike text-based searches, this understands both code structure and config files semantically. Perfect for: finding authentication systems (search "auth", type: function), discovering API endpoints, locating UI components, searching environment variables (search "DATABASE_URL", languages: ["env"]), finding config keys in JSON/YAML files, exploring similar implementations across languages. Supports fuzzy matching - search "user" to find "UserService", "createUser", "user_config", etc. Returns exact locations for immediate navigation. Auto-initializes projects on first use (may take 3-10 seconds for large codebases). Essential for understanding unfamiliar codebases and their configuration.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -163,7 +163,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
               languages: {
                 type: 'array',
                 items: { type: 'string' },
-                description: 'Filter by programming languages',
+                description: 'Filter by programming languages and config formats (e.g., ["typescript", "env", "json", "yaml"])',
               },
               pathPattern: {
                 type: 'string',
@@ -207,7 +207,7 @@ export async function startMCPServer(_config: Config): Promise<void> {
         {
           name: MCP_TOOLS.FIND_USAGE,
           description:
-            'ESSENTIAL for refactoring impact analysis and dependency mapping. Find every usage of any identifier across the codebase with containing function context. Use this BEFORE modifying any code element to understand the complete impact scope. Returns precise file locations with line numbers and contextual information.',
+            'ESSENTIAL for understanding code dependencies, feature interconnections, and configuration usage. Traces how functions, classes, variables, or config keys are used throughout the codebase - revealing hidden relationships, integration points, and feature boundaries. Shows each usage with intelligent context: the containing function/method/class name plus the exact line content. Critical for: discovering how features interact, finding all consumers of an API, understanding data flow patterns, locating environment variable usage, tracking config key references, and safe refactoring. Works across both code and configuration files. Unlike simple text search, provides semantic context about WHERE each usage occurs.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -217,12 +217,12 @@ export async function startMCPServer(_config: Config): Promise<void> {
               },
               identifier: {
                 type: 'string',
-                description: 'Function, variable, class, or identifier name to find usage of',
+                description: 'Function, variable, class, config key, or identifier name to find usage of',
               },
               languages: {
                 type: 'array',
                 items: { type: 'string' },
-                description: 'Filter by programming languages',
+                description: 'Filter by programming languages and config formats (e.g., ["typescript", "env", "json"])',
               },
               pathPattern: {
                 type: 'string',

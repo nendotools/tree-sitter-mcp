@@ -136,7 +136,7 @@ export async function runSetup(): Promise<void> {
 
     logger.info(chalk.green.bold('\n[SUCCESS] Setup complete!\n'))
     logger.info(chalk.dim('For more information:'))
-    logger.info(chalk.white('  https://github.com/your-username/tree-sitter-mcp\n'))
+    logger.info(chalk.white('  https://github.com/nendotools/tree-sitter-mcp\n'))
   }
   catch (error) {
     if (error instanceof Error && error.message === 'User cancelled') {
@@ -412,7 +412,7 @@ async function manualSetup(): Promise<void> {
 
     case 'local':
       logger.info(chalk.white('1. Clone and build:\n'))
-      logger.info(chalk.gray('   git clone https://github.com/your-username/tree-sitter-mcp.git'))
+      logger.info(chalk.gray('   git clone https://github.com/nendotools/tree-sitter-mcp.git'))
       logger.info(chalk.gray('   cd tree-sitter-mcp'))
       logger.info(chalk.gray('   npm install'))
       logger.info(chalk.gray('   npm run build\n'))

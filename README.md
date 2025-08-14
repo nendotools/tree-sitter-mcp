@@ -1,11 +1,11 @@
-# Tree-Sitter MCP
+# Tree-Sitter MCP Server
 
 [![CI](https://github.com/nendotools/tree-sitter-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/nendotools/tree-sitter-mcp/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/%40nendo%2Ftree-sitter-mcp.svg)](https://www.npmjs.com/package/@nendo/tree-sitter-mcp)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
-A Model Context Protocol (MCP) server that provides fast, in-memory code search and analysis using [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) parsers. This server enables LLMs to efficiently navigate and understand codebases through semantic AST indexing with intelligent file watching.
+A **Model Context Protocol (MCP) server** that provides fast, in-memory code search and analysis using [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) parsers and native config file parsing. This **mcp-server** enables LLMs to efficiently navigate and understand codebases through semantic AST indexing with intelligent file watching, plus comprehensive configuration management.
 
 ## Key Features
 
@@ -14,8 +14,10 @@ A Model Context Protocol (MCP) server that provides fast, in-memory code search 
 - **Semantic understanding**. Search by function, class, method, interface - not just text.
 - **Mono-repo supported**. Sub-project reference isolation with optional cross-referencing.
 - **Automatic synchronization**. File watchers keep the index current with 2-second debouncing.
-- **Multi-language support**. 15+ languages including JavaScript, TypeScript, Python, Go, Rust, Java, C/C++, Ruby, C#, PHP, Kotlin, Scala, and Elixir.
+- **Multi-language support**. 20+ languages including JavaScript, TypeScript, Python, Go, Rust, Java, C/C++, Ruby, C#, PHP, Kotlin, Scala, and Elixir.
 - **Vue.js framework support**. Automatic component detection and indexing for Vue Single File Components (.vue files) in component directories.
+- **Configuration file parsing**. Native support for JSON, YAML, TOML, and .env files with structured key-value indexing.
+- **Comprehensive config coverage**. Handles .env.* wildcard patterns, JSONC comments, and all major config formats.
 
 ## Setup
 
@@ -46,7 +48,7 @@ Search for code elements across your project with semantic understanding.
 - `projectId` - Unique identifier for the project
 - `query` - Search term (function name, class name, etc.)
 - `types` - Filter by element types: `function`, `method`, `class`, `interface`, `component`, `file`
-- `languages` - Filter by programming languages
+- `languages` - Filter by programming languages and config formats
 - `exactMatch` - Use exact string matching (default: false)
 - `priorityType` - Boost specific types in ranking: `function`, `method`, `class`, `interface`, `variable`
 - `fuzzyThreshold` - Minimum match score to include (default: 30)
@@ -68,6 +70,26 @@ Fuzzy search with priority:
   "types": ["function", "method"],
   "priorityType": "method",
   "languages": ["typescript"]
+}
+```
+
+Search config files:
+```json
+{
+  "projectId": "my-app",
+  "query": "DATABASE_URL",
+  "types": ["constant"],
+  "languages": ["env", "json", "yaml"]
+}
+```
+
+Find API endpoints in config:
+```json
+{
+  "projectId": "my-app",
+  "query": "api_endpoint",
+  "languages": ["yaml", "json"],
+  "pathPattern": "config/**"
 }
 ```
 
@@ -126,21 +148,31 @@ Find all lines where a specific function, variable, class, or identifier is used
 **Parameters:**
 
 - `projectId` - Project to search in
-- `identifier` - Function, variable, class, or identifier name
-- `languages` - Filter by programming languages
+- `identifier` - Function, variable, class, config key, or identifier name
+- `languages` - Filter by programming languages and config formats
 - `pathPattern` - Filter by file path pattern
 - `maxResults` - Maximum number of results (default: 100)
 - `exactMatch` - Require exact identifier match with word boundaries
 - `caseSensitive` - Case sensitive search (default: false)
 
-**Example:**
+**Examples:**
 
+Find function usage:
 ```json
 {
   "projectId": "my-app",
   "identifier": "handleRequest",
   "languages": ["typescript", "javascript"],
   "exactMatch": true
+}
+```
+
+Find config key usage:
+```json
+{
+  "projectId": "my-app", 
+  "identifier": "DATABASE_URL",
+  "languages": ["env", "yaml", "typescript"]
 }
 ```
 
@@ -216,6 +248,7 @@ Tree-Sitter MCP maintains an in-memory index of your codebase's abstract syntax 
 
 ## Supported Languages
 
+### Programming Languages
 | Language   | Extensions                  | Search Elements                      |
 | ---------- | --------------------------- | ------------------------------------ |
 | JavaScript | `.js`, `.jsx`, `.mjs`       | Functions, Classes, Variables        |
@@ -233,6 +266,20 @@ Tree-Sitter MCP maintains an in-memory index of your codebase's abstract syntax 
 | Scala      | `.scala`, `.sc`             | Classes, Objects, Traits             |
 | Elixir     | `.ex`, `.exs`               | Modules, Functions, Structs          |
 | Vue        | `.vue`                      | Components, Interfaces, Functions    |
+
+### Configuration Files
+| Format     | Extensions                  | Search Elements                      |
+| ---------- | --------------------------- | ------------------------------------ |
+| JSON       | `.json`, `.json5`, `.jsonc` | Keys, Values, Nested Objects        |
+| YAML       | `.yaml`, `.yml`             | Keys, Values, Arrays, Comments       |
+| TOML       | `.toml`                     | Sections, Keys, Values, Tables       |
+| Environment| `.env*` (wildcard)          | Variables, Values, Comments          |
+
+**Config File Examples:**
+- `.env`, `.env.local`, `.env.production` (Environment variables)
+- `package.json`, `tsconfig.json`, `.vscode/settings.json` (JSON)  
+- `docker-compose.yml`, `.github/workflows/*.yml` (YAML)
+- `Cargo.toml`, `pyproject.toml` (TOML)
 
 ## Performance
 

@@ -36,6 +36,10 @@ export const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
   scala: ['.scala', '.sc'],
   elixir: ['.ex', '.exs'],
   vue: ['.vue'],
+  json: ['.json', '.json5', '.jsonc'],
+  yaml: ['.yaml', '.yml'],
+  toml: ['.toml'],
+  env: ['.env*'],
 } as const
 
 // Search configuration

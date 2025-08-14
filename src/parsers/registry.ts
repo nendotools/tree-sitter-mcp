@@ -20,6 +20,7 @@ import Elixir from 'tree-sitter-elixir'
 import { LANGUAGE_EXTENSIONS } from '../constants/index.js'
 import type { LanguageParser, ParseResult } from '../types/index.js'
 import { BaseParser } from './base-parser.js'
+import { ConfigParser } from './config-parser.js'
 
 /**
  * Configuration for a language parser including grammar and supported file extensions
@@ -148,10 +149,17 @@ class ParserRegistry {
    * Initializes all configured language parsers and registers them with the registry
    */
   private initializeParsers(): void {
+    // Initialize tree-sitter parsers
     for (const config of LANGUAGE_CONFIGS) {
       const parser = new BaseParser(config.name, config.grammar, config.extensions)
       this.registerParser(parser)
     }
+
+    // Initialize native config parsers
+    this.registerParser(new ConfigParser('json', LANGUAGE_EXTENSIONS.json || [], 'json'))
+    this.registerParser(new ConfigParser('yaml', LANGUAGE_EXTENSIONS.yaml || [], 'yaml'))
+    this.registerParser(new ConfigParser('toml', LANGUAGE_EXTENSIONS.toml || [], 'toml'))
+    this.registerParser(new ConfigParser('env', LANGUAGE_EXTENSIONS.env || [], 'env'))
   }
 
   /**
@@ -187,10 +195,20 @@ class ParserRegistry {
     const ext = this.getFileExtension(filePath)
     if (!ext) return undefined
 
+    // First try exact extension match
     const language = this.extensionMap.get(ext)
-    if (!language) return undefined
+    if (language) {
+      return this.parsers.get(language)
+    }
 
-    return this.parsers.get(language)
+    // If no exact match, check if any parser can handle this file (for wildcards)
+    for (const parser of this.parsers.values()) {
+      if (parser.canParse(filePath)) {
+        return parser
+      }
+    }
+
+    return undefined
   }
 
   private getFileExtension(filePath: string): string | undefined {

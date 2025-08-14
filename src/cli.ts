@@ -330,20 +330,23 @@ ${chalk.cyan('Examples:')}
   ${chalk.dim('# Analyze specific directory with filters')}
   $ @nendo/tree-sitter-mcp analyze ./src --languages typescript,javascript
   
+  ${chalk.dim('# Analyze config files only')}
+  $ @nendo/tree-sitter-mcp analyze . --languages json,yaml,toml,env
+  
   ${chalk.dim('# Use configuration file')}
   $ @nendo/tree-sitter-mcp --mcp --config ./config.json
   
   ${chalk.dim('# Run interactive setup')}
   $ @nendo/tree-sitter-mcp setup
   
-  ${chalk.dim('# List supported languages')}
+  ${chalk.dim('# List supported languages (20 total: 16 programming + 4 config)')}
   $ @nendo/tree-sitter-mcp languages
 
 ${chalk.cyan('Configuration File Format:')}
   
   {
     "workingDir": "./src",
-    "languages": ["typescript", "javascript"],
+    "languages": ["typescript", "javascript", "json", "yaml"],
     "maxDepth": 10,
     "ignoreDirs": [".git", "node_modules", "dist"],
     "verbose": false,
@@ -358,7 +361,7 @@ ${chalk.cyan('Environment Variables:')}
 
 ${chalk.cyan('More Information:')}
   
-  Repository: ${chalk.underline('https://github.com/your-username/tree-sitter-mcp')}
+  Repository: ${chalk.underline('https://github.com/nendotools/tree-sitter-mcp')}
   MCP Docs:   ${chalk.underline('https://modelcontextprotocol.io')}
 `,
 )
