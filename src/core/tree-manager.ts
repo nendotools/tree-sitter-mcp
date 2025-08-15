@@ -501,11 +501,52 @@ export class TreeManager {
     else if (nameLower.startsWith(queryLower)) {
       baseScore = name.startsWith(query) ? 85 : 75 // Exact case gets higher score
     }
-    // 3. Word boundary prefix match
+    // 3. Cross-format word matching (e.g., accessToken <-> access_token)
     else {
       const nameWords = this.splitIntoWords(name)
+      const queryWords = this.splitIntoWords(query)
 
-      // Check if query matches any word boundary
+      // Check word-level matching with similarity tolerance
+      const nameWordsLower = nameWords.map(w => w.toLowerCase())
+      const queryWordsLower = queryWords.map(w => w.toLowerCase())
+
+      // Exact word matches
+      const exactMatches = queryWordsLower.filter(qWord =>
+        nameWordsLower.some(nWord => nWord === qWord),
+      )
+
+      // Prefix word matches (e.g., "acc" matches "account")
+      const prefixMatches = queryWordsLower.filter(qWord =>
+        !exactMatches.includes(qWord)
+        && nameWordsLower.some(nWord => nWord.startsWith(qWord) && qWord.length >= 3),
+      )
+
+      // Suffix word matches (e.g., "count" matches "account")
+      const suffixMatches = queryWordsLower.filter(qWord =>
+        !exactMatches.includes(qWord) && !prefixMatches.includes(qWord)
+        && nameWordsLower.some(nWord => nWord.endsWith(qWord) && qWord.length >= 3),
+      )
+
+      const totalMatches = exactMatches.length + prefixMatches.length + suffixMatches.length
+      const totalQueryWords = queryWordsLower.length
+
+      if (exactMatches.length === totalQueryWords && totalQueryWords > 0) {
+        // All query words exactly match name words - highest score
+        baseScore = Math.max(baseScore, 85)
+      }
+      else if (totalMatches === totalQueryWords && totalQueryWords > 0) {
+        // All query words match (exact + prefix + suffix) - high score
+        baseScore = Math.max(baseScore, 80)
+      }
+      else if (totalMatches > 0) {
+        // Partial word matches - score based on match ratio and quality
+        const exactRatio = exactMatches.length / totalQueryWords
+        const totalRatio = totalMatches / totalQueryWords
+        const qualityScore = (exactRatio * 0.8) + (totalRatio * 0.6)
+        baseScore = Math.max(baseScore, Math.floor(75 * qualityScore))
+      }
+
+      // 4. Word boundary prefix match (existing logic)
       for (const nameWord of nameWords) {
         if (nameWord.toLowerCase().startsWith(queryLower)) {
           baseScore = Math.max(baseScore, nameWord.startsWith(query) ? 70 : 60)
@@ -517,12 +558,12 @@ export class TreeManager {
       }
     }
 
-    // 4. Substring match (current behavior)
+    // 5. Substring match (current behavior)
     if (baseScore === 0 && nameLower.includes(queryLower)) {
       baseScore = name.includes(query) ? 55 : 50 // Exact case gets higher score
     }
 
-    // 5. Character sequence match (fuzzy)
+    // 6. Character sequence match (fuzzy)
     if (baseScore === 0) {
       const sequenceScore = this.calculateSequenceMatch(nameLower, queryLower)
       if (sequenceScore > 0) {
