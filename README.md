@@ -11,19 +11,19 @@ A **Model Context Protocol (MCP) server** that provides fast, in-memory code sea
 
 Tree-Sitter MCP provides three essential tools for codebase exploration and quality analysis:
 
-### 1. **🔎 `search_code`** - Find code elements instantly
+### 1. **`search_code`** - Find code elements instantly
 - **Semantic search** across functions, classes, methods, interfaces, and config keys
 - **Fuzzy matching** with intelligent ranking and exact match options
 - **Multi-language support** for 20+ programming languages and configuration formats
 - **Mono-repo aware** with sub-project isolation and cross-referencing
 
-### 2. **📍 `find_usage`** - Trace identifier usage across your codebase
+### 2. **`find_usage`** - Trace identifier usage across your codebase
 - **Track dependencies** by finding where functions, variables, or config keys are used
 - **Cross-file analysis** with context-aware line-by-line results
 - **Configuration tracing** to understand how environment variables flow through your code
 - **Impact analysis** for safe refactoring and dependency management
 
-### 3. **🔬 `analyze_code`** - Comprehensive code quality assessment
+### 3. **`analyze_code`** - Comprehensive code quality assessment
 - **Quality analysis**: Detects complex functions, long methods (>50 lines), high parameter counts (>6), calculates quality scores
 - **Structure analysis**: Finds circular dependencies, high coupling, deep HTML nesting (>10 levels), architectural issues
 - **Dead code analysis**: Identifies unused exports, orphaned files, unreferenced dependencies for optimization
@@ -74,7 +74,7 @@ npm install -g @nendo/tree-sitter-mcp
 tree-sitter-mcp setup
 ```
 
-## 🛠️ Core Tools Reference
+## Core Tools Reference
 
 ### `search_code` - Semantic Code Search
 
