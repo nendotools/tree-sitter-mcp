@@ -64,3 +64,6 @@ temp/
 # References and notes
 refs/
 roadmap/
+
+# Claude AI assistant instructions
+CLAUDE.md

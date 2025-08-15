@@ -7,23 +7,26 @@
 
 A **Model Context Protocol (MCP) server** that provides fast, in-memory code search, usage analysis, and quality assessment using [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) parsers. This **mcp-server** enables LLMs to efficiently navigate, understand, and analyze codebases through semantic AST indexing with intelligent file watching.
 
-## 🔍 Three Core Capabilities
+## Three Core Capabilities
 
 Tree-Sitter MCP provides three essential tools for codebase exploration and quality analysis:
 
 ### 1. **`search_code`** - Find code elements instantly
+
 - **Semantic search** across functions, classes, methods, interfaces, and config keys
 - **Fuzzy matching** with intelligent ranking and exact match options
 - **Multi-language support** for 20+ programming languages and configuration formats
 - **Mono-repo aware** with sub-project isolation and cross-referencing
 
 ### 2. **`find_usage`** - Trace identifier usage across your codebase
+
 - **Track dependencies** by finding where functions, variables, or config keys are used
 - **Cross-file analysis** with context-aware line-by-line results
 - **Configuration tracing** to understand how environment variables flow through your code
 - **Impact analysis** for safe refactoring and dependency management
 
 ### 3. **`analyze_code`** - Comprehensive code quality assessment
+
 - **Quality analysis**: Detects complex functions, long methods (>50 lines), high parameter counts (>6), calculates quality scores
 - **Structure analysis**: Finds circular dependencies, high coupling, deep HTML nesting (>10 levels), architectural issues
 - **Dead code analysis**: Identifies unused exports, orphaned files, unreferenced dependencies for optimization
@@ -39,21 +42,24 @@ Tree-Sitter MCP provides three essential tools for codebase exploration and qual
 - **Multi-language support**. 20+ languages including JavaScript, TypeScript, Python, Go, Rust, Java, C/C++, Ruby, C#, PHP, Kotlin, Scala, and Elixir.
 - **Vue.js framework support**. Automatic component detection and indexing for Vue Single File Components (.vue files) in component directories.
 - **Configuration file parsing**. Native support for JSON, YAML, TOML, and .env files with structured key-value indexing.
-- **Comprehensive config coverage**. Handles .env.* wildcard patterns, JSONC comments, and all major config formats.
+- **Comprehensive config coverage**. Handles .env.\* wildcard patterns, JSONC comments, and all major config formats.
 
 ## Installation Requirements
 
 This package includes native binary components that require C++ build tools during installation:
 
 **Windows:**
+
 - Visual Studio Build Tools 2017 or later, OR
 - Visual Studio Community/Professional with C++ workload, OR
 - Windows Build Tools: `npm install --global windows-build-tools`
 
 **macOS:**
+
 - Xcode Command Line Tools: `xcode-select --install`
 
 **Linux:**
+
 - Ubuntu/Debian: `sudo apt-get install build-essential`
 - CentOS/RHEL: `sudo yum groupinstall "Development Tools"`
 - Alpine: `apk add build-base`
@@ -100,6 +106,7 @@ Search for code elements across your project with semantic understanding.
 **Examples:**
 
 Fuzzy search with priority:
+
 ```json
 {
   "projectId": "my-app",
@@ -111,6 +118,7 @@ Fuzzy search with priority:
 ```
 
 Search config files:
+
 ```json
 {
   "projectId": "my-app",
@@ -121,6 +129,7 @@ Search config files:
 ```
 
 Find API endpoints in config:
+
 ```json
 {
   "projectId": "my-app",
@@ -147,6 +156,7 @@ Find all lines where a specific function, variable, class, or identifier is used
 **Examples:**
 
 Find function usage:
+
 ```json
 {
   "projectId": "my-app",
@@ -157,9 +167,10 @@ Find function usage:
 ```
 
 Find config key usage:
+
 ```json
 {
-  "projectId": "my-app", 
+  "projectId": "my-app",
   "identifier": "DATABASE_URL",
   "languages": ["env", "yaml", "typescript"]
 }
@@ -206,6 +217,7 @@ Find config key usage:
 **Output Format:**
 
 Returns structured JSON object with:
+
 - **Project metadata** (id, analysis types, scope, target)
 - **Summary statistics** (totalIssues, severity breakdown by critical/warning/info)
 - **Quantitative metrics** (complexity averages, file counts, quality scores by category)
@@ -215,6 +227,7 @@ Returns structured JSON object with:
 **Examples:**
 
 Full project analysis:
+
 ```json
 {
   "projectId": "my-app",
@@ -224,6 +237,7 @@ Full project analysis:
 ```
 
 Quality analysis only:
+
 ```json
 {
   "projectId": "my-app",
@@ -234,6 +248,7 @@ Quality analysis only:
 ```
 
 Single file analysis:
+
 ```json
 {
   "projectId": "my-app",
@@ -295,7 +310,7 @@ Single file analysis:
       "description": "Method 'processLargeDataset' is very long (87 lines)",
       "location": "src/data/processor.ts:45",
       "context": "Consider extracting functionality into separate methods",
-      "metrics": {"methodLength": 87, "complexity": 12}
+      "metrics": { "methodLength": 87, "complexity": 12 }
     },
     {
       "type": "structure",
@@ -400,35 +415,38 @@ Tree-Sitter MCP maintains an in-memory index of your codebase's abstract syntax 
 ## Supported Languages
 
 ### Programming Languages
-| Language   | Extensions                  | Search Elements                      |
-| ---------- | --------------------------- | ------------------------------------ |
-| JavaScript | `.js`, `.jsx`, `.mjs`       | Functions, Classes, Variables        |
-| TypeScript | `.ts`, `.tsx`               | + Interfaces, Types, Enums           |
-| Python     | `.py`                       | Functions, Classes, Methods          |
-| Go         | `.go`                       | Functions, Structs, Interfaces       |
-| Rust       | `.rs`                       | Functions, Structs, Traits           |
-| Java       | `.java`                     | Classes, Methods, Interfaces         |
-| C          | `.c`, `.h`                  | Functions, Structs, Variables        |
-| C++        | `.cpp`, `.cc`, `.cxx`, `.hpp` | Functions, Classes, Structs        |
-| Ruby       | `.rb`                       | Classes, Methods, Modules            |
-| C#         | `.cs`                       | Classes, Methods, Interfaces         |
-| PHP        | `.php`, `.phtml`            | Classes, Functions, Methods          |
-| Kotlin     | `.kt`, `.kts`               | Classes, Functions, Objects          |
-| Scala      | `.scala`, `.sc`             | Classes, Objects, Traits             |
-| Elixir     | `.ex`, `.exs`               | Modules, Functions, Structs          |
-| Vue        | `.vue`                      | Components, Interfaces, Functions    |
+
+| Language   | Extensions                    | Search Elements                   |
+| ---------- | ----------------------------- | --------------------------------- |
+| JavaScript | `.js`, `.jsx`, `.mjs`         | Functions, Classes, Variables     |
+| TypeScript | `.ts`, `.tsx`                 | + Interfaces, Types, Enums        |
+| Python     | `.py`                         | Functions, Classes, Methods       |
+| Go         | `.go`                         | Functions, Structs, Interfaces    |
+| Rust       | `.rs`                         | Functions, Structs, Traits        |
+| Java       | `.java`                       | Classes, Methods, Interfaces      |
+| C          | `.c`, `.h`                    | Functions, Structs, Variables     |
+| C++        | `.cpp`, `.cc`, `.cxx`, `.hpp` | Functions, Classes, Structs       |
+| Ruby       | `.rb`                         | Classes, Methods, Modules         |
+| C#         | `.cs`                         | Classes, Methods, Interfaces      |
+| PHP        | `.php`, `.phtml`              | Classes, Functions, Methods       |
+| Kotlin     | `.kt`, `.kts`                 | Classes, Functions, Objects       |
+| Scala      | `.scala`, `.sc`               | Classes, Objects, Traits          |
+| Elixir     | `.ex`, `.exs`                 | Modules, Functions, Structs       |
+| Vue        | `.vue`                        | Components, Interfaces, Functions |
 
 ### Configuration Files
-| Format     | Extensions                  | Search Elements                      |
-| ---------- | --------------------------- | ------------------------------------ |
-| JSON       | `.json`, `.json5`, `.jsonc` | Keys, Values, Nested Objects        |
-| YAML       | `.yaml`, `.yml`             | Keys, Values, Arrays, Comments       |
-| TOML       | `.toml`                     | Sections, Keys, Values, Tables       |
-| Environment| `.env*` (wildcard)          | Variables, Values, Comments          |
+
+| Format      | Extensions                  | Search Elements                |
+| ----------- | --------------------------- | ------------------------------ |
+| JSON        | `.json`, `.json5`, `.jsonc` | Keys, Values, Nested Objects   |
+| YAML        | `.yaml`, `.yml`             | Keys, Values, Arrays, Comments |
+| TOML        | `.toml`                     | Sections, Keys, Values, Tables |
+| Environment | `.env*` (wildcard)          | Variables, Values, Comments    |
 
 **Config File Examples:**
+
 - `.env`, `.env.local`, `.env.production` (Environment variables)
-- `package.json`, `tsconfig.json`, `.vscode/settings.json` (JSON)  
+- `package.json`, `tsconfig.json`, `.vscode/settings.json` (JSON)
 - `docker-compose.yml`, `.github/workflows/*.yml` (YAML)
 - `Cargo.toml`, `pyproject.toml` (TOML)
 
@@ -450,3 +468,4 @@ Contributions are welcome! Please open an issue or pull request.
 ## Acknowledgments
 
 Built with [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) and the [Model Context Protocol](https://modelcontextprotocol.io).
+
