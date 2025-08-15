@@ -1,0 +1,19 @@
+{
+  "name": "test-project",
+  "version": "not-a-semver",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "invalid-dependency": "^1.0.0"
+  },
+  "author": "",
+  "license": "",
+  "repository": "not-a-valid-repo-url",
+  "bugs": {
+    "url": "not-a-valid-url"
+  },
+  "homepage": "not-a-valid-url"
+}

@@ -165,7 +165,7 @@ export class TreeManager {
       const parseResult = await this.parserRegistry.parseFile(filePath, content)
 
       if (parseResult) {
-        await this.addFileToTree(project, parseResult)
+        await this.addFileToTree(project, parseResult, content)
       }
     }
     catch (error) {
@@ -347,8 +347,19 @@ export class TreeManager {
    * @param project - Project tree to update
    * @param parseResult - Parsed file data with code elements
    */
-  private addFileToTree(project: ProjectTree, parseResult: ParseResult): void {
+  private addFileToTree(project: ProjectTree, parseResult: ParseResult, content?: string): void {
     const filePath = parseResult.file.path
+
+    // If content is not provided, try to read it for analysis purposes
+    if (!content) {
+      try {
+        const fullPath = resolve(project.config.workingDir, filePath)
+        content = readFileSync(fullPath, 'utf-8')
+      }
+      catch (error) {
+        this.logger.debug(`Could not read content for ${filePath}:`, error)
+      }
+    }
 
     const fileNode: TreeNode = {
       id: generateId(),
@@ -358,6 +369,7 @@ export class TreeManager {
       language: parseResult.file.language,
       children: [],
       lastModified: new Date(),
+      content: content,
     }
 
     project.fileIndex.set(filePath, fileNode)

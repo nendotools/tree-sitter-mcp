@@ -16,6 +16,7 @@ import PHP from 'tree-sitter-php'
 import Kotlin from 'tree-sitter-kotlin'
 import Scala from 'tree-sitter-scala'
 import Elixir from 'tree-sitter-elixir'
+import HTML from 'tree-sitter-html'
 
 import { LANGUAGE_EXTENSIONS } from '../constants/index.js'
 import type { LanguageParser, ParseResult } from '../types/index.js'
@@ -121,6 +122,11 @@ const LANGUAGE_CONFIGS: LanguageConfig[] = [
     name: 'vue',
     grammar: TypeScript.typescript, // Use TypeScript parser for Vue SFC script sections
     extensions: LANGUAGE_EXTENSIONS.vue || [],
+  },
+  {
+    name: 'html',
+    grammar: HTML,
+    extensions: LANGUAGE_EXTENSIONS.html || [],
   },
 ]
 

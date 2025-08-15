@@ -12,6 +12,7 @@ export type MCPTool
     | 'update_file'
     | 'project_status'
     | 'destroy_project'
+    | 'analyze_code'
 
 // Initialize Project tool arguments
 export interface InitializeProjectArgs {
@@ -123,4 +124,74 @@ export interface MatchDetail {
   column: number
   length: number
   text: string
+}
+
+// Analysis types
+export type AnalysisType = 'quality' | 'structure' | 'deadcode' | 'config-validation'
+
+export type AnalysisScope = 'project' | 'file' | 'method'
+
+export type IssueSeverity = 'info' | 'warning' | 'critical'
+
+// Analyze Code tool arguments
+export interface AnalyzeCodeArgs {
+  projectId: string
+  analysisTypes: AnalysisType[]
+  scope: AnalysisScope
+  target?: string // File path or method identifier
+  directory?: string // Directory to analyze (for auto-initialization)
+  includeMetrics?: boolean
+  severity?: IssueSeverity // Filter by minimum severity
+}
+
+// Quality issue finding
+export interface QualityIssue {
+  type: AnalysisType
+  category: string
+  severity: IssueSeverity
+  location: string
+  description: string
+  context: string
+  metrics?: Record<string, number>
+}
+
+// Analysis result
+export interface AnalysisResult {
+  projectId: string
+  analysisTypes: AnalysisType[]
+  scope: AnalysisScope
+  target?: string
+  summary: {
+    totalIssues: number
+    severityBreakdown: Record<IssueSeverity, number>
+  }
+  findings: QualityIssue[]
+  metrics: {
+    quality?: {
+      avgComplexity: number
+      avgMethodLength: number
+      avgParameters: number
+      totalMethods: number
+      codeQualityScore: number
+    }
+    structure?: {
+      analyzedFiles: number
+      circularDependencies: number
+      highCouplingFiles: number
+      htmlFiles: number
+      deeplyNestedElements: number
+      maxNestingDepth: number
+    }
+    deadCode?: {
+      orphanedFiles: number
+      unusedExports: number
+      unusedDependencies: number
+    }
+    configValidation?: {
+      validatedFiles: number
+      schemaMatches: number
+      validationErrors: number
+      criticalErrors: number
+    }
+  }
 }

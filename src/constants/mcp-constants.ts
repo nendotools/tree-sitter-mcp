@@ -10,4 +10,5 @@ export const MCP_TOOLS = {
   UPDATE_FILE: 'update_file',
   PROJECT_STATUS: 'project_status',
   DESTROY_PROJECT: 'destroy_project',
+  ANALYZE_CODE: 'analyze_code',
 } as const

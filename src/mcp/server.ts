@@ -22,6 +22,7 @@ import type {
   UpdateFileArgs,
   ProjectStatusArgs,
   DestroyProjectArgs,
+  AnalyzeCodeArgs,
 } from '../types/index.js'
 import { formatError } from '../types/error-types.js'
 import { setLogger, ConsoleLogger } from '../utils/logger.js'
@@ -296,6 +297,51 @@ export async function startMCPServer(_config: Config): Promise<void> {
             required: ['projectId'],
           },
         },
+        {
+          name: MCP_TOOLS.ANALYZE_CODE,
+          description:
+            'COMPREHENSIVE CODE ANALYSIS with AUTO-INITIALIZATION - Performs deep architectural and quality analysis beyond what linters provide. AUTOMATICALLY creates and indexes projects if they don\'t exist, making analysis seamless without manual setup. Returns structured JSON with actionable findings and metrics. Four analysis types: (1) QUALITY: Detects complex functions, long methods (>50 lines), high parameter counts (>6), calculates code quality scores. (2) STRUCTURE: Finds circular dependencies, high coupling, deep HTML nesting (>10 levels), architectural issues. (3) DEADCODE: Identifies unused exports, orphaned files, unreferenced dependencies. (4) CONFIG-VALIDATION: Validates JSON/YAML configs, checks semver formats, validates URLs in package.json. Returns JSON object with: project metadata, summary stats (totalIssues, severity breakdown), quantitative metrics (complexity averages, file counts, quality scores), detailed findings array with type/category/severity/description/location/context/metrics. Perfect for programmatic consumption, dashboard integration, CI/CD pipelines. Use for: code reviews, refactoring planning, technical debt assessment, architectural validation, optimization opportunities.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              projectId: {
+                type: 'string',
+                description: 'Project to analyze (auto-created and indexed if not exists)',
+              },
+              analysisTypes: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                  enum: ['quality', 'structure', 'deadcode', 'config-validation'],
+                },
+                description: 'Analysis types: quality (complexity/method length), structure (dependencies/coupling), deadcode (unused code), config-validation (JSON/package.json validation)',
+              },
+              scope: {
+                type: 'string',
+                enum: ['project', 'file', 'method'],
+                description: 'Analysis scope: project (entire codebase), file (single file), method (specific function/method)',
+              },
+              target: {
+                type: 'string',
+                description: 'Specific file path (e.g., "src/utils/helper.ts") or method name (e.g., "processData") when scope is file/method',
+              },
+              directory: {
+                type: 'string',
+                description: 'Directory to analyze (for auto-initialization, default: current directory)',
+              },
+              includeMetrics: {
+                type: 'boolean',
+                description: 'Include quantitative metrics (complexity averages, file counts, quality scores) in addition to specific findings',
+              },
+              severity: {
+                type: 'string',
+                enum: ['info', 'warning', 'critical'],
+                description: 'Show only issues at or above this severity level (critical=blocking issues, warning=should fix, info=suggestions)',
+              },
+            },
+            required: ['projectId', 'analysisTypes', 'scope'],
+          },
+        },
       ] as Tool[],
     }
   })
@@ -350,6 +396,13 @@ export async function startMCPServer(_config: Config): Promise<void> {
             args as unknown as DestroyProjectArgs,
             treeManager,
             fileWatcher,
+          )
+          break
+
+        case MCP_TOOLS.ANALYZE_CODE:
+          result = await tools.analyzeCode(
+            args as unknown as AnalyzeCodeArgs,
+            treeManager,
           )
           break
 

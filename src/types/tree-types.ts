@@ -18,6 +18,12 @@ export type NodeType
     | 'import'
     | 'export'
     | 'component'
+    | 'element'
+    | 'tag'
+    | 'start_tag'
+    | 'self_closing_tag'
+    | 'jsx_element'
+    | 'jsx_self_closing_element'
 
 // Tree node representation
 export interface TreeNode {

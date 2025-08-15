@@ -5,7 +5,29 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
-A **Model Context Protocol (MCP) server** that provides fast, in-memory code search and analysis using [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) parsers and native config file parsing. This **mcp-server** enables LLMs to efficiently navigate and understand codebases through semantic AST indexing with intelligent file watching, plus comprehensive configuration management.
+A **Model Context Protocol (MCP) server** that provides fast, in-memory code search, usage analysis, and quality assessment using [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) parsers. This **mcp-server** enables LLMs to efficiently navigate, understand, and analyze codebases through semantic AST indexing with intelligent file watching.
+
+## 🔍 Three Core Capabilities
+
+Tree-Sitter MCP provides three essential tools for codebase exploration and quality analysis:
+
+### 1. **🔎 `search_code`** - Find code elements instantly
+- **Semantic search** across functions, classes, methods, interfaces, and config keys
+- **Fuzzy matching** with intelligent ranking and exact match options
+- **Multi-language support** for 20+ programming languages and configuration formats
+- **Mono-repo aware** with sub-project isolation and cross-referencing
+
+### 2. **📍 `find_usage`** - Trace identifier usage across your codebase
+- **Track dependencies** by finding where functions, variables, or config keys are used
+- **Cross-file analysis** with context-aware line-by-line results
+- **Configuration tracing** to understand how environment variables flow through your code
+- **Impact analysis** for safe refactoring and dependency management
+
+### 3. **🔬 `analyze_code`** - Comprehensive code quality assessment
+- **Quality analysis**: Detects complex functions, long methods (>50 lines), high parameter counts (>6), calculates quality scores
+- **Structure analysis**: Finds circular dependencies, high coupling, deep HTML nesting (>10 levels), architectural issues
+- **Dead code analysis**: Identifies unused exports, orphaned files, unreferenced dependencies for optimization
+- **Config validation**: Validates JSON/YAML configs, semver formats, URLs in package.json, configuration consistency
 
 ## Key Features
 
@@ -18,6 +40,23 @@ A **Model Context Protocol (MCP) server** that provides fast, in-memory code sea
 - **Vue.js framework support**. Automatic component detection and indexing for Vue Single File Components (.vue files) in component directories.
 - **Configuration file parsing**. Native support for JSON, YAML, TOML, and .env files with structured key-value indexing.
 - **Comprehensive config coverage**. Handles .env.* wildcard patterns, JSONC comments, and all major config formats.
+
+## Installation Requirements
+
+This package includes native binary components that require C++ build tools during installation:
+
+**Windows:**
+- Visual Studio Build Tools 2017 or later, OR
+- Visual Studio Community/Professional with C++ workload, OR
+- Windows Build Tools: `npm install --global windows-build-tools`
+
+**macOS:**
+- Xcode Command Line Tools: `xcode-select --install`
+
+**Linux:**
+- Ubuntu/Debian: `sudo apt-get install build-essential`
+- CentOS/RHEL: `sudo yum groupinstall "Development Tools"`
+- Alpine: `apk add build-base`
 
 ## Setup
 
@@ -35,11 +74,9 @@ npm install -g @nendo/tree-sitter-mcp
 tree-sitter-mcp setup
 ```
 
-## Tools
+## 🛠️ Core Tools Reference
 
-The server provides the following MCP tools:
-
-### `search_code`
+### `search_code` - Semantic Code Search
 
 Search for code elements across your project with semantic understanding.
 
@@ -93,55 +130,7 @@ Find API endpoints in config:
 }
 ```
 
-Exact search:
-```json
-{
-  "projectId": "my-app",
-  "query": "handleRequest",
-  "exactMatch": true,
-  "languages": ["typescript"]
-}
-```
-
-Mono-repo: Search only in specific sub-project:
-```json
-{
-  "projectId": "my-monorepo",
-  "query": "DatabaseManager",
-  "subProjects": ["backend"]
-}
-```
-
-Mono-repo: Search across all sub-projects for shared interfaces:
-```json
-{
-  "projectId": "my-monorepo", 
-  "query": "ConfigInterface",
-  "crossProjectSearch": true,
-  "types": ["interface", "class"]
-}
-```
-
-### `initialize_project`
-
-Pre-load a project into memory for faster searches.
-
-**Parameters:**
-
-- `projectId` - Unique identifier
-- `directory` - Project root directory
-- `languages` - Languages to index
-- `autoWatch` - Enable file watching (default: true)
-
-### `project_status`
-
-Get memory usage and indexing statistics.
-
-### `update_file`
-
-Manually trigger re-parsing of a specific file.
-
-### `find_usage`
+### `find_usage` - Identifier Usage Analysis
 
 Find all lines where a specific function, variable, class, or identifier is used.
 
@@ -176,6 +165,181 @@ Find config key usage:
 }
 ```
 
+### `analyze_code` - Comprehensive Code Analysis
+
+**COMPREHENSIVE CODE ANALYSIS** - Performs deep architectural and quality analysis beyond what linters provide. Returns structured JSON with actionable findings and metrics across four analysis types.
+
+**Auto-initialization**: If the specified project doesn't exist or isn't initialized, the analyzer will automatically create and index the project before analysis, making it seamless to analyze any codebase without manual setup.
+
+**Parameters:**
+
+- `projectId` - Project to analyze (auto-created if not exists)
+- `directory` - Project directory (optional, defaults to current directory when auto-initializing)
+- `analysisTypes` - Analysis types: quality (complexity/method length), structure (dependencies/coupling), deadcode (unused code), config-validation (JSON/package.json validation)
+- `scope` - Analysis scope: project (entire codebase), file (single file), method (specific function/method)
+- `target` - Specific file path (e.g., "src/utils/helper.ts") or method name when scope is file/method
+- `includeMetrics` - Include quantitative metrics (complexity averages, file counts, quality scores) in addition to specific findings
+- `severity` - Show only issues at or above this severity level (critical=blocking issues, warning=should fix, info=suggestions)
+
+**Four Analysis Types:**
+
+1. **Quality Analysis** (`quality`)
+   - **Detects:** Complex functions, long methods (>50 lines), high parameter counts (>6)
+   - **Calculates:** Code quality scores, complexity averages, method length statistics
+   - **Use for:** Code reviews, identifying refactoring candidates, technical debt assessment
+
+2. **Structure Analysis** (`structure`)
+   - **Finds:** Circular dependencies, high coupling, deep HTML nesting (>10 levels)
+   - **Analyzes:** Architectural issues, file dependency mapping, component relationships
+   - **Use for:** Architectural validation, dependency management, maintainability assessment
+
+3. **Dead Code Analysis** (`deadcode`)
+   - **Identifies:** Unused exports, orphaned files, unreferenced dependencies
+   - **Tracks:** Code that can be safely removed, optimization opportunities
+   - **Use for:** Bundle size optimization, codebase cleanup, maintenance reduction
+
+4. **Config Validation** (`config-validation`)
+   - **Validates:** JSON/YAML configs, semver formats, URLs in package.json
+   - **Checks:** Package.json structure, tsconfig.json validity, configuration consistency
+   - **Use for:** Build reliability, deployment validation, configuration management
+
+**Output Format:**
+
+Returns structured JSON object with:
+- **Project metadata** (id, analysis types, scope, target)
+- **Summary statistics** (totalIssues, severity breakdown by critical/warning/info)
+- **Quantitative metrics** (complexity averages, file counts, quality scores by category)
+- **Detailed findings array** with type, category, severity, description, location, context, and metrics
+- **Perfect for programmatic consumption** (dashboards, CI/CD, automated workflows)
+
+**Examples:**
+
+Full project analysis:
+```json
+{
+  "projectId": "my-app",
+  "analysisTypes": ["quality", "structure", "deadcode", "config-validation"],
+  "scope": "project"
+}
+```
+
+Quality analysis only:
+```json
+{
+  "projectId": "my-app",
+  "analysisTypes": ["quality"],
+  "scope": "project",
+  "severityFilter": "warning"
+}
+```
+
+Single file analysis:
+```json
+{
+  "projectId": "my-app",
+  "analysisTypes": ["quality", "structure"],
+  "scope": "file",
+  "target": "src/utils/helper.ts"
+}
+```
+
+**Sample Analysis Output:**
+
+```json
+{
+  "project": {
+    "id": "my-app",
+    "analysisTypes": ["quality", "structure", "deadcode", "config-validation"],
+    "scope": "project",
+    "target": null
+  },
+  "summary": {
+    "totalIssues": 12,
+    "severityBreakdown": {
+      "critical": 2,
+      "warning": 7,
+      "info": 3
+    }
+  },
+  "metrics": {
+    "quality": {
+      "avgComplexity": 3.2,
+      "avgMethodLength": 15.8,
+      "avgParameters": 2.1,
+      "totalMethods": 145,
+      "codeQualityScore": 7.8
+    },
+    "structure": {
+      "analyzedFiles": 23,
+      "circularDependencies": 1,
+      "highCouplingFiles": 3,
+      "htmlFiles": 5,
+      "maxNestingDepth": 12
+    },
+    "deadCode": {
+      "orphanedFiles": 2,
+      "unusedExports": 8,
+      "unusedDependencies": 1
+    },
+    "configValidation": {
+      "validatedFiles": 4,
+      "validationErrors": 3,
+      "criticalErrors": 1
+    }
+  },
+  "findings": [
+    {
+      "type": "quality",
+      "category": "long_method",
+      "severity": "warning",
+      "description": "Method 'processLargeDataset' is very long (87 lines)",
+      "location": "src/data/processor.ts:45",
+      "context": "Consider extracting functionality into separate methods",
+      "metrics": {"methodLength": 87, "complexity": 12}
+    },
+    {
+      "type": "structure",
+      "category": "circular_dependency",
+      "severity": "critical",
+      "description": "Circular dependency detected",
+      "location": "src/auth/manager.ts → src/user/service.ts → src/auth/manager.ts",
+      "context": "Circular dependencies can cause runtime errors and make code difficult to test",
+      "metrics": null
+    },
+    {
+      "type": "config-validation",
+      "category": "validation_error",
+      "severity": "critical",
+      "description": "Invalid version format: \"not-a-semver\". Must follow semantic versioning (e.g., 1.0.0)",
+      "location": "package.json",
+      "context": "Configuration validation failed for package.json file",
+      "metrics": null
+    }
+  ]
+}
+```
+
+## Supporting Tools
+
+### `initialize_project`
+
+Pre-load a project into memory for faster searches.
+
+**Parameters:**
+
+- `projectId` - Unique identifier
+- `directory` - Project root directory
+- `languages` - Languages to index
+- `autoWatch` - Enable file watching (default: true)
+
+### `project_status`
+
+Get memory usage and indexing statistics.
+
+### `update_file`
+
+Manually trigger re-parsing of a specific file.
+
 ### `destroy_project`
 
 Free memory by removing a project from the index.
@@ -203,19 +367,6 @@ All MCP tools return structured JSON error responses for AI-friendly consumption
 - `search` - Search-related errors (invalid query, no results context)
 - `validation` - Parameter validation errors (missing required fields)
 - `system` - Internal system errors (memory exhausted, unexpected failures)
-
-**Example Error Response:**
-
-```json
-{
-  "category": "project",
-  "message": "Project \"my-app\" not found",
-  "code": "PROJECT_NOT_FOUND",
-  "context": {
-    "projectId": "my-app"
-  }
-}
-```
 
 ## Debug Logging
 
@@ -299,4 +450,3 @@ Contributions are welcome! Please open an issue or pull request.
 ## Acknowledgments
 
 Built with [Tree-Sitter](https://tree-sitter.github.io/tree-sitter/) and the [Model Context Protocol](https://modelcontextprotocol.io).
-

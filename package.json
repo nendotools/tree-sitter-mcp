@@ -1,6 +1,6 @@
 {
   "name": "@nendo/tree-sitter-mcp",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Fast in-memory code search and analysis MCP service using tree-sitter",
   "keywords": [
     "mcp",
@@ -47,7 +47,9 @@
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "@modelcontextprotocol/sdk": "^1.17.2",
+    "@schemastore/schema-catalog": "^0.0.6",
     "@types/inquirer": "^9.0.9",
+    "ajv": "^8.17.1",
     "chalk": "^5.3.0",
     "chokidar": "^4.0.3",
     "commander": "^14.0.0",
@@ -61,6 +63,7 @@
     "tree-sitter-cpp": "^0.21.0",
     "tree-sitter-elixir": "^0.3.4",
     "tree-sitter-go": "^0.21.0",
+    "tree-sitter-html": "^0.23.2",
     "tree-sitter-java": "^0.21.0",
     "tree-sitter-javascript": "^0.21.0",
     "tree-sitter-kotlin": "^0.3.8",

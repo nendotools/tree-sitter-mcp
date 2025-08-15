@@ -36,6 +36,7 @@ export const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
   scala: ['.scala', '.sc'],
   elixir: ['.ex', '.exs'],
   vue: ['.vue'],
+  html: ['.html', '.htm'],
   json: ['.json', '.json5', '.jsonc'],
   yaml: ['.yaml', '.yml'],
   toml: ['.toml'],
