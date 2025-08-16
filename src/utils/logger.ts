@@ -166,6 +166,18 @@ export class ConsoleLogger implements Logger {
   }
 
   /**
+   * Outputs text directly without any formatting, timestamps, or log levels
+   * Used for clean CLI output that shouldn't include debug information
+   * Always outputs regardless of quiet mode since this is explicit user-requested output
+   *
+   * @param message - Message to output directly to console
+   * @param args - Additional arguments to include
+   */
+  output(message: string, ...args: unknown[]): void {
+    console.log(message, ...args)
+  }
+
+  /**
    * Updates the current log level
    *
    * @param level - New log level to set
@@ -207,22 +219,58 @@ export class ConsoleLogger implements Logger {
 /**
  * Global singleton logger instance
  */
-let logger: Logger = new ConsoleLogger()
+let logger: Logger | null = null
 
 /**
- * Sets the global logger instance
+ * Initializes the global logger with the given configuration
+ * This should be called once at application startup
+ *
+ * @param options - Logger configuration options
+ * @returns The initialized logger instance
+ */
+export function initializeLogger(options: {
+  level?: LogLevel
+  quiet?: boolean
+  useColors?: boolean
+  logToFile?: boolean
+  logFilePath?: string
+} = {}): Logger {
+  if (logger) {
+    // Logger already initialized, update its settings if it's a ConsoleLogger
+    if ('setLevel' in logger && 'setQuiet' in logger) {
+      if (options.level !== undefined) {
+        (logger as ConsoleLogger).setLevel(options.level)
+      }
+      if (options.quiet !== undefined) {
+        (logger as ConsoleLogger).setQuiet(options.quiet)
+      }
+    }
+    return logger
+  }
+
+  logger = new ConsoleLogger(options)
+  return logger
+}
+
+/**
+ * Gets the current global logger instance
+ * Creates a default logger if none exists
+ *
+ * @returns Current logger instance
+ */
+export function getLogger(): Logger {
+  if (!logger) {
+    logger = new ConsoleLogger()
+  }
+  return logger
+}
+
+/**
+ * Sets the global logger instance (for backward compatibility)
+ * @deprecated Use initializeLogger instead
  *
  * @param newLogger - New logger instance to use globally
  */
 export function setLogger(newLogger: Logger): void {
   logger = newLogger
-}
-
-/**
- * Gets the current global logger instance
- *
- * @returns Current logger instance
- */
-export function getLogger(): Logger {
-  return logger
 }

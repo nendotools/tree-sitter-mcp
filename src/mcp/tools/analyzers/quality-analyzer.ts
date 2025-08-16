@@ -23,9 +23,15 @@ export class QualityAnalyzer extends BaseAnalyzer {
       return
     }
 
-    const complexities = functionNodes.map(node => this.calculateCyclomaticComplexity(node))
-    const methodLengths = functionNodes.map(node => this.calculateMethodLength(node))
-    const parameterCounts = functionNodes.map(node => this.getParameterCount(node))
+    // Separate production and test code for better scoring
+    const productionNodes = functionNodes.filter(node => !this.isTestFile(node.path))
+    const testNodes = functionNodes.filter(node => this.isTestFile(node.path))
+
+    // Calculate metrics primarily based on production code
+    const primaryNodes = productionNodes.length > 0 ? productionNodes : functionNodes
+    const complexities = primaryNodes.map(node => this.calculateCyclomaticComplexity(node))
+    const methodLengths = primaryNodes.map(node => this.calculateMethodLength(node))
+    const parameterCounts = primaryNodes.map(node => this.getParameterCount(node))
 
     const avgComplexity = this.calculateAverage(complexities)
     const avgMethodLength = this.calculateAverage(methodLengths)
@@ -34,11 +40,11 @@ export class QualityAnalyzer extends BaseAnalyzer {
     // First, analyze quality issues to get the count of problems
     this.analyzeQualityIssues(functionNodes, result)
 
-    // Calculate base score from averages
+    // Calculate base score from production code averages
     const baseScore = this.calculateQualityScore(avgComplexity, avgMethodLength, avgParameters)
 
-    // Apply penalties for having many quality issues
-    const finalScore = this.adjustScoreForIssues(baseScore, result, functionNodes.length)
+    // Apply penalties for having many quality issues (but weight test issues less)
+    const finalScore = this.adjustScoreForIssues(baseScore, result, functionNodes.length, testNodes.length)
 
     result.metrics.quality = {
       avgComplexity,
@@ -142,39 +148,181 @@ export class QualityAnalyzer extends BaseAnalyzer {
    * @param totalMethods - Total number of methods analyzed
    * @returns Adjusted quality score accounting for issue density
    */
-  private adjustScoreForIssues(baseScore: number, result: AnalysisResult, totalMethods: number): number {
+  private adjustScoreForIssues(baseScore: number, result: AnalysisResult, totalMethods: number, testMethods: number = 0): number {
     const qualityFindings = result.findings.filter(f => f.type === 'quality')
-    const criticalIssues = qualityFindings.filter(f => f.severity === 'critical').length
-    const warningIssues = qualityFindings.filter(f => f.severity === 'warning').length
+
+    // Separate test and production issues
+    const productionIssues = qualityFindings.filter(f => !this.isTestFile(f.location))
+    const testIssues = qualityFindings.filter(f => this.isTestFile(f.location))
+
+    const criticalProduction = productionIssues.filter(f => f.severity === 'critical').length
+    const warningProduction = productionIssues.filter(f => f.severity === 'warning').length
+    const criticalTest = testIssues.filter(f => f.severity === 'critical').length
+    const warningTest = testIssues.filter(f => f.severity === 'warning').length
 
     if (totalMethods === 0) return baseScore
 
-    // Calculate issue density (issues per method)
-    const criticalDensity = criticalIssues / totalMethods
-    const warningDensity = warningIssues / totalMethods
+    const productionMethods = totalMethods - testMethods
 
     let adjustedScore = baseScore
 
-    // Heavy penalties for critical issues
-    if (criticalDensity > 0) {
+    // Heavy penalties for production critical issues
+    if (productionMethods > 0 && criticalProduction > 0) {
+      const criticalDensity = criticalProduction / productionMethods
       adjustedScore -= criticalDensity * 4 // -4 points per critical issue per method
     }
 
-    // Moderate penalties for warning issues
-    if (warningDensity > 0.1) { // More than 10% of methods have warnings
-      adjustedScore -= (warningDensity - 0.1) * 2 // Progressive penalty
+    // Moderate penalties for production warning issues
+    if (productionMethods > 0 && warningProduction > 0) {
+      const warningDensity = warningProduction / productionMethods
+      if (warningDensity > 0.1) { // More than 10% of methods have warnings
+        adjustedScore -= (warningDensity - 0.1) * 2 // Progressive penalty
+      }
     }
 
-    // Additional penalty if there are many absolute issues regardless of density
-    if (criticalIssues > 0) {
-      adjustedScore -= Math.min(2, criticalIssues * 0.3) // Up to -2 for many critical issues
+    // Lighter penalties for test issues (weight them at 25% of production issues)
+    if (testMethods > 0) {
+      const testCriticalDensity = criticalTest / testMethods
+      const testWarningDensity = warningTest / testMethods
+
+      adjustedScore -= testCriticalDensity * 1 // Much lighter penalty for test critical issues
+      if (testWarningDensity > 0.2) { // More tolerant threshold for test warnings
+        adjustedScore -= (testWarningDensity - 0.2) * 0.5 // Much lighter penalty
+      }
     }
 
-    if (warningIssues > 5) {
-      adjustedScore -= Math.min(1.5, (warningIssues - 5) * 0.1) // Up to -1.5 for many warnings
+    // Additional penalty if there are many absolute production issues
+    if (criticalProduction > 0) {
+      adjustedScore -= Math.min(2, criticalProduction * 0.3) // Up to -2 for many critical issues
     }
+
+    if (warningProduction > 5) {
+      adjustedScore -= Math.min(1.5, (warningProduction - 5) * 0.1) // Up to -1.5 for many warnings
+    }
+
+    // Add critical notices for severe quality degradation
+    this.addCriticalQualityNotices(result, {
+      baseScore,
+      adjustedScore,
+      criticalProduction,
+      warningProduction,
+      criticalTest,
+      warningTest,
+      productionMethods,
+      testMethods,
+      totalMethods,
+    })
 
     return Math.max(0, Math.min(10, Math.round(adjustedScore * 100) / 100))
+  }
+
+  /**
+   * Adds critical notices for severe quality degradation patterns
+   */
+  private addCriticalQualityNotices(result: AnalysisResult, metrics: {
+    baseScore: number
+    adjustedScore: number
+    criticalProduction: number
+    warningProduction: number
+    criticalTest: number
+    warningTest: number
+    productionMethods: number
+    testMethods: number
+    totalMethods: number
+  }): void {
+    const {
+      baseScore,
+      adjustedScore,
+      criticalProduction,
+      warningProduction,
+      productionMethods,
+      totalMethods,
+    } = metrics
+
+    // Severe score degradation (more than 5 points lost from base score)
+    const scoreDrop = baseScore - adjustedScore
+    if (scoreDrop > 5) {
+      this.addFinding(result, {
+        type: 'quality',
+        category: 'severe_quality_degradation',
+        severity: 'critical',
+        location: 'Project Overview',
+        description: `Severe quality degradation detected (${scoreDrop.toFixed(1)} point drop from base score)`,
+        context: `Code quality has significantly deteriorated. Consider immediate refactoring effort.`,
+        metrics: { scoreDrop, baseScore, adjustedScore },
+      })
+    }
+
+    // Excessive critical issues (more than 20% of production methods have critical issues)
+    if (productionMethods > 0) {
+      const criticalDensity = criticalProduction / productionMethods
+      if (criticalDensity > 0.2) {
+        this.addFinding(result, {
+          type: 'quality',
+          category: 'critical_issue_epidemic',
+          severity: 'critical',
+          location: 'Project Overview',
+          description: `Critical quality issues are widespread (${(criticalDensity * 100).toFixed(1)}% of methods affected)`,
+          context: `Urgent: Over 20% of production methods have critical issues. This indicates systemic problems requiring immediate attention.`,
+          metrics: { criticalDensity, criticalProduction, productionMethods },
+        })
+      }
+    }
+
+    // Excessive warning density (more than 50% of production methods have warnings)
+    if (productionMethods > 0) {
+      const warningDensity = warningProduction / productionMethods
+      if (warningDensity > 0.5) {
+        this.addFinding(result, {
+          type: 'quality',
+          category: 'warning_saturation',
+          severity: 'critical',
+          description: `Warning saturation detected (${(warningDensity * 100).toFixed(1)}% of methods affected)`,
+          location: 'Project Overview',
+          context: `Over half of production methods have quality warnings. This suggests widespread maintainability issues.`,
+          metrics: { warningDensity, warningProduction, productionMethods },
+        })
+      }
+    }
+
+    // Absolute critical mass (more than 15 critical issues in production code)
+    if (criticalProduction > 15) {
+      this.addFinding(result, {
+        type: 'quality',
+        category: 'critical_mass_exceeded',
+        severity: 'critical',
+        location: 'Project Overview',
+        description: `Critical issue mass exceeded (${criticalProduction} critical issues in production code)`,
+        context: `The sheer number of critical issues indicates the codebase needs major architectural review and refactoring.`,
+        metrics: { criticalProduction, totalMethods },
+      })
+    }
+
+    // Technical debt explosion (more than 40 warnings in production code)
+    if (warningProduction > 40) {
+      this.addFinding(result, {
+        type: 'quality',
+        category: 'technical_debt_explosion',
+        severity: 'critical',
+        location: 'Project Overview',
+        description: `Technical debt explosion detected (${warningProduction} warnings in production code)`,
+        context: `Technical debt has reached critical levels. Consider dedicated sprint(s) for code quality improvement.`,
+        metrics: { warningProduction, totalMethods },
+      })
+    }
+
+    // Quality score in danger zone (below 3.0)
+    if (adjustedScore < 3.0) {
+      this.addFinding(result, {
+        type: 'quality',
+        category: 'quality_danger_zone',
+        severity: 'critical',
+        location: 'Project Overview',
+        description: `Code quality in danger zone (score: ${adjustedScore.toFixed(2)}/10)`,
+        context: `Quality score below 3.0 indicates severe maintainability risks. New feature development should be paused for quality improvements.`,
+        metrics: { adjustedScore, scoreDrop },
+      })
+    }
   }
 
   /**
@@ -233,6 +381,56 @@ export class QualityAnalyzer extends BaseAnalyzer {
   }
 
   /**
+   * Checks if a file is a test file
+   */
+  private isTestFile(filePath: string): boolean {
+    return filePath.includes('.test.')
+      || filePath.includes('.spec.')
+      || filePath.includes('/test/')
+      || filePath.includes('/tests/')
+      || filePath.includes('__tests__')
+      || filePath.includes('/fixtures/')
+      || filePath.endsWith('test.ts')
+      || filePath.endsWith('test.js')
+      || filePath.endsWith('spec.ts')
+      || filePath.endsWith('spec.js')
+  }
+
+  /**
+   * Gets appropriate thresholds based on file type
+   */
+  private getQualityThresholds(filePath: string): {
+    complexityWarning: number
+    complexityCritical: number
+    lengthWarning: number
+    lengthCritical: number
+    parameterWarning: number
+    parameterCritical: number
+  } {
+    if (this.isTestFile(filePath)) {
+      // More lenient thresholds for test files
+      return {
+        complexityWarning: 15, // Tests can be more complex due to setup/assertions
+        complexityCritical: 25,
+        lengthWarning: 100, // Test methods can be longer for comprehensive testing
+        lengthCritical: 200,
+        parameterWarning: 8, // Test methods may need more parameters for fixtures/mocks
+        parameterCritical: 12,
+      }
+    }
+
+    // Standard thresholds for production code
+    return {
+      complexityWarning: 10,
+      complexityCritical: 15,
+      lengthWarning: 50,
+      lengthCritical: 100,
+      parameterWarning: 5,
+      parameterCritical: 8,
+    }
+  }
+
+  /**
    * Analyzes quality issues and adds findings
    *
    * @param functionNodes - Function nodes to analyze
@@ -243,39 +441,46 @@ export class QualityAnalyzer extends BaseAnalyzer {
       const complexity = this.calculateCyclomaticComplexity(node)
       const length = this.calculateMethodLength(node)
       const params = this.getParameterCount(node)
+      const thresholds = this.getQualityThresholds(node.path)
 
-      if (complexity > 10) {
+      if (complexity > thresholds.complexityWarning) {
         this.addFinding(result, {
           type: 'quality',
           category: 'high_complexity',
-          severity: complexity > 15 ? 'critical' : 'warning',
+          severity: complexity > thresholds.complexityCritical ? 'critical' : 'warning',
           location: `${node.path}:${node.startLine || 0}`,
           description: `Function '${node.name || 'anonymous'}' has high cyclomatic complexity (${complexity})`,
-          context: `Consider breaking down into smaller functions`,
+          context: this.isTestFile(node.path)
+            ? `Test function is complex - consider breaking into smaller test cases`
+            : `Consider breaking down into smaller functions`,
           metrics: { complexity },
         })
       }
 
-      if (length > 50) {
+      if (length > thresholds.lengthWarning) {
         this.addFinding(result, {
           type: 'quality',
           category: 'long_method',
-          severity: length > 100 ? 'critical' : 'warning',
+          severity: length > thresholds.lengthCritical ? 'critical' : 'warning',
           location: `${node.path}:${node.startLine || 0}`,
           description: `Method '${node.name || 'anonymous'}' is very long (${length} lines)`,
-          context: `Consider extracting functionality into separate methods`,
+          context: this.isTestFile(node.path)
+            ? `Test method is long - consider extracting helper functions or splitting test cases`
+            : `Consider extracting functionality into separate methods`,
           metrics: { methodLength: length },
         })
       }
 
-      if (params > 5) {
+      if (params > thresholds.parameterWarning) {
         this.addFinding(result, {
           type: 'quality',
           category: 'parameter_overload',
-          severity: params > 8 ? 'critical' : 'warning',
+          severity: params > thresholds.parameterCritical ? 'critical' : 'warning',
           location: `${node.path}:${node.startLine || 0}`,
           description: `Function '${node.name || 'anonymous'}' has too many parameters (${params})`,
-          context: `Consider using object parameters or breaking into smaller functions`,
+          context: this.isTestFile(node.path)
+            ? `Test function has many parameters - consider using test fixtures or helper objects`
+            : `Consider using object parameters or breaking into smaller functions`,
           metrics: { parameterCount: params },
         })
       }

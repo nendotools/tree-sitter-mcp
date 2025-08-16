@@ -44,11 +44,14 @@ export class DeadCodeAnalyzer extends BaseAnalyzer {
 
     for (const fileNode of fileNodes) {
       const fileName = this.getFileNameWithoutExtension(fileNode.path)
-      if (['main', 'index', 'app', 'server', 'client'].includes(fileName.toLowerCase())
+      if (['main', 'index', 'app', 'server', 'client', 'cli'].includes(fileName.toLowerCase())
         || fileNode.path.includes('test')
         || fileNode.path.includes('spec')
         || fileNode.path.includes('.config.')
-        || fileNode.path.endsWith('.d.ts')) {
+        || fileNode.path.endsWith('.d.ts')
+        || fileNode.path.includes('bin/')
+        || fileNode.path.includes('scripts/')
+        || this.isPackageJsonBinEntry(fileNode.path, fileNodes)) {
         entryPoints.add(fileNode.path)
       }
     }
@@ -289,6 +292,36 @@ export class DeadCodeAnalyzer extends BaseAnalyzer {
     }
 
     return null
+  }
+
+  /**
+   * Checks if a file is a package.json bin entry
+   */
+  private isPackageJsonBinEntry(filePath: string, fileNodes: TreeNode[]): boolean {
+    const packageJsonFile = fileNodes.find(node =>
+      node.path.endsWith('package.json') && !node.path.includes('node_modules'),
+    )
+
+    if (!packageJsonFile?.content) return false
+
+    try {
+      const packageJson = JSON.parse(packageJsonFile.content)
+      if (packageJson.bin) {
+        if (typeof packageJson.bin === 'string') {
+          return filePath.endsWith(packageJson.bin) || filePath.includes(packageJson.bin)
+        }
+        if (typeof packageJson.bin === 'object') {
+          return Object.values(packageJson.bin).some((binPath: any) =>
+            filePath.endsWith(binPath) || filePath.includes(binPath),
+          )
+        }
+      }
+    }
+    catch {
+      // Ignore JSON parse errors
+    }
+
+    return false
   }
 
   /**
