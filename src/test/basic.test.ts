@@ -3,7 +3,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { MEMORY, SEARCH, NODE_TYPES } from '../constants/index.js'
+import { MEMORY } from '../constants/service-constants.js'
+import { SEARCH_CONFIG as SEARCH, NODE_TYPES } from '../constants/analysis-constants.js'
 
 describe('Constants', () => {
   it('should have correct memory defaults', () => {

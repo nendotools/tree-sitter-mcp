@@ -4,7 +4,7 @@
 
 import { TextContent } from '@modelcontextprotocol/sdk/types.js'
 import chalk from 'chalk'
-import { SUCCESS } from '../../constants/index.js'
+import { SUCCESS_MESSAGES as SUCCESS } from '../../constants/app-constants.js'
 import type { UpdateFileArgs } from '../../types/index.js'
 import { ErrorFactory } from '../../types/error-types.js'
 import { TreeManager } from '../../core/tree-manager.js'

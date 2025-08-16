@@ -9,18 +9,13 @@
 import { TextContent } from '@modelcontextprotocol/sdk/types.js'
 import type {
   AnalyzeCodeArgs,
-  ProjectTree,
   AnalysisResult,
   AnalysisType,
   TreeNode,
-  Config,
 } from '../../types/index.js'
-import { ErrorFactory } from '../../types/error-types.js'
+import { withErrorHandling, EnhancedErrorFactory } from '../../core/error-handling/index.js'
 import { TreeManager } from '../../core/tree-manager.js'
-import { getLogger } from '../../utils/logger.js'
 import { AnalyzerCoordinator } from './analyzers/index.js'
-import { DIRECTORIES, DEFAULT_IGNORE_DIRS } from '../../constants/service-constants.js'
-import { findProjectRoot } from '../../utils/project-detection.js'
 
 /**
  * Performs comprehensive code analysis across project elements
@@ -52,12 +47,27 @@ export async function analyzeCode(
   args: AnalyzeCodeArgs,
   treeManager: TreeManager,
 ): Promise<TextContent> {
-  const logger = getLogger()
-
-  try {
+  return withErrorHandling(async () => {
     validateAnalysisArgs(args)
 
-    const project = await getOrCreateInitializedProject(args.projectId, args.directory, treeManager)
+    const project = treeManager.getProject(args.projectId)
+
+    if (!project) {
+      throw EnhancedErrorFactory.project.notFound(
+        args.projectId,
+        ['You must initialize the project first using the initialize_project tool.',
+          'Example:',
+          `{"projectId": "${args.projectId}", "directory": "${args.directory || '.'}"}`,
+          'This ensures proper project root detection and avoids initialization failures.'],
+      )
+    }
+
+    if (!project.initialized) {
+      throw EnhancedErrorFactory.project.notInitialized(
+        args.projectId,
+        'Project exists but is not initialized. This should not happen - please destroy and recreate the project.',
+      )
+    }
 
     const allNodes: TreeNode[] = []
     // Get all parsed nodes from the node index
@@ -78,11 +88,10 @@ export async function analyzeCode(
       type: 'text',
       text: JSON.stringify(jsonOutput, null, 2),
     }
-  }
-  catch (error) {
-    logger.error('Code analysis failed:', error)
-    throw error
-  }
+  }, {
+    operation: 'analyze-code',
+    tool: 'analyze-code',
+  })
 }
 
 /**
@@ -93,51 +102,18 @@ export async function analyzeCode(
  */
 function validateAnalysisArgs(args: AnalyzeCodeArgs): void {
   if (!args.projectId || args.projectId.trim().length === 0) {
-    throw ErrorFactory.validationError('projectId', args.projectId)
+    throw EnhancedErrorFactory.validation.parameterInvalid('projectId', args.projectId, 'string')
   }
 
   if (!args.analysisTypes || args.analysisTypes.length === 0) {
-    throw ErrorFactory.validationError('analysisTypes', args.analysisTypes)
+    throw EnhancedErrorFactory.validation.parameterMissing('analysisTypes', 'code analysis')
   }
 
   const validTypes: AnalysisType[] = ['quality', 'structure', 'deadcode', 'config-validation']
   const invalidTypes = args.analysisTypes.filter(type => !validTypes.includes(type))
   if (invalidTypes.length > 0) {
-    throw ErrorFactory.validationError('analysisTypes', `Invalid types: ${invalidTypes.join(', ')}`)
+    throw EnhancedErrorFactory.validation.parameterInvalid('analysisTypes', invalidTypes, validTypes.join(', '))
   }
-}
-
-/**
- * Retrieves and ensures project is initialized for analysis, auto-initializing if necessary
- *
- * @param projectId - Project identifier
- * @param treeManager - Tree manager instance
- * @returns Promise resolving to project tree data
- * @throws {McpOperationError} When project creation or initialization fails
- */
-async function getOrCreateInitializedProject(projectId: string, directory: string | undefined, treeManager: TreeManager): Promise<ProjectTree> {
-  const logger = getLogger()
-  let project = treeManager.getProject(projectId)
-
-  if (!project) {
-    logger.info(`Auto-initializing project ${projectId} for analysis`)
-
-    const config: Config = {
-      workingDir: directory || findProjectRoot(),
-      languages: [],
-      maxDepth: DIRECTORIES.DEFAULT_MAX_DEPTH,
-      ignoreDirs: DEFAULT_IGNORE_DIRS,
-    }
-
-    project = await treeManager.createProject(projectId, config)
-    await treeManager.initializeProject(projectId)
-  }
-  else if (!project.initialized) {
-    logger.info(`Initializing existing project ${projectId} for analysis`)
-    await treeManager.initializeProject(projectId)
-  }
-
-  return project
 }
 
 /**

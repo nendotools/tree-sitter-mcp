@@ -4,6 +4,7 @@
 
 import { BaseAnalyzer } from './base-analyzer.js'
 import type { TreeNode, AnalysisResult } from '../../../types/index.js'
+import { addCriticalQualityNotices } from './quality-notices/index.js'
 
 /**
  * Analyzes code quality metrics including complexity, method length, and parameter counts
@@ -230,99 +231,7 @@ export class QualityAnalyzer extends BaseAnalyzer {
     testMethods: number
     totalMethods: number
   }): void {
-    const {
-      baseScore,
-      adjustedScore,
-      criticalProduction,
-      warningProduction,
-      productionMethods,
-      totalMethods,
-    } = metrics
-
-    // Severe score degradation (more than 5 points lost from base score)
-    const scoreDrop = baseScore - adjustedScore
-    if (scoreDrop > 5) {
-      this.addFinding(result, {
-        type: 'quality',
-        category: 'severe_quality_degradation',
-        severity: 'critical',
-        location: 'Project Overview',
-        description: `Severe quality degradation detected (${scoreDrop.toFixed(1)} point drop from base score)`,
-        context: `Code quality has significantly deteriorated. Consider immediate refactoring effort.`,
-        metrics: { scoreDrop, baseScore, adjustedScore },
-      })
-    }
-
-    // Excessive critical issues (more than 20% of production methods have critical issues)
-    if (productionMethods > 0) {
-      const criticalDensity = criticalProduction / productionMethods
-      if (criticalDensity > 0.2) {
-        this.addFinding(result, {
-          type: 'quality',
-          category: 'critical_issue_epidemic',
-          severity: 'critical',
-          location: 'Project Overview',
-          description: `Critical quality issues are widespread (${(criticalDensity * 100).toFixed(1)}% of methods affected)`,
-          context: `Urgent: Over 20% of production methods have critical issues. This indicates systemic problems requiring immediate attention.`,
-          metrics: { criticalDensity, criticalProduction, productionMethods },
-        })
-      }
-    }
-
-    // Excessive warning density (more than 50% of production methods have warnings)
-    if (productionMethods > 0) {
-      const warningDensity = warningProduction / productionMethods
-      if (warningDensity > 0.5) {
-        this.addFinding(result, {
-          type: 'quality',
-          category: 'warning_saturation',
-          severity: 'critical',
-          description: `Warning saturation detected (${(warningDensity * 100).toFixed(1)}% of methods affected)`,
-          location: 'Project Overview',
-          context: `Over half of production methods have quality warnings. This suggests widespread maintainability issues.`,
-          metrics: { warningDensity, warningProduction, productionMethods },
-        })
-      }
-    }
-
-    // Absolute critical mass (more than 15 critical issues in production code)
-    if (criticalProduction > 15) {
-      this.addFinding(result, {
-        type: 'quality',
-        category: 'critical_mass_exceeded',
-        severity: 'critical',
-        location: 'Project Overview',
-        description: `Critical issue mass exceeded (${criticalProduction} critical issues in production code)`,
-        context: `The sheer number of critical issues indicates the codebase needs major architectural review and refactoring.`,
-        metrics: { criticalProduction, totalMethods },
-      })
-    }
-
-    // Technical debt explosion (more than 40 warnings in production code)
-    if (warningProduction > 40) {
-      this.addFinding(result, {
-        type: 'quality',
-        category: 'technical_debt_explosion',
-        severity: 'critical',
-        location: 'Project Overview',
-        description: `Technical debt explosion detected (${warningProduction} warnings in production code)`,
-        context: `Technical debt has reached critical levels. Consider dedicated sprint(s) for code quality improvement.`,
-        metrics: { warningProduction, totalMethods },
-      })
-    }
-
-    // Quality score in danger zone (below 3.0)
-    if (adjustedScore < 3.0) {
-      this.addFinding(result, {
-        type: 'quality',
-        category: 'quality_danger_zone',
-        severity: 'critical',
-        location: 'Project Overview',
-        description: `Code quality in danger zone (score: ${adjustedScore.toFixed(2)}/10)`,
-        context: `Quality score below 3.0 indicates severe maintainability risks. New feature development should be paused for quality improvements.`,
-        metrics: { adjustedScore, scoreDrop },
-      })
-    }
+    addCriticalQualityNotices(result, metrics, this.addFinding.bind(this))
   }
 
   /**

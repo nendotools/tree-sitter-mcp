@@ -4,7 +4,9 @@
 
 import { readFileSync } from 'fs'
 import { minimatch } from 'minimatch'
-import { MEMORY, NODE_TYPES, ERRORS } from '../constants/index.js'
+import { MEMORY } from '../constants/service-constants.js'
+import { NODE_TYPES } from '../constants/analysis-constants.js'
+import { ERROR_MESSAGES as ERRORS } from '../constants/app-constants.js'
 import type {
   Config,
   ProjectTree,

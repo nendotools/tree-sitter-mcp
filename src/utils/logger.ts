@@ -5,7 +5,7 @@
 import chalk from 'chalk'
 import { writeFileSync, appendFileSync, mkdirSync, existsSync } from 'fs'
 import { resolve } from 'path'
-import { LOG_LEVELS } from '../constants/cli-constants.js'
+import { LOG_LEVELS } from '../constants/app-constants.js'
 import type { Logger, LogLevel } from '../types/cli-types.js'
 
 /**

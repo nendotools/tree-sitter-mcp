@@ -3,11 +3,11 @@ import { readdir } from 'fs/promises'
 import { resolve, dirname, join } from 'path'
 
 import {
-  LANGUAGE_PROJECT_INDICATORS,
+  PROJECT_INDICATORS as LANGUAGE_PROJECT_INDICATORS,
   MONO_REPO_IGNORE_DIRS,
-  MONO_REPO,
-  INDICATOR_LANGUAGE_MAP,
-} from '../constants/mono-repo-constants.js'
+  MONO_REPO_CONFIG as MONO_REPO,
+  INDICATOR_TO_LANGUAGES as INDICATOR_LANGUAGE_MAP,
+} from '../constants/analysis-constants.js'
 import type { MonoRepoInfo, SubProject } from '../types/index.js'
 
 const PROJECT_ROOT_INDICATORS = [

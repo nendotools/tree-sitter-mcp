@@ -2,18 +2,11 @@
  * Initialize Project MCP tool - Sets up project indexing and file watching
  */
 
-import { TextContent } from '@modelcontextprotocol/sdk/types.js'
-import { resolve } from 'path'
-import chalk from 'chalk'
-import { DIRECTORIES, DEFAULT_IGNORE_DIRS } from '../../constants/service-constants.js'
-import { SUCCESS } from '../../constants/messages.js'
-import type { InitializeProjectArgs, Config } from '../../types/index.js'
-import { ErrorFactory } from '../../types/error-types.js'
-import { TreeManager } from '../../core/tree-manager.js'
-import { BatchFileWatcher } from '../../core/file-watcher.js'
-import { getLogger } from '../../utils/logger.js'
-import { formatBytes } from '../../utils/helpers.js'
-import { findProjectRoot, findProjectRootWithMonoRepo } from '../../utils/project-detection.js'
+import type { TextContent } from '@modelcontextprotocol/sdk/types.js'
+import type { InitializeProjectArgs } from '../../types/index.js'
+import type { TreeManager } from '../../core/tree-manager.js'
+import type { BatchFileWatcher } from '../../core/file-watcher.js'
+import { initializeProject as modularInitializeProject } from './project-initialization/index.js'
 
 /**
  * Initializes a project for fast code search and analysis
@@ -41,106 +34,5 @@ export async function initializeProject(
   treeManager: TreeManager,
   fileWatcher: BatchFileWatcher,
 ): Promise<TextContent> {
-  const logger = getLogger()
-
-  try {
-    // Validate project ID
-    if (!args.projectId || args.projectId.trim().length === 0) {
-      throw ErrorFactory.validationError('projectId', args.projectId)
-    }
-
-    // Check if project already exists
-    if (treeManager.getProject(args.projectId)) {
-      throw ErrorFactory.projectAlreadyExists(args.projectId)
-    }
-
-    const projectDir = args.directory ? resolve(args.directory) : findProjectRoot()
-    const monoRepoInfo = await findProjectRootWithMonoRepo(args.directory)
-    logger.info(`Using project directory: ${projectDir}`)
-
-    // Validate directory exists (findProjectRoot will throw if not found)
-    try {
-      await import('fs/promises').then(fs => fs.access(projectDir))
-    }
-    catch {
-      throw ErrorFactory.directoryNotFound(projectDir)
-    }
-
-    if (monoRepoInfo.isMonoRepo && monoRepoInfo.subProjects.length > 0) {
-      logger.info(`Detected mono-repo with ${monoRepoInfo.subProjects.length} sub-projects`)
-      for (const subProject of monoRepoInfo.subProjects) {
-        logger.info(`  • ${subProject.path}: ${subProject.languages.join(', ')}`)
-      }
-    }
-
-    const config: Config = {
-      workingDir: projectDir,
-      languages: args.languages || [],
-      maxDepth: args.maxDepth || DIRECTORIES.DEFAULT_MAX_DEPTH,
-      ignoreDirs: args.ignoreDirs || DEFAULT_IGNORE_DIRS,
-    }
-
-    const project = treeManager.createProject(args.projectId, config)
-
-    if (!project.initialized) {
-      await treeManager.initializeProject(args.projectId)
-    }
-
-    if (args.autoWatch !== false) {
-      fileWatcher.startWatching(args.projectId, config)
-    }
-
-    const stats = treeManager.getProjectStats(args.projectId)
-
-    const lines = [
-      `${chalk.green('[OK]')} ${SUCCESS.PROJECT_INITIALIZED}`,
-      '',
-      `Project ID: ${args.projectId}`,
-      `Directory: ${config.workingDir}`,
-      `Files: ${stats.totalFiles}`,
-      `Code Elements: ${stats.totalNodes}`,
-      `Memory Usage: ${formatBytes(stats.memoryUsage)}`,
-    ]
-
-    if (monoRepoInfo.isMonoRepo) {
-      lines.push('', chalk.blue('[MONO-REPO] Detected mono-repository'))
-      if (monoRepoInfo.subProjects.length > 0) {
-        lines.push(`Sub-projects found: ${monoRepoInfo.subProjects.length}`)
-        for (const subProject of monoRepoInfo.subProjects) {
-          const relativePath = subProject.path.replace(config.workingDir + '/', '')
-          lines.push(`  • ${relativePath}: ${subProject.languages.join(', ')}`)
-        }
-      }
-    }
-
-    lines.push('', 'Languages detected:')
-    for (const [lang, count] of Object.entries(stats.languages)) {
-      lines.push(`  • ${lang}: ${count} files`)
-    }
-
-    if (args.autoWatch !== false) {
-      lines.push('', chalk.green('[WATCH] File watching: ENABLED'))
-    }
-
-    lines.push('', 'You can now use search_code to find any code element instantly!')
-
-    return {
-      type: 'text',
-      text: lines.join('\n'),
-    }
-  }
-  catch (error) {
-    logger.error('Failed to initialize project:', error)
-
-    // Re-throw structured errors as-is
-    if (error instanceof Error && error.name === 'McpOperationError') {
-      throw error
-    }
-
-    // Wrap other errors in a system error
-    throw ErrorFactory.systemError(
-      'project initialization',
-      error instanceof Error ? error.message : String(error),
-    )
-  }
+  return await modularInitializeProject(args, treeManager, fileWatcher)
 }

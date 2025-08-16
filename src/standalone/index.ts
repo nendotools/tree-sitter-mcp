@@ -7,7 +7,7 @@ import type { Config } from '../types/index.js'
 import { getLogger } from '../utils/logger.js'
 import { TreeManager } from '../core/tree-manager.js'
 import { getParserRegistry } from '../parsers/registry.js'
-import { DEFAULT_IGNORE_DIRS } from '../constants/index.js'
+import { DEFAULT_IGNORE_DIRS } from '../constants/service-constants.js'
 
 interface StandaloneOptions extends Config {
   output?: string
@@ -17,8 +17,11 @@ interface StandaloneOptions extends Config {
 export async function runStandaloneMode(options: StandaloneOptions): Promise<void> {
   const logger = getLogger()
 
-  logger.info('Running in standalone mode...')
-  logger.info(`Analyzing directory: ${options.workingDir}`)
+  // Only show analysis progress in verbose mode, keep output clean for JSON
+  if (options.verbose) {
+    logger.info('Running in standalone mode...')
+    logger.info(`Analyzing directory: ${options.workingDir}`)
+  }
 
   try {
     const parserRegistry = getParserRegistry()
@@ -55,13 +58,17 @@ export async function runStandaloneMode(options: StandaloneOptions): Promise<voi
     const jsonOutput = options.pretty ? JSON.stringify(output, null, 2) : JSON.stringify(output)
     if (options.output) {
       writeFileSync(options.output, jsonOutput)
-      logger.info(`Output written to: ${options.output}`)
+      if (options.verbose) {
+        logger.info(`Output written to: ${options.output}`)
+      }
     }
     else {
       process.stdout.write(jsonOutput + '\n')
     }
 
-    logger.info('Analysis complete!')
+    if (options.verbose) {
+      logger.info('Analysis complete!')
+    }
   }
   catch (error) {
     logger.error('Analysis failed:', error)

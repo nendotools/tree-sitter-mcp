@@ -72,12 +72,13 @@ export class McpOperationError extends Error {
 
 /**
  * Common error factory functions for consistent error creation
+ * @deprecated Use EnhancedErrorFactory from core/error-handling for new code
  */
 export const ErrorFactory = {
-  projectNotFound: (projectId: string): McpOperationError =>
+  projectNotFound: (projectId: string, helpText?: string): McpOperationError =>
     new McpOperationError(
       ErrorCategory.PROJECT,
-      `Project "${projectId}" not found`,
+      `Project "${projectId}" not found${helpText ? `\n\n${helpText}` : ''}`,
       'PROJECT_NOT_FOUND',
       { projectId },
     ),
@@ -125,6 +126,14 @@ export const ErrorFactory = {
       `Invalid value for ${field}`,
       'VALIDATION_ERROR',
       { field, value },
+    ),
+
+  projectNotInitialized: (projectId: string, helpText?: string): McpOperationError =>
+    new McpOperationError(
+      ErrorCategory.PROJECT,
+      `Project "${projectId}" is not initialized${helpText ? `\n\n${helpText}` : ''}`,
+      'PROJECT_NOT_INITIALIZED',
+      { projectId },
     ),
 
   systemError: (operation: string, cause?: string): McpOperationError =>

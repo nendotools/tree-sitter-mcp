@@ -3,7 +3,7 @@
  */
 
 import Parser from 'tree-sitter'
-import { NODE_TYPES } from '../constants/index.js'
+import { NODE_TYPES } from '../constants/analysis-constants.js'
 import type {
   LanguageParser,
   ParseResult,

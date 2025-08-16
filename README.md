@@ -80,11 +80,22 @@ npm install -g @nendo/tree-sitter-mcp
 tree-sitter-mcp setup
 ```
 
+## Workflow
+
+Before using the main tools, you must initialize your project:
+
+1. **Initialize**: Use `initialize_project` to index your codebase
+2. **Search**: Use `search_code` to find functions, classes, components
+3. **Trace**: Use `find_usage` to trace dependencies and references  
+4. **Analyze**: Use `analyze_code` for quality and architectural analysis
+
 ## Core Tools Reference
 
 ### `search_code` - Semantic Code Search
 
 Search for code elements across your project with semantic understanding.
+
+**Note:** Requires project initialization using `initialize_project` before first use.
 
 **Parameters:**
 
@@ -143,6 +154,8 @@ Find API endpoints in config:
 
 Find all lines where a specific function, variable, class, or identifier is used.
 
+**Note:** Requires project initialization using `initialize_project` before first use.
+
 **Parameters:**
 
 - `projectId` - Project to search in
@@ -180,12 +193,13 @@ Find config key usage:
 
 **COMPREHENSIVE CODE ANALYSIS** - Performs deep architectural and quality analysis beyond what linters provide. Returns structured JSON with actionable findings and metrics across four analysis types.
 
-**Auto-initialization**: If the specified project doesn't exist or isn't initialized, the analyzer will automatically create and index the project before analysis, making it seamless to analyze any codebase without manual setup.
+**Note:** Requires project initialization using `initialize_project` before first use.
+
 
 **Parameters:**
 
-- `projectId` - Project to analyze (auto-created if not exists)
-- `directory` - Project directory (optional, defaults to current directory when auto-initializing)
+- `projectId` - Project to analyze (must be initialized first using initialize_project)
+- `directory` - Project directory (specified during initialization)
 - `analysisTypes` - Analysis types: quality (complexity/method length), structure (dependencies/coupling), deadcode (unused code), config-validation (JSON/package.json validation)
 - `scope` - Analysis scope: project (entire codebase), file (single file), method (specific function/method)
 - `target` - Specific file path (e.g., "src/utils/helper.ts") or method name when scope is file/method
@@ -317,7 +331,7 @@ Single file analysis:
       "category": "circular_dependency",
       "severity": "critical",
       "description": "Circular dependency detected",
-      "location": "src/auth/manager.ts → src/user/service.ts → src/auth/manager.ts",
+      "location": "src/auth/manager.ts -> src/user/service.ts -> src/auth/manager.ts",
       "context": "Circular dependencies can cause runtime errors and make code difficult to test",
       "metrics": null
     },
@@ -407,7 +421,7 @@ This writes detailed logs to `logs/mcp-server.log` in the project directory.
 
 Tree-Sitter MCP maintains an in-memory index of your codebase's abstract syntax tree (AST). When you search, it queries this pre-parsed structure rather than scanning files, delivering instant results.
 
-1. **On first search** - Automatically indexes the project directory
+1. **Project initialization** - Use initialize_project to index the project directory
 2. **File watching** - Monitors changes and updates the index incrementally
 3. **Memory management** - LRU eviction keeps memory usage under control
 4. **Smart debouncing** - Batches rapid file changes to minimize re-parsing

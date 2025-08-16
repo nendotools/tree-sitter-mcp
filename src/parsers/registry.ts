@@ -18,7 +18,7 @@ import Scala from 'tree-sitter-scala'
 import Elixir from 'tree-sitter-elixir'
 import HTML from 'tree-sitter-html'
 
-import { LANGUAGE_EXTENSIONS } from '../constants/index.js'
+import { LANGUAGE_EXTENSIONS } from '../constants/analysis-constants.js'
 import type { LanguageParser, ParseResult } from '../types/index.js'
 import { BaseParser } from './base-parser.js'
 import { ConfigParser } from './config-parser.js'

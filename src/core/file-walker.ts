@@ -2,12 +2,14 @@
  * File walker for traversing directories and discovering parseable files
  */
 
-import { readdir, stat, readFile } from 'fs/promises'
-import { join, relative } from 'path'
-import { DEFAULT_IGNORE_DIRS, DIRECTORIES, PARSING } from '../constants/index.js'
+import { readdir } from 'fs/promises'
+import { join } from 'path'
+import { DEFAULT_IGNORE_DIRS, DIRECTORIES } from '../constants/service-constants.js'
 import type { Config, ParseResult } from '../types/index.js'
 import { getLogger } from '../utils/logger.js'
 import { ParserRegistry } from '../parsers/registry.js'
+import { processFile } from './file-processing/index.js'
+import type { FileProcessingContext, FileWalkerConfig } from './file-processing/index.js'
 
 /**
  * File walker that recursively traverses directories to find and parse code files
@@ -107,116 +109,21 @@ export class FileWalker {
    * @param results - Array to add successful parse results to
    */
   private async processFile(filePath: string, results: ParseResult[]): Promise<void> {
-    const fileStartTime = performance.now()
     const fileName = filePath.split('/').pop() || filePath
 
-    this.logger.debug(`🔍 Checking file: ${fileName}`)
-
-    if (!this.parserRegistry.canParse(filePath)) {
-      this.logger.debug(`❌ Cannot parse: ${fileName} (no parser available)`)
-      return
+    const context: FileProcessingContext = {
+      filePath,
+      fileName,
+      config: this.config as FileWalkerConfig,
+      parserRegistry: this.parserRegistry,
+      logger: this.logger,
+      results,
     }
 
-    this.logger.debug(`✅ Can parse: ${fileName}`)
-
-    try {
-      const statStartTime = performance.now()
-      const stats = await stat(filePath)
-      const statDuration = (performance.now() - statStartTime).toFixed(2)
-
-      const maxSizeBytes = PARSING.MAX_FILE_SIZE_MB * 1024 * 1024
-      if (stats.size > maxSizeBytes) {
-        this.logger.debug(`🚫 Large file: ${fileName} (${Math.round(stats.size / 1024 / 1024)}MB > ${PARSING.MAX_FILE_SIZE_MB}MB)`)
-        return
-      }
-
-      this.logger.debug(`📊 File size OK: ${fileName} (${stats.size} bytes, ${statDuration}ms)`)
-
-      const parser = this.parserRegistry.getParserForFile(filePath)
-      if (!parser) {
-        this.logger.debug(`❌ No parser found: ${fileName}`)
-        return
-      }
-
-      this.logger.debug(`🔧 Using parser: ${parser.name} for ${fileName}`)
-
-      if (this.config.languages && this.config.languages.length > 0) {
-        if (!this.config.languages.includes(parser.name)) {
-          this.logger.debug(`🚫 Language filter: ${fileName} (${parser.name} not in ${this.config.languages})`)
-          return
-        }
-      }
-
-      const readStartTime = performance.now()
-      const content = await readFile(filePath, 'utf-8')
-      const readDuration = (performance.now() - readStartTime).toFixed(2)
-      this.logger.debug(`📖 Read: ${fileName} (${content.length} chars, ${readDuration}ms)`)
-
-      // Apply line-based filtering to prevent parsing problematic files
-      const lines = content.split('\n')
-      if (lines.length > PARSING.MAX_LINES_PER_FILE) {
-        this.logger.debug(`🚫 Too many lines: ${fileName} (${lines.length} > ${PARSING.MAX_LINES_PER_FILE})`)
-        return
-      }
-
-      // Check for excessively long lines that might cause parser issues
-      const maxLineLength = Math.max(...lines.map(line => line.length))
-      if (maxLineLength > PARSING.MAX_LINE_LENGTH) {
-        this.logger.debug(`🚫 Long lines: ${fileName} (max ${maxLineLength} > ${PARSING.MAX_LINE_LENGTH} chars)`)
-        return
-      }
-
-      this.logger.debug(`📏 Line check OK: ${fileName} (${lines.length} lines, max ${maxLineLength} chars)`)
-
-      const parseStartTime = performance.now()
-      const result = await this.parserRegistry.parseFile(filePath, content)
-      const parseDuration = (performance.now() - parseStartTime).toFixed(2)
-
-      if (result) {
-        this.logger.debug(`⚡ Parse success: ${fileName} (${result.elements.length} elements, ${parseDuration}ms)`)
-
-        // Convert absolute path to relative for consistent indexing
-        const relativePath = relative(this.config.workingDir, filePath)
-        result.file.path = relativePath
-
-        // Log existing elements before Vue component detection
-        const beforeCount = result.elements.length
-        this.logger.debug(`🧩 Elements before Vue detection: ${beforeCount}`)
-        if (beforeCount > 0) {
-          for (const element of result.elements) {
-            this.logger.debug(`   - ${element.name} (${element.type})`)
-          }
-        }
-
-        // Add Vue component detection based on file system patterns
-        this.addVueComponentIfApplicable(result, relativePath)
-
-        // Log if Vue component was added
-        const afterCount = result.elements.length
-        if (afterCount > beforeCount) {
-          this.logger.debug(`🎯 Vue component added! Now ${afterCount} elements`)
-          for (let i = beforeCount; i < afterCount; i++) {
-            const element = result.elements[i]
-            if (element) {
-              this.logger.debug(`   + ${element.name} (${element.type})`)
-            }
-          }
-        }
-
-        results.push(result)
-        const totalFileDuration = (performance.now() - fileStartTime).toFixed(2)
-        this.logger.debug(
-          `✅ Complete: ${fileName} with ${result.elements.length} elements in ${totalFileDuration}ms`,
-        )
-      }
-      else {
-        this.logger.debug(`❌ Parse failed: ${fileName} (${parseDuration}ms)`)
-      }
-    }
-    catch (error) {
-      const totalFileDuration = (performance.now() - fileStartTime).toFixed(2)
-      this.logger.error(`❌ Error processing file ${filePath} after ${totalFileDuration}ms:`, error)
-    }
+    // Delegate to modular file processing system
+    await processFile(context, (result, relativePath) => {
+      this.addVueComponentIfApplicable(result, relativePath)
+    })
   }
 
   /**

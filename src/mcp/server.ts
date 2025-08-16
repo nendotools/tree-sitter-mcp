@@ -2,453 +2,49 @@
  * MCP Server implementation for Tree-Sitter service
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { resolve } from 'path'
-import { findProjectRoot } from '../utils/project-detection.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  Tool,
-  TextContent,
 } from '@modelcontextprotocol/sdk/types.js'
 
-import { MCP_TOOLS } from '../constants/index.js'
-import type {
-  Config,
-  InitializeProjectArgs,
-  SearchCodeArgs,
-  FindUsageArgs,
-  UpdateFileArgs,
-  ProjectStatusArgs,
-  DestroyProjectArgs,
-  AnalyzeCodeArgs,
-} from '../types/index.js'
-import { formatError } from '../types/error-types.js'
-import { setLogger, ConsoleLogger } from '../utils/logger.js'
-import { LOG_LEVELS } from '../constants/cli-constants.js'
-import { TreeManager } from '../core/tree-manager.js'
-import { BatchFileWatcher } from '../core/file-watcher.js'
-import { getParserRegistry } from '../parsers/registry.js'
-import * as tools from './tools/index.js'
+import type { Config } from '../types/index.js'
+import {
+  createMCPServerLogger,
+  createServerComponents,
+  createToolSchemas,
+  createToolRequestHandler,
+  setupSignalHandlers,
+} from './server/index.js'
 
 export async function startMCPServer(_config: Config): Promise<void> {
-  // Enable debug logging if TREE_SITTER_MCP_DEBUG environment variable is set
-  const enableDebugLogging = process.env.TREE_SITTER_MCP_DEBUG === 'true'
+  // Initialize logger with debug configuration
+  const logger = await createMCPServerLogger()
 
-  // Always write startup debug info to a global log file for Claude Code troubleshooting
-  const { homedir } = await import('os')
-  const globalLogPath = resolve(homedir(), '.tree-sitter-mcp-debug.log')
-  const timestamp = new Date().toISOString()
-  const startupInfo = `[${timestamp}] MCP Server Startup:
-  - Mode: MCP Server (confirmed)
-  - CWD: ${process.cwd()}
-  - Args: ${JSON.stringify(process.argv)}
-  - stdin.isTTY: ${process.stdin.isTTY}
-  - stdout.isTTY: ${process.stdout.isTTY}
-  - stderr.isTTY: ${process.stderr.isTTY}
-  - NODE_ENV: ${process.env.NODE_ENV || 'undefined'}
-  - TREE_SITTER_MCP_DEBUG: ${process.env.TREE_SITTER_MCP_DEBUG || 'undefined'}
-  - Parent PID: ${process.ppid || 'undefined'}
-  - Process Title: ${process.title || 'undefined'}
-\n`
+  // Create server components (TreeManager, FileWatcher, Server)
+  const { server, treeManager, fileWatcher } = createServerComponents()
 
-  try {
-    const { appendFileSync } = await import('fs')
-    appendFileSync(globalLogPath, startupInfo)
-  }
-  catch {
-    // Ignore write errors
-  }
-
-  let logger: ConsoleLogger
-  if (enableDebugLogging) {
-    const projectRoot = findProjectRoot()
-    const logFilePath = resolve(projectRoot, 'logs', 'mcp-server.log')
-    logger = new ConsoleLogger({
-      level: LOG_LEVELS.VERBOSE,
-      logToFile: true,
-      logFilePath,
-      useColors: false,
-    })
-    setLogger(logger)
-    logger.info('Starting MCP server with debug file logging enabled')
-    logger.info(`Process cwd: ${process.cwd()}`)
-    logger.info(`Log file: ${logFilePath}`)
-  }
-  else {
-    logger = new ConsoleLogger({
-      level: LOG_LEVELS.INFO,
-      logToFile: false,
-      useColors: false,
-    })
-    setLogger(logger)
-    logger.info('Starting MCP server')
-  }
-
-  const parserRegistry = getParserRegistry()
-  const treeManager = new TreeManager(parserRegistry)
-  const fileWatcher = new BatchFileWatcher(treeManager)
-  const server = new Server(
-    {
-      name: 'tree-sitter-mcp',
-      version: '1.0.0',
-    },
-    {
-      capabilities: {
-        tools: {},
-      },
-    },
-  )
-
+  // Set up tool schemas
+  const toolSchemas = createToolSchemas()
   server.setRequestHandler(ListToolsRequestSchema, () => {
     return {
-      tools: [
-        {
-          name: MCP_TOOLS.INITIALIZE_PROJECT,
-          description:
-            'Pre-cache a project structure for faster searches and enable file watching. Optional performance optimization - search_code auto-initializes projects when needed, so you typically don\'t need to call this directly. Only use when you want to initialize multiple projects upfront or need explicit control over initialization timing.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              projectId: {
-                type: 'string',
-                description: 'Unique identifier for the project',
-              },
-              directory: {
-                type: 'string',
-                description: 'Directory to analyze (default: current directory)',
-              },
-              languages: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'List of languages to parse (empty = all)',
-              },
-              maxDepth: {
-                type: 'number',
-                description: 'Maximum directory depth to traverse',
-              },
-              ignoreDirs: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Directories to ignore during analysis',
-              },
-              autoWatch: {
-                type: 'boolean',
-                description: 'Automatically watch for file changes',
-              },
-            },
-            required: ['projectId'],
-          },
-        },
-        {
-          name: MCP_TOOLS.SEARCH_CODE,
-          description:
-            'MANDATORY for discovering features, APIs, code patterns, and configuration settings. Unlike text-based searches, this understands both code structure and config files semantically. Perfect for: finding authentication systems (search "auth", type: function), discovering API endpoints, locating UI components, searching environment variables (search "DATABASE_URL", languages: ["env"]), finding config keys in JSON/YAML files, exploring similar implementations across languages. Supports fuzzy matching - search "user" to find "UserService", "createUser", "user_config", etc. Returns exact locations for immediate navigation. Auto-initializes projects on first use (may take 3-10 seconds for large codebases). Essential for understanding unfamiliar codebases and their configuration.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              projectId: {
-                type: 'string',
-                description: 'Project to search in',
-              },
-              query: {
-                type: 'string',
-                description: 'Search query (name of element)',
-              },
-              types: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Filter by element types',
-              },
-              languages: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Filter by programming languages and config formats (e.g., ["typescript", "env", "json", "yaml"])',
-              },
-              pathPattern: {
-                type: 'string',
-                description: 'Filter by file path pattern',
-              },
-              maxResults: {
-                type: 'number',
-                description: 'Maximum number of results',
-              },
-              exactMatch: {
-                type: 'boolean',
-                description: 'Require exact name match',
-              },
-              subProjects: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Specific sub-projects to search within (mono-repo)',
-              },
-              excludeSubProjects: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Sub-projects to exclude from search (mono-repo)',
-              },
-              crossProjectSearch: {
-                type: 'boolean',
-                description: 'Search across multiple sub-projects (mono-repo)',
-              },
-              priorityType: {
-                type: 'string',
-                description:
-                  'Boost specific element types in search ranking (function, method, class, interface, variable)',
-              },
-              fuzzyThreshold: {
-                type: 'number',
-                description: 'Minimum fuzzy match score to include results (default: 30)',
-              },
-            },
-            required: ['projectId', 'query'],
-          },
-        },
-        {
-          name: MCP_TOOLS.FIND_USAGE,
-          description:
-            'ESSENTIAL for understanding code dependencies, feature interconnections, and configuration usage. Traces how functions, classes, variables, or config keys are used throughout the codebase - revealing hidden relationships, integration points, and feature boundaries. Shows each usage with intelligent context: the containing function/method/class name plus the exact line content. Critical for: discovering how features interact, finding all consumers of an API, understanding data flow patterns, locating environment variable usage, tracking config key references, and safe refactoring. Works across both code and configuration files. Unlike simple text search, provides semantic context about WHERE each usage occurs.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              projectId: {
-                type: 'string',
-                description: 'Project to search in',
-              },
-              identifier: {
-                type: 'string',
-                description: 'Function, variable, class, config key, or identifier name to find usage of',
-              },
-              languages: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Filter by programming languages and config formats (e.g., ["typescript", "env", "json"])',
-              },
-              pathPattern: {
-                type: 'string',
-                description: 'Filter by file path pattern',
-              },
-              maxResults: {
-                type: 'number',
-                description: 'Maximum number of results',
-              },
-              exactMatch: {
-                type: 'boolean',
-                description: 'Require exact identifier match (word boundaries)',
-              },
-              caseSensitive: {
-                type: 'boolean',
-                description: 'Case sensitive search',
-              },
-            },
-            required: ['projectId', 'identifier'],
-          },
-        },
-        {
-          name: MCP_TOOLS.UPDATE_FILE,
-          description:
-            'Force re-parsing of a specific file when search results seem outdated. Use after file modifications to ensure search accuracy.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              projectId: {
-                type: 'string',
-                description: 'Project containing the file',
-              },
-              filePath: {
-                type: 'string',
-                description: 'Path to the file to update',
-              },
-            },
-            required: ['projectId', 'filePath'],
-          },
-        },
-        {
-          name: MCP_TOOLS.PROJECT_STATUS,
-          description:
-            'Check project initialization status, memory usage, and parsing statistics. Use to verify projects are properly indexed before searching.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              projectId: {
-                type: 'string',
-                description: 'Specific project ID (empty for all projects)',
-              },
-              includeStats: {
-                type: 'boolean',
-                description: 'Include detailed statistics',
-              },
-            },
-          },
-        },
-        {
-          name: MCP_TOOLS.DESTROY_PROJECT,
-          description:
-            'Clean up project from memory when switching between codebases. Use for memory management in long-running analysis sessions.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              projectId: {
-                type: 'string',
-                description: 'Project to destroy',
-              },
-            },
-            required: ['projectId'],
-          },
-        },
-        {
-          name: MCP_TOOLS.ANALYZE_CODE,
-          description:
-            'COMPREHENSIVE CODE ANALYSIS with AUTO-INITIALIZATION - Performs deep architectural and quality analysis beyond what linters provide. AUTOMATICALLY creates and indexes projects if they don\'t exist, making analysis seamless without manual setup. Returns structured JSON with actionable findings and metrics. Four analysis types: (1) QUALITY: Detects complex functions, long methods (>50 lines), high parameter counts (>6), calculates code quality scores. (2) STRUCTURE: Finds circular dependencies, high coupling, deep HTML nesting (>10 levels), architectural issues. (3) DEADCODE: Identifies unused exports, orphaned files, unreferenced dependencies. (4) CONFIG-VALIDATION: Validates JSON/YAML configs, checks semver formats, validates URLs in package.json. Returns JSON object with: project metadata, summary stats (totalIssues, severity breakdown), quantitative metrics (complexity averages, file counts, quality scores), detailed findings array with type/category/severity/description/location/context/metrics. Perfect for programmatic consumption, dashboard integration, CI/CD pipelines. Use for: code reviews, refactoring planning, technical debt assessment, architectural validation, optimization opportunities.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              projectId: {
-                type: 'string',
-                description: 'Project to analyze (auto-created and indexed if not exists)',
-              },
-              analysisTypes: {
-                type: 'array',
-                items: {
-                  type: 'string',
-                  enum: ['quality', 'structure', 'deadcode', 'config-validation'],
-                },
-                description: 'Analysis types: quality (complexity/method length), structure (dependencies/coupling), deadcode (unused code), config-validation (JSON/package.json validation)',
-              },
-              scope: {
-                type: 'string',
-                enum: ['project', 'file', 'method'],
-                description: 'Analysis scope: project (entire codebase), file (single file), method (specific function/method)',
-              },
-              target: {
-                type: 'string',
-                description: 'Specific file path (e.g., "src/utils/helper.ts") or method name (e.g., "processData") when scope is file/method',
-              },
-              directory: {
-                type: 'string',
-                description: 'Directory to analyze (for auto-initialization, default: current directory)',
-              },
-              includeMetrics: {
-                type: 'boolean',
-                description: 'Include quantitative metrics (complexity averages, file counts, quality scores) in addition to specific findings',
-              },
-              severity: {
-                type: 'string',
-                enum: ['info', 'warning', 'critical'],
-                description: 'Show only issues at or above this severity level (critical=blocking issues, warning=should fix, info=suggestions)',
-              },
-            },
-            required: ['projectId', 'analysisTypes', 'scope'],
-          },
-        },
-      ] as Tool[],
+      tools: toolSchemas,
     }
   })
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params
-
-    logger.debug(`Tool called: ${name}`, args)
-
-    try {
-      let result: TextContent
-
-      switch (name) {
-        case MCP_TOOLS.INITIALIZE_PROJECT:
-          result = await tools.initializeProject(
-            args as unknown as InitializeProjectArgs,
-            treeManager,
-            fileWatcher,
-          )
-          break
-
-        case MCP_TOOLS.SEARCH_CODE:
-          result = await tools.searchCode(
-            args as unknown as SearchCodeArgs,
-            treeManager,
-            fileWatcher,
-          )
-          break
-
-        case MCP_TOOLS.FIND_USAGE:
-          result = await tools.findUsage(
-            args as unknown as FindUsageArgs,
-            treeManager,
-            fileWatcher,
-          )
-          break
-
-        case MCP_TOOLS.UPDATE_FILE:
-          result = await tools.updateFile(args as unknown as UpdateFileArgs, treeManager)
-          break
-
-        case MCP_TOOLS.PROJECT_STATUS:
-          result = tools.projectStatus(
-            args as unknown as ProjectStatusArgs,
-            treeManager,
-            fileWatcher,
-          )
-          break
-
-        case MCP_TOOLS.DESTROY_PROJECT:
-          result = tools.destroyProject(
-            args as unknown as DestroyProjectArgs,
-            treeManager,
-            fileWatcher,
-          )
-          break
-
-        case MCP_TOOLS.ANALYZE_CODE:
-          result = await tools.analyzeCode(
-            args as unknown as AnalyzeCodeArgs,
-            treeManager,
-          )
-          break
-
-        default:
-          throw new Error(`Unknown tool: ${name}`)
-      }
-
-      return {
-        content: [result],
-      }
-    }
-    catch (error) {
-      logger.error(`Tool error (${name}):`, error)
-
-      const structuredError = formatError(error)
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(structuredError, null, 2),
-          },
-        ],
-        isError: true,
-      }
-    }
+  // Set up tool request handler
+  const toolRequestHandler = createToolRequestHandler({
+    treeManager,
+    fileWatcher,
+    logger,
   })
+  server.setRequestHandler(CallToolRequestSchema, toolRequestHandler)
 
+  // Set up signal handlers for graceful shutdown
+  setupSignalHandlers(server, fileWatcher, logger)
+
+  // Start the server
   const transport = new StdioServerTransport()
-
-  // Handle shutdown
-  process.on('SIGINT', () => {
-    logger.info('Shutting down MCP server...')
-    fileWatcher.stopAll()
-    void server.close().then(() => {
-      process.exit(0)
-    })
-  })
-
-  process.on('SIGTERM', () => {
-    logger.info('Shutting down MCP server...')
-    fileWatcher.stopAll()
-    void server.close().then(() => {
-      process.exit(0)
-    })
-  })
-
   logger.info('Starting Tree-Sitter MCP server...')
   await server.connect(transport)
   logger.info('MCP server started successfully')

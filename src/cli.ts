@@ -18,9 +18,9 @@ import { dirname, join } from 'path'
 import chalk from 'chalk'
 
 import { SERVICE } from './constants/service-constants.js'
-import { LOG_LEVELS } from './constants/cli-constants.js'
-import type { CLIOptions, Config } from './types/index.js'
-import { ConsoleLogger, setLogger, getLogger } from './utils/logger.js'
+import { LOG_LEVELS } from './constants/app-constants.js'
+import type { CLIOptions, Config, Logger } from './types/index.js'
+import { initializeLogger, getLogger } from './utils/logger.js'
 import { startMCPServer } from './mcp/server.js'
 import { runStandaloneMode } from './standalone/index.js'
 import { runSetup } from './setup.js'
@@ -130,6 +130,32 @@ program
     },
   )
 
+program
+  .command('search <query> [directory]')
+  .description('Search for code elements in a directory')
+  .option('-l, --languages <languages>', 'Comma-separated list of languages')
+  .option('-t, --types <types>', 'Comma-separated list of element types (function, class, method, interface, variable)')
+  .option('-o, --output <path>', 'Output file path (default: stdout)')
+  .option('--exact', 'Use exact matching instead of fuzzy')
+  .option('--pretty', 'Pretty-print JSON output')
+  .option('--max-results <count>', 'Maximum number of results', '50')
+  .action(
+    async (
+      query: string,
+      directory: string = '.',
+      options: {
+        languages?: string
+        types?: string
+        output?: string
+        exact?: boolean
+        pretty?: boolean
+        maxResults?: string
+      },
+    ) => {
+      await handleSearch(query, directory, options)
+    },
+  )
+
 /**
  * Determines execution mode and logs debug information
  *
@@ -137,7 +163,7 @@ program
  * @param logger - Logger instance for debug output
  * @returns True if should run MCP mode, false for standalone
  */
-function determineExecutionMode(options: CLIOptions, logger: ConsoleLogger): boolean {
+function determineExecutionMode(options: CLIOptions, logger: Logger): boolean {
   // Debug logging for mode detection
   logger.debug(`CLI args: ${process.argv.join(' ')}`)
   logger.debug(`--mcp flag: ${options.mcp || false}`)
@@ -163,7 +189,7 @@ function determineExecutionMode(options: CLIOptions, logger: ConsoleLogger): boo
 async function runExecutionMode(
   shouldRunMCP: boolean,
   config: Config,
-  logger: ConsoleLogger,
+  logger: Logger,
 ): Promise<void> {
   if (shouldRunMCP) {
     // Run in MCP mode
@@ -188,12 +214,12 @@ async function runExecutionMode(
  * @param options - Parsed CLI options from commander
  */
 async function handleMainAction(options: CLIOptions): Promise<void> {
-  const logger = new ConsoleLogger({
+  // Initialize the singleton logger with CLI options
+  const logger = initializeLogger({
     level: options.verbose ? LOG_LEVELS.VERBOSE : LOG_LEVELS.INFO,
     quiet: options.quiet || false,
     useColors: true,
   })
-  setLogger(logger)
 
   // Write debug log if enabled
   if (process.env.TREE_SITTER_MCP_DEBUG === 'true') {
@@ -293,15 +319,15 @@ function handleListLanguages(): void {
   const logger = getLogger()
   const languages = listSupportedLanguages()
 
-  logger.info(chalk.cyan('\nSupported Languages:\n'))
+  logger.output(chalk.cyan('\nSupported Languages:\n'))
 
   languages.forEach((lang) => {
-    logger.info(`  ${chalk.green('•')} ${chalk.bold(lang.name)}`)
-    logger.info(`    Extensions: ${chalk.dim(lang.extensions.join(', '))}`)
+    logger.output(`  ${chalk.green('•')} ${chalk.bold(lang.name)}`)
+    logger.output(`    Extensions: ${chalk.dim(lang.extensions.join(', '))}`)
   })
 
-  logger.info(chalk.dim(`\n  Total: ${languages.length} languages supported`))
-  logger.info('')
+  logger.output(chalk.dim(`\n  Total: ${languages.length} languages supported`))
+  logger.output('')
 }
 
 /**
@@ -314,6 +340,32 @@ async function handleSetup(): Promise<void> {
   await runSetup()
 }
 
+/**
+ * Handles the search command for finding code elements
+ *
+ * @param query - Search query string
+ * @param directory - Directory to search in
+ * @param options - Search options
+ */
+async function handleSearch(
+  query: string,
+  directory: string,
+  options: {
+    languages?: string
+    types?: string
+    output?: string
+    exact?: boolean
+    pretty?: boolean
+    maxResults?: string
+  },
+): Promise<void> {
+  const opts = program.opts() as CLIOptions
+
+  // Delegate to modular search system
+  const { handleSearch: executeModularSearch } = await import('./cli/search/index.js')
+  await executeModularSearch(query, directory, options, opts)
+}
+
 // Enhanced help text
 program.addHelpText(
   'after',
@@ -324,14 +376,17 @@ ${chalk.cyan('Examples:')}
   ${chalk.dim('# Run as MCP server')}
   $ @nendo/tree-sitter-mcp --mcp
   
+  ${chalk.dim('# Search for functions in current directory')}
+  $ @nendo/tree-sitter-mcp search "handleRequest" 
+  
+  ${chalk.dim('# Search with filters')}
+  $ @nendo/tree-sitter-mcp search "User" --types class,interface --languages typescript
+  
   ${chalk.dim('# Analyze current directory')}
   $ @nendo/tree-sitter-mcp analyze
   
   ${chalk.dim('# Analyze specific directory with filters')}
   $ @nendo/tree-sitter-mcp analyze ./src --languages typescript,javascript
-  
-  ${chalk.dim('# Analyze config files only')}
-  $ @nendo/tree-sitter-mcp analyze . --languages json,yaml,toml,env
   
   ${chalk.dim('# Use configuration file')}
   $ @nendo/tree-sitter-mcp --mcp --config ./config.json

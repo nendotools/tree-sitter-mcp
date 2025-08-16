@@ -23,6 +23,7 @@ export interface Logger {
   info(message: string, ...args: unknown[]): void
   debug(message: string, ...args: unknown[]): void
   verbose(message: string, ...args: unknown[]): void
+  output(message: string, ...args: unknown[]): void
 }
 
 // Log level types

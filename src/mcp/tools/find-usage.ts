@@ -4,13 +4,11 @@
 
 import { TextContent } from '@modelcontextprotocol/sdk/types.js'
 import { readFileSync } from 'fs'
-import { DIRECTORIES, DEFAULT_IGNORE_DIRS } from '../../constants/service-constants.js'
-import { SEARCH, USAGE_SEARCH, LANGUAGE_EXTENSIONS } from '../../constants/tree-constants.js'
-import type { FindUsageArgs, Config } from '../../types/index.js'
+import { SEARCH_CONFIG as SEARCH, USAGE_CONFIG as USAGE_SEARCH, LANGUAGE_EXTENSIONS } from '../../constants/analysis-constants.js'
+import type { FindUsageArgs } from '../../types/index.js'
+import { withErrorHandling, EnhancedErrorFactory } from '../../core/error-handling/index.js'
 import { TreeManager } from '../../core/tree-manager.js'
 import { BatchFileWatcher } from '../../core/file-watcher.js'
-import { getLogger } from '../../utils/logger.js'
-import { findProjectRoot } from '../../utils/project-detection.js'
 
 /**
  * Finds all usages of a specific identifier (function, variable, class, etc.) across the project
@@ -33,92 +31,128 @@ export async function findUsage(
   treeManager: TreeManager,
   fileWatcher: BatchFileWatcher,
 ): Promise<TextContent> {
-  const logger = getLogger()
-
-  try {
-    let project = treeManager.getProject(args.projectId)
-
-    if (!project) {
-      logger.info(`Auto-initializing project ${args.projectId}`)
-
-      const config: Config = {
-        workingDir: findProjectRoot(),
-        languages: args.languages || [],
-        maxDepth: DIRECTORIES.DEFAULT_MAX_DEPTH,
-        ignoreDirs: DEFAULT_IGNORE_DIRS,
-      }
-
-      project = await treeManager.createProject(args.projectId, config)
-      await treeManager.initializeProject(args.projectId)
-
-      await fileWatcher.startWatching(args.projectId, config)
-    }
-    else if (!project.initialized) {
-      await treeManager.initializeProject(args.projectId)
-    }
-
-    if (!fileWatcher.getWatcher(args.projectId)) {
-      await fileWatcher.startWatching(args.projectId, project.config)
-    }
-
+  return withErrorHandling(async () => {
+    const project = await validateAndSetupProject(args.projectId, treeManager, fileWatcher)
     const usageResults = await findAllUsages(project, args.identifier, args)
+
     if (usageResults.length === 0) {
-      return {
-        type: 'text',
-        text: `No usages found for "${args.identifier}"\n\nTry:\n• Checking if the identifier name is correct\n• Using a different search term\n• Verifying the project includes the relevant files`,
-      }
+      return createNoResultsResponse(args.identifier)
     }
 
-    const lines = [
-      `Found ${usageResults.length} usage${usageResults.length === 1 ? '' : 's'} of "${args.identifier}":\n`,
-    ]
+    return formatUsageResults(usageResults, args.identifier)
+  }, {
+    operation: 'find-usage',
+    tool: 'find-usage',
+  })
+}
 
-    const usagesByFile = new Map<
-      string,
-      Array<{ line: number, content: string, context?: string }>
-    >()
+/**
+ * Validates project existence and initialization, ensures file watcher is running
+ */
+async function validateAndSetupProject(
+  projectId: string,
+  treeManager: TreeManager,
+  fileWatcher: BatchFileWatcher,
+) {
+  const project = treeManager.getProject(projectId)
 
-    for (const usage of usageResults) {
-      if (!usagesByFile.has(usage.filePath)) {
-        usagesByFile.set(usage.filePath, [])
-      }
-      usagesByFile.get(usage.filePath)!.push({
-        line: usage.lineNumber,
-        content: usage.lineContent.trim(),
-        context: usage.context,
-      })
-    }
-
-    const sortedFiles = Array.from(usagesByFile.keys()).sort()
-
-    for (const filePath of sortedFiles) {
-      const usages = usagesByFile.get(filePath)!
-      usages.sort((a, b) => a.line - b.line)
-
-      lines.push(`File: ${filePath}`)
-
-      for (const usage of usages) {
-        const displayContent
-          = usage.content.length > USAGE_SEARCH.MAX_LINE_LENGTH_DISPLAY
-            ? `${usage.content.slice(0, USAGE_SEARCH.MAX_LINE_LENGTH_DISPLAY)}...`
-            : usage.content
-        lines.push(`   Line ${usage.line}: ${displayContent}`)
-        if (usage.context) {
-          lines.push(`      In: ${usage.context}`)
-        }
-      }
-      lines.push('')
-    }
-
-    return {
-      type: 'text',
-      text: lines.join('\n'),
-    }
+  if (!project) {
+    throw EnhancedErrorFactory.project.notFound(
+      projectId,
+      ['You must initialize the project first using the initialize_project tool.',
+        'Example:',
+        `{"projectId": "${projectId}", "directory": "."}`,
+        'This ensures proper project root detection and avoids initialization failures.'],
+    )
   }
-  catch (error) {
-    logger.error('Find usage failed:', error)
-    throw error
+
+  if (!project.initialized) {
+    throw EnhancedErrorFactory.project.notInitialized(
+      projectId,
+      'Project exists but is not initialized. This should not happen - please destroy and recreate the project.',
+    )
   }
+
+  if (!fileWatcher.getWatcher(projectId)) {
+    await fileWatcher.startWatching(projectId, project.config)
+  }
+
+  return project
+}
+
+/**
+ * Creates response for when no usages are found
+ */
+function createNoResultsResponse(identifier: string): TextContent {
+  return {
+    type: 'text',
+    text: `No usages found for "${identifier}"\n\nTry:\n• Checking if the identifier name is correct\n• Using a different search term\n• Verifying the project includes the relevant files`,
+  }
+}
+
+/**
+ * Formats usage results into human-readable text output
+ */
+function formatUsageResults(usageResults: UsageResult[], identifier: string): TextContent {
+  const lines = [
+    `Found ${usageResults.length} usage${usageResults.length === 1 ? '' : 's'} of "${identifier}":\n`,
+  ]
+
+  const usagesByFile = groupUsagesByFile(usageResults)
+  const sortedFiles = Array.from(usagesByFile.keys()).sort()
+
+  for (const filePath of sortedFiles) {
+    const usages = usagesByFile.get(filePath)!
+    usages.sort((a, b) => a.line - b.line)
+
+    lines.push(`File: ${filePath}`)
+
+    for (const usage of usages) {
+      const displayContent = truncateLineContent(usage.content)
+      lines.push(`   Line ${usage.line}: ${displayContent}`)
+      if (usage.context) {
+        lines.push(`      In: ${usage.context}`)
+      }
+    }
+    lines.push('')
+  }
+
+  return {
+    type: 'text',
+    text: lines.join('\n'),
+  }
+}
+
+/**
+ * Groups usage results by file path for organized display
+ */
+function groupUsagesByFile(usageResults: UsageResult[]) {
+  const usagesByFile = new Map<
+    string,
+    Array<{ line: number, content: string, context?: string }>
+  >()
+
+  for (const usage of usageResults) {
+    if (!usagesByFile.has(usage.filePath)) {
+      usagesByFile.set(usage.filePath, [])
+    }
+    usagesByFile.get(usage.filePath)!.push({
+      line: usage.lineNumber,
+      content: usage.lineContent.trim(),
+      context: usage.context,
+    })
+  }
+
+  return usagesByFile
+}
+
+/**
+ * Truncates line content if it exceeds display limit
+ */
+function truncateLineContent(content: string): string {
+  return content.length > USAGE_SEARCH.MAX_LINE_LENGTH_DISPLAY
+    ? `${content.slice(0, USAGE_SEARCH.MAX_LINE_LENGTH_DISPLAY)}...`
+    : content
 }
 
 /**

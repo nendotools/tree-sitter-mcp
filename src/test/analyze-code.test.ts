@@ -1230,19 +1230,17 @@ describe('Code Analysis Tests', () => {
   })
 
   describe('Error Handling', () => {
-    it('should handle non-existent project by auto-initializing', async () => {
+    it('should handle non-existent project with proper error', async () => {
       const args: AnalyzeCodeArgs = {
         projectId: 'non-existent-project',
         analysisTypes: ['quality'],
         scope: 'project',
       }
 
-      const result = await analyzeCode(args, treeManager)
-      const jsonResult = parseAnalysisResult(result)
-
-      // Should auto-initialize and complete successfully
-      expect(jsonResult.project.id).toBe('non-existent-project')
-      expect(typeof jsonResult.summary.totalIssues).toBe('number')
+      // Should throw error requiring initialization
+      await expect(analyzeCode(args, treeManager)).rejects.toThrow(
+        'Project "non-existent-project" not found',
+      )
     })
 
     it('should handle invalid analysis types', async () => {
@@ -1329,8 +1327,8 @@ describe('Code Analysis Tests', () => {
     })
   })
 
-  describe('Auto-initialization', () => {
-    it('should auto-initialize uninitialized projects', async () => {
+  describe('Initialization Requirements', () => {
+    it('should require project initialization before analysis', async () => {
       const projectId = 'test-auto-init'
       const project = await treeManager.createProject(projectId, testConfig)
 
@@ -1343,12 +1341,38 @@ describe('Code Analysis Tests', () => {
         scope: 'project',
       }
 
-      // Should auto-initialize and complete successfully
+      // Should throw error requiring initialization
+      await expect(analyzeCode(args, treeManager)).rejects.toThrow(
+        'Project "test-auto-init" is not fully initialized',
+      )
+
+      // Clean up
+      treeManager.destroyProject(projectId)
+    })
+
+    it('should work correctly with properly initialized projects', async () => {
+      const projectId = 'test-initialized'
+      const project = await treeManager.createProject(projectId, testConfig)
+      await treeManager.initializeProject(projectId)
+
+      // Ensure project is initialized
+      expect(project.initialized).toBe(true)
+
+      const args: AnalyzeCodeArgs = {
+        projectId,
+        analysisTypes: ['quality'],
+        scope: 'project',
+      }
+
+      // Should work correctly
       const result = await analyzeCode(args, treeManager)
       const jsonResult = parseAnalysisResult(result)
 
       expect(jsonResult.project.id).toBe(projectId)
       expect(typeof jsonResult.summary.totalIssues).toBe('number')
+
+      // Clean up
+      treeManager.destroyProject(projectId)
     })
   })
 
