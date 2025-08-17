@@ -56,10 +56,3 @@ export function createErrorResult(error: Error, filePath: string): ConfigValidat
     }],
   }
 }
-
-/**
- * Merge multiple validation error arrays
- */
-export function mergeValidationErrors(...errorArrays: ConfigValidationError[][]): ConfigValidationError[] {
-  return errorArrays.flat()
-}

@@ -10,7 +10,6 @@ import { validateEnvFile } from './env-validator.js'
 import {
   createEmptyContentResult,
   createValidationResult,
-  mergeValidationErrors,
 } from './result-builder.js'
 
 /**
@@ -64,7 +63,7 @@ function validateJsonConfig(
 
   // Type-specific validation
   const validationErrors = getTypeSpecificErrors(data, filePath, type)
-  const allErrors = mergeValidationErrors(parseErrors, validationErrors)
+  const allErrors = [parseErrors, validationErrors].flat()
 
   return createValidationResult(
     allErrors,

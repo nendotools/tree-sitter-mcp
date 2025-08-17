@@ -5,7 +5,7 @@
 import type { TreeNode } from '../../../../../types/index.js'
 import type { LanguageEntryPoints, UsageAnalysisResult, ImportInfo } from '../types.js'
 import { BaseLanguageAnalyzer } from './base-language-analyzer.js'
-import { shouldSkipLargeFile, getFileSizeLimit, logLargeFileSkip } from '../../../../../utils/file-size-utils.js'
+import { shouldSkipLargeFile, getFileSizeLimit } from '../../../../../utils/file-size-utils.js'
 
 const PYTHON_ENTRY_POINTS: LanguageEntryPoints = {
   patterns: ['__main__', 'main', 'app', 'manage', 'run', 'cli'],
@@ -34,7 +34,6 @@ export class PythonAnalyzer extends BaseLanguageAnalyzer {
       // Skip very large files to prevent timeout
       const maxSize = getFileSizeLimit('deadcode')
       if (shouldSkipLargeFile(fileNode.content, maxSize)) {
-        logLargeFileSkip(fileNode.path, fileNode.content.length, maxSize)
         continue
       }
 

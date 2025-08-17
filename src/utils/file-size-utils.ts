@@ -31,10 +31,3 @@ export function getFileSizeLimit(operation: 'deadcode' | 'search' | 'analysis'):
       return FILE_SIZE_LIMITS.MEDIUM
   }
 }
-
-/**
- * Logs file size warnings for debugging
- */
-export function logLargeFileSkip(_filePath: string, _contentLength: number, _maxSize: number): void {
-  // File size logging removed - use logger utility for production logging
-}

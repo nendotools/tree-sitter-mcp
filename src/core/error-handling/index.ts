@@ -10,7 +10,6 @@ export { ERROR_CODES } from './error-codes.js'
 
 // Import classes for convenience functions
 import { UnifiedErrorHandler } from './unified-error-handler.js'
-import { ErrorReporter } from './error-reporter.js'
 
 // Types
 export type { ErrorCode } from './error-codes.js'
@@ -30,13 +29,6 @@ export {
  */
 export function getErrorHandler() {
   return UnifiedErrorHandler.getInstance()
-}
-
-/**
- * Convenience function to get the error reporter instance
- */
-export function getErrorReporter() {
-  return ErrorReporter.getInstance()
 }
 
 /**

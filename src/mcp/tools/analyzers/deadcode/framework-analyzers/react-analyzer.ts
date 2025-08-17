@@ -50,6 +50,51 @@ export class ReactAnalyzer extends BaseFrameworkAnalyzer {
     return usedFiles
   }
 
+  /**
+   * Detects React/Next.js specific entry points
+   */
+  detectEntryPoints(fileNodes: TreeNode[]): Array<{ path: string, type: 'framework_page' | 'framework_api', source: string }> {
+    const entryPoints: Array<{ path: string, type: 'framework_page' | 'framework_api', source: string }> = []
+
+    if (this.isNextJs) {
+      for (const node of fileNodes) {
+        // Next.js pages directory
+        if (node.path.includes('/pages/') && this.hasValidExtension(node.path)) {
+          entryPoints.push({
+            path: node.path,
+            type: node.path.includes('/api/') ? 'framework_api' : 'framework_page',
+            source: 'Next.js file-based routing',
+          })
+        }
+
+        // Next.js App Router
+        if (node.path.includes('/app/') && this.isAppRouterSpecialFile(node.path)) {
+          entryPoints.push({
+            path: node.path,
+            type: 'framework_page',
+            source: 'Next.js App Router',
+          })
+        }
+      }
+    }
+    else {
+      for (const node of fileNodes) {
+        // Common React entry points
+        if (node.path === 'src/main.tsx' || node.path === 'src/main.ts'
+          || node.path === 'src/index.tsx' || node.path === 'src/index.ts'
+          || node.path === 'src/App.tsx' || node.path === 'src/App.ts') {
+          entryPoints.push({
+            path: node.path,
+            type: 'framework_page',
+            source: 'React application entry point',
+          })
+        }
+      }
+    }
+
+    return entryPoints
+  }
+
   private analyzeNextJs(fileNodes: TreeNode[], usedFiles: Set<string>): void {
     for (const file of fileNodes) {
       if (!file.content) continue
@@ -162,5 +207,21 @@ export class ReactAnalyzer extends BaseFrameworkAnalyzer {
       }
       match = routeComponentRegex.exec(content)
     }
+  }
+
+  private hasValidExtension(path: string): boolean {
+    return path.endsWith('.js')
+      || path.endsWith('.ts')
+      || path.endsWith('.jsx')
+      || path.endsWith('.tsx')
+  }
+
+  private isAppRouterSpecialFile(path: string): boolean {
+    return path.endsWith('/page.tsx')
+      || path.endsWith('/layout.tsx')
+      || path.endsWith('/route.ts')
+      || path.endsWith('/page.jsx')
+      || path.endsWith('/layout.jsx')
+      || path.endsWith('/route.js')
   }
 }

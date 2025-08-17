@@ -16,7 +16,7 @@ export async function writeSearchOutput(
     await writeToFile(jsonOutput, outputFile, verbose)
   }
   else {
-    writeToStdout(jsonOutput)
+    process.stdout.write(jsonOutput + '\n')
   }
 }
 
@@ -37,13 +37,6 @@ export async function writeToFile(
   catch (error) {
     throw new Error(`Failed to write output to file: ${error instanceof Error ? error.message : String(error)}`)
   }
-}
-
-/**
- * Write JSON output to stdout
- */
-export function writeToStdout(jsonOutput: string): void {
-  process.stdout.write(jsonOutput + '\n')
 }
 
 /**

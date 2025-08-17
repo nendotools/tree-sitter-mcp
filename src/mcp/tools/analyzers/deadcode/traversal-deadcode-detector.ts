@@ -12,6 +12,7 @@ import type { TreeNode, AnalysisResult } from '../../../../types/index.js'
 import { BaseAnalyzer } from '../base-analyzer.js'
 import { BarrelExportAnalyzer, type BarrelGroup } from './barrel-export-analyzer.js'
 import { ImportResolver } from '../../../../core/import-resolution/index.js'
+import { FrameworkManager } from './framework-analyzers/framework-manager.js'
 
 interface EntryPoint {
   path: string
@@ -320,9 +321,23 @@ export class TraversalDeadCodeDetector extends BaseAnalyzer {
   }
 
   private detectFrameworkEntryPoints(fileNodes: TreeNode[]): EntryPoint[] {
-    const entryPoints: EntryPoint[] = []
+    // Get detected frameworks from package.json
+    const detectedFrameworks = this.getDetectedFrameworks(fileNodes)
 
-    // Get detected frameworks from package.json (prefer root package.json over build outputs)
+    // Parse framework configurations to get custom directory structures
+    const frameworkConfigs = this.parseFrameworkConfigs(fileNodes, detectedFrameworks)
+
+    // Use framework manager to delegate entry point detection
+    const frameworkManager = new FrameworkManager(fileNodes, detectedFrameworks)
+    const frameworkEntryPoints = frameworkManager.detectFrameworkEntryPoints(fileNodes, frameworkConfigs)
+
+    return frameworkEntryPoints
+  }
+
+  /**
+   * Extract package.json parsing logic into reusable helper
+   */
+  private getDetectedFrameworks(fileNodes: TreeNode[]): string[] {
     const packageJsonNodes = fileNodes.filter(node =>
       node.path === 'package.json' || node.path.endsWith('/package.json'),
     )
@@ -333,161 +348,18 @@ export class TraversalDeadCodeDetector extends BaseAnalyzer {
       || (!node.path.includes('/.output/') && !node.path.includes('/dist/') && !node.path.includes('/build/')),
     ) || packageJsonNodes[0]
 
-    let detectedFrameworks: string[] = []
-    if (packageJson?.content) {
-      try {
-        const pkg = JSON.parse(packageJson.content) as any
-        detectedFrameworks = this.detectFrameworks(pkg)
-      }
-      catch {
-        // Ignore parsing errors
-      }
+    if (!packageJson?.content) {
+      return []
     }
 
-    // Parse framework configurations to get custom directory structures
-    const frameworkConfigs = this.parseFrameworkConfigs(fileNodes, detectedFrameworks)
-
-    // Framework-specific entry point detection
-    for (const node of fileNodes) {
-      // Next.js (only if Next.js is detected)
-      if (detectedFrameworks.includes('nextjs')) {
-        // Next.js pages directory
-        if (node.path.includes('/pages/') && (node.path.endsWith('.js') || node.path.endsWith('.ts') || node.path.endsWith('.jsx') || node.path.endsWith('.tsx'))) {
-          entryPoints.push({
-            path: node.path,
-            type: node.path.includes('/api/') ? 'framework_api' : 'framework_page',
-            source: 'Next.js file-based routing',
-          })
-        }
-
-        // Next.js App Router
-        if (node.path.includes('/app/') && (node.path.endsWith('/page.tsx') || node.path.endsWith('/layout.tsx') || node.path.endsWith('/route.ts'))) {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_page',
-            source: 'Next.js App Router',
-          })
-        }
-      }
-
-      // React (Vite/CRA entry points)
-      if (detectedFrameworks.includes('react')) {
-        // Common React entry points
-        if (node.path === 'src/main.tsx' || node.path === 'src/main.ts'
-          || node.path === 'src/index.tsx' || node.path === 'src/index.ts'
-          || node.path === 'src/App.tsx' || node.path === 'src/App.ts') {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_page',
-            source: 'React application entry point',
-          })
-        }
-      }
-
-      // Vue.js
-      if (detectedFrameworks.includes('vue')) {
-        if (node.path === 'src/main.js' || node.path === 'src/main.ts'
-          || node.path === 'src/App.vue') {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_page',
-            source: 'Vue.js application entry point',
-          })
-        }
-      }
-
-      // Svelte/SvelteKit
-      if (detectedFrameworks.includes('svelte')) {
-        if (node.path === 'src/app.html' || node.path === 'src/main.js'
-          || (node.path.includes('/routes/') && node.path.endsWith('.svelte'))) {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_page',
-            source: 'Svelte application entry point',
-          })
-        }
-      }
-
-      // Nuxt.js (using config-aware directories)
-      if (detectedFrameworks.includes('nuxt')) {
-        const nuxtConfig = frameworkConfigs.nuxt
-        const dirs = nuxtConfig?.dirs || {
-          pages: 'pages',
-          layouts: 'layouts',
-          middleware: 'middleware',
-          plugins: 'plugins',
-          composables: 'composables',
-          serverApi: 'server/api',
-        }
-
-        // Pages (file-based routing)
-        if (node.path.includes(`/${dirs.pages}/`) && (node.path.endsWith('.vue') || node.path.endsWith('.ts') || node.path.endsWith('.js'))) {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_page',
-            source: 'Nuxt.js file-based routing',
-          })
-        }
-        // Layouts
-        if (node.path.includes(`/${dirs.layouts}/`) && (node.path.endsWith('.vue') || node.path.endsWith('.ts') || node.path.endsWith('.js'))) {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_page',
-            source: 'Nuxt.js layout',
-          })
-        }
-        // Plugins
-        if (node.path.includes(`/${dirs.plugins}/`) && (node.path.endsWith('.ts') || node.path.endsWith('.js') || node.path.endsWith('.vue'))) {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_page',
-            source: 'Nuxt.js plugin',
-          })
-        }
-        // Middleware
-        if (node.path.includes(`/${dirs.middleware}/`) && (node.path.endsWith('.ts') || node.path.endsWith('.js'))) {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_page',
-            source: 'Nuxt.js middleware',
-          })
-        }
-        // Composables (auto-imported)
-        if (node.path.includes(`/${dirs.composables}/`) && (node.path.endsWith('.ts') || node.path.endsWith('.js'))) {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_page',
-            source: 'Nuxt.js composable (auto-imported)',
-          })
-        }
-        // Server API routes
-        if (node.path.includes(`/${dirs.serverApi}/`) && (node.path.endsWith('.ts') || node.path.endsWith('.js'))) {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_api',
-            source: 'Nuxt.js server API route',
-          })
-        }
-        // App.vue
-        if (node.path.endsWith('/app.vue') || node.path === 'app.vue') {
-          entryPoints.push({
-            path: node.path,
-            type: 'framework_page',
-            source: 'Nuxt.js App.vue entry point',
-          })
-        }
-        // Nuxt config
-        if (node.path.endsWith('/nuxt.config.ts') || node.path.endsWith('/nuxt.config.js') || node.path === 'nuxt.config.ts' || node.path === 'nuxt.config.js') {
-          entryPoints.push({
-            path: node.path,
-            type: 'config_file',
-            source: 'Nuxt.js configuration',
-          })
-        }
-      }
+    try {
+      const pkg = JSON.parse(packageJson.content) as any
+      return this.detectFrameworks(pkg)
     }
-
-    return entryPoints
+    catch {
+      // Ignore parsing errors
+      return []
+    }
   }
 
   private detectTestEntryPoints(_fileNodes: TreeNode[]): EntryPoint[] {
@@ -498,24 +370,8 @@ export class TraversalDeadCodeDetector extends BaseAnalyzer {
   private detectConfigEntryPoints(fileNodes: TreeNode[]): EntryPoint[] {
     const entryPoints: EntryPoint[] = []
 
-    // Get detected frameworks to enhance config detection
-    // Find the root package.json first (shortest path = closest to project root)
-    const packageJsonFiles = fileNodes.filter(node =>
-      node.path === 'package.json' || node.path.endsWith('/package.json'),
-    ).sort((a, b) => a.path.length - b.path.length) // Shortest path first (root)
-
-    const packageJson = packageJsonFiles[0] // Use the root package.json
-
-    let detectedFrameworks: string[] = []
-    if (packageJson?.content) {
-      try {
-        const pkg = JSON.parse(packageJson.content) as any
-        detectedFrameworks = this.detectFrameworks(pkg)
-      }
-      catch {
-        // Ignore parsing errors
-      }
-    }
+    // Get detected frameworks using the extracted helper
+    const detectedFrameworks = this.getDetectedFrameworks(fileNodes)
 
     // Base config patterns (always check these)
     const baseConfigPatterns = [
