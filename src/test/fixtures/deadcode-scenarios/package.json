@@ -5,5 +5,5 @@
     "react": "^18.0.0",
     "next": "^13.0.0"
   },
-  "main": "index.ts"
+  "main": "main-app.ts"
 }

@@ -1,0 +1,8 @@
+{
+  "name": "barrel-unused-fixture",
+  "version": "1.0.0",
+  "main": "app.tsx",
+  "dependencies": {
+    "react": "^18.0.0"
+  }
+}

@@ -11,6 +11,7 @@
 import type { TreeNode, AnalysisResult } from '../../../../types/index.js'
 import { BaseAnalyzer } from '../base-analyzer.js'
 import { BarrelExportAnalyzer, type BarrelGroup } from './barrel-export-analyzer.js'
+import { ImportResolver } from '../../../../core/import-resolution/index.js'
 
 interface EntryPoint {
   path: string
@@ -28,13 +29,18 @@ interface DependencyGraph {
 
 export class TraversalDeadCodeDetector extends BaseAnalyzer {
   private barrelAnalyzer: BarrelExportAnalyzer
+  private importResolver: ImportResolver
 
   constructor() {
     super()
     this.barrelAnalyzer = new BarrelExportAnalyzer()
+    this.importResolver = new ImportResolver()
   }
 
   async analyze(fileNodes: TreeNode[], result: AnalysisResult): Promise<void> {
+    // Initialize import resolver with available files
+    this.importResolver.initialize(fileNodes)
+
     // Step 1: Build comprehensive entry point list
     const entryPoints = this.detectAllEntryPoints(fileNodes)
 
@@ -591,8 +597,8 @@ export class TraversalDeadCodeDetector extends BaseAnalyzer {
     for (const fileNode of fileNodes) {
       if (fileNode.type !== 'file') continue
 
-      // Use AST import data
-      const importedFiles = this.resolveImportsFromAST(fileNode, fileNodes)
+      // Use unified import resolver
+      const importedFiles = this.importResolver.resolveImportsFromAST(fileNode)
       dependencyMap.set(fileNode.path, importedFiles)
     }
 
@@ -605,213 +611,7 @@ export class TraversalDeadCodeDetector extends BaseAnalyzer {
     }
   }
 
-  /**
-   * Use the already-parsed AST import data (static imports only)
-   */
-  private resolveImportsFromAST(fileNode: TreeNode, allFileNodes: TreeNode[]): string[] {
-    if (!fileNode.imports) {
-      return []
-    }
-
-    const resolvedImports: string[] = []
-    const fileMap = new Map(allFileNodes.map(node => [node.path, node]))
-
-    // Debug specific imports (disabled for production)
-    // if (fileNode.path === 'src/cli.ts' || fileNode.path === 'src/mcp/server.ts') {
-    //   console.log(`🔍 ${fileNode.path} imports: [${fileNode.imports.join(', ')}]`)
-    // }
-
-    for (const importPath of fileNode.imports) {
-      // Handle relative imports
-      if (importPath.startsWith('.')) {
-        const resolved = this.resolveRelativeImport(importPath, fileNode.path, allFileNodes)
-        if (resolved) {
-          resolvedImports.push(resolved)
-        }
-      }
-      // Handle alias imports (@/, ~/, etc.)
-      else if (importPath.startsWith('@/') || importPath.startsWith('~/') || importPath.startsWith('#/')) {
-        const resolved = this.resolveAliasImport(importPath, allFileNodes)
-        if (resolved) {
-          resolvedImports.push(resolved)
-        }
-      }
-      // For absolute imports, check if they exist in our codebase
-      else if (fileMap.has(importPath)) {
-        resolvedImports.push(importPath)
-      }
-      // Skip external imports (node_modules, etc.)
-    }
-
-    // Debug final imports (disabled for production)
-    // if (fileNode.path === 'src/cli.ts' || fileNode.path === 'src/mcp/server.ts') {
-    //   console.log(`🔍 ${fileNode.path} final resolved imports: [${resolvedImports.join(', ')}]`)
-    // }
-
-    return resolvedImports
-  }
-
-  private resolveRelativeImport(importPath: string, currentFile: string, allFileNodes: TreeNode[]): string | null {
-    const currentDir = currentFile.substring(0, currentFile.lastIndexOf('/'))
-
-    // Build resolved path
-    const parts = currentDir.split('/')
-    const importParts = importPath.split('/')
-
-    for (const part of importParts) {
-      if (part === '..') {
-        parts.pop()
-      }
-      else if (part !== '.') {
-        parts.push(part)
-      }
-    }
-
-    const basePath = parts.join('/')
-
-    // Handle TypeScript .js convention first (import './file.js' → look for file.ts)
-    if (basePath.endsWith('.js')) {
-      const baseWithoutExt = basePath.slice(0, -3)
-      const tsCandidate = baseWithoutExt + '.ts'
-      if (allFileNodes.some(node => node.path === tsCandidate)) {
-        return tsCandidate
-      }
-      const tsxCandidate = baseWithoutExt + '.tsx'
-      if (allFileNodes.some(node => node.path === tsxCandidate)) {
-        return tsxCandidate
-      }
-      // If no TS equivalent found, continue with original path
-    }
-
-    // Try different extensions
-    const extensions = ['.js', '.ts', '.tsx', '.jsx', '.mjs', '.cjs', '']
-    for (const ext of extensions) {
-      const candidate = basePath + ext
-
-      if (allFileNodes.some(node => node.path === candidate)) {
-        return candidate
-      }
-
-      // Try index file in directory
-      const indexCandidate = basePath + '/index' + ext
-      if (allFileNodes.some(node => node.path === indexCandidate)) {
-        return indexCandidate
-      }
-    }
-
-    return null
-  }
-
-  /**
-   * Resolves alias imports like @/, ~/, #/ to actual file paths
-   */
-  private resolveAliasImport(importPath: string, allFileNodes: TreeNode[]): string | null {
-    let resolved: string
-
-    // Handle alias imports (most common patterns)
-    if (importPath.startsWith('@/')) {
-      // @/ -> client/src/ (most common pattern)
-      resolved = `client/src/${importPath.slice(2)}`
-    }
-    else if (importPath.startsWith('~/')) {
-      // ~/ -> project root or src/ (Nuxt.js pattern)
-      // Try src/ first, then project root
-      const srcCandidate = `client/src/${importPath.slice(2)}`
-      const rootCandidate = `client/${importPath.slice(2)}`
-
-      if (this.findFileWithExtensions(srcCandidate, allFileNodes)) {
-        resolved = srcCandidate
-      }
-      else if (this.findFileWithExtensions(rootCandidate, allFileNodes)) {
-        resolved = rootCandidate
-      }
-      else {
-        resolved = srcCandidate // Default to src/
-      }
-    }
-    else if (importPath.startsWith('#/')) {
-      // #/ -> client/src/ (package.json imports pattern)
-      resolved = `client/src/${importPath.slice(2)}`
-    }
-    else if (importPath.includes('/') && !importPath.startsWith('./') && !importPath.startsWith('../')) {
-      // Handle other custom aliases (try common patterns)
-      // For paths like "components/ui/button", try resolving from src/
-      resolved = `client/src/${importPath}`
-    }
-    else {
-      return null
-    }
-
-    // Try finding the file with various extensions and index patterns
-    return this.findFileWithExtensions(resolved, allFileNodes)
-  }
-
-  /**
-   * Tries to find a file with all possible JS/TS import variations
-   * Handles: '/item.js', '/item.ts', '/item', '/item/index.js', etc.
-   */
-  private findFileWithExtensions(basePath: string, allFileNodes: TreeNode[]): string | null {
-    // Try exact match first
-    if (allFileNodes.some(node => node.path === basePath)) {
-      return basePath
-    }
-
-    // Common extensions in priority order (most specific first)
-    const extensions = ['.ts', '.tsx', '.js', '.jsx', '.vue', '.mjs', '.cjs', '.json']
-
-    // 1. Try adding extensions to the base path
-    for (const ext of extensions) {
-      const candidate = basePath + ext
-      if (allFileNodes.some(node => node.path === candidate)) {
-        return candidate
-      }
-    }
-
-    // 2. If base path ends with .js, try .ts equivalent (TypeScript convention)
-    if (basePath.endsWith('.js')) {
-      const baseWithoutExt = basePath.slice(0, -3)
-      const tsCandidate = baseWithoutExt + '.ts'
-      if (allFileNodes.some(node => node.path === tsCandidate)) {
-        return tsCandidate
-      }
-      const tsxCandidate = baseWithoutExt + '.tsx'
-      if (allFileNodes.some(node => node.path === tsxCandidate)) {
-        return tsxCandidate
-      }
-    }
-
-    // 3. If base path ends with any extension, try without it
-    const lastDot = basePath.lastIndexOf('.')
-    if (lastDot > basePath.lastIndexOf('/')) { // Make sure it's a file extension, not a directory with dots
-      const baseWithoutExt = basePath.substring(0, lastDot)
-
-      // Try the extensionless version as a directory with index files
-      for (const ext of extensions) {
-        const indexCandidate = baseWithoutExt + '/index' + ext
-        if (allFileNodes.some(node => node.path === indexCandidate)) {
-          return indexCandidate
-        }
-      }
-
-      // Try other extensions on the base name
-      for (const ext of extensions) {
-        const candidate = baseWithoutExt + ext
-        if (allFileNodes.some(node => node.path === candidate)) {
-          return candidate
-        }
-      }
-    }
-
-    // 4. Try index files in the directory (if basePath could be a directory)
-    for (const ext of extensions) {
-      const indexCandidate = basePath + '/index' + ext
-      if (allFileNodes.some(node => node.path === indexCandidate)) {
-        return indexCandidate
-      }
-    }
-
-    return null
-  }
+  // Import resolution methods removed - now handled by unified ImportResolver
 
   /**
    * Step 3: Traverse from entry points to find all reachable files

@@ -35,6 +35,12 @@ export default ts.config(
     },
   },
   {
+    files: ['src/test/**/*.{js,mjs,cjs,ts}', 'src/utils/logger.ts'],
+    rules: {
+      'no-console': 'off', // Allow console.log in test files and logger
+    },
+  },
+  {
     ignores: [
       'dist/',
       'node_modules/',

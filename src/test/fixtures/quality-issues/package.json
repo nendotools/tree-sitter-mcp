@@ -2,7 +2,7 @@
   "name": "test-project",
   "version": "not-a-semver",
   "description": "",
-  "main": "index.js",
+  "main": "test-consumer.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

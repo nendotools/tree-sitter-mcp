@@ -1,0 +1,8 @@
+{
+  "name": "component-hierarchy-fixture",
+  "version": "1.0.0",
+  "main": "pages/Home.tsx",
+  "dependencies": {
+    "react": "^18.0.0"
+  }
+}

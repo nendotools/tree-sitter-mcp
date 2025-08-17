@@ -151,7 +151,6 @@ export class ConsoleLogger implements Logger {
 
   debug(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LOG_LEVELS.DEBUG)) {
-      // eslint-disable-next-line no-console
       console.debug(this.format(LOG_LEVELS.DEBUG, message), ...args)
       this.writeToFile(LOG_LEVELS.DEBUG, message, ...args)
     }
@@ -159,7 +158,6 @@ export class ConsoleLogger implements Logger {
 
   verbose(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LOG_LEVELS.VERBOSE)) {
-      // eslint-disable-next-line no-console
       console.log(this.format(LOG_LEVELS.VERBOSE, message), ...args)
       this.writeToFile(LOG_LEVELS.VERBOSE, message, ...args)
     }
