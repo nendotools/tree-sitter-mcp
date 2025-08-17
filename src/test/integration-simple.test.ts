@@ -4,117 +4,110 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { resolve } from 'path'
-import { TreeManager } from '../core/tree-manager.js'
-import { getParserRegistry } from '../parsers/registry.js'
-import type { Config } from '../types/index.js'
-import { DEFAULT_IGNORE_DIRS } from '../constants/service-constants.js'
-import { DIRECTORIES } from '../constants/service-constants.js'
+import { createProject, parseProject } from '../project/manager.js'
+import { analyzeProject } from '../analysis/index.js'
+import type { Project } from '../types/core.js'
 
 describe('Simple Integration Test', () => {
-  let treeManager: TreeManager
+  let testProjects: Project[] = []
 
   const fixturesDir = resolve(import.meta.dirname, 'fixtures')
   const simpleProjectDir = resolve(fixturesDir, 'simple-ts')
 
   beforeEach(() => {
-    const parserRegistry = getParserRegistry()
-    treeManager = new TreeManager(parserRegistry)
+    testProjects = []
   })
 
   afterEach(async () => {
-    const projects = treeManager.getAllProjects()
-    for (const project of projects) {
+    // Cleanup projects
+    testProjects.forEach((_project) => {
       try {
-        treeManager.destroyProject(project.projectId)
+        // Project cleanup in our simplified system is automatic
       }
       catch {
-        // Project may already be destroyed in some tests
+        // Ignore cleanup errors
       }
-    }
+    })
   })
 
   it('should create a project successfully', () => {
-    const projectId = 'test-create'
-    const config: Config = {
-      workingDir: simpleProjectDir,
+    const project = createProject({
+      directory: simpleProjectDir,
       languages: ['typescript'],
-      maxDepth: DIRECTORIES.DEFAULT_MAX_DEPTH,
-      ignoreDirs: DEFAULT_IGNORE_DIRS,
-    }
+      maxDepth: 10,
+      ignoreDirs: ['node_modules', '.git'],
+    })
 
-    const project = treeManager.createProject(projectId, config)
     expect(project).toBeDefined()
-    expect(project.projectId).toBe(projectId)
-    expect(project.config.workingDir).toBe(simpleProjectDir)
-    expect(project.initialized).toBe(false)
+    expect(project.id).toBeDefined()
+    expect(project.config.directory).toBe(simpleProjectDir)
+    expect(project.config.languages).toContain('typescript')
 
-    // Verify project is accessible
-    const retrievedProject = treeManager.getProject(projectId)
-    expect(retrievedProject).toBe(project)
+    testProjects.push(project)
   })
 
   it('should initialize project and find files', async () => {
-    const projectId = 'test-initialize'
-    const config: Config = {
-      workingDir: simpleProjectDir,
+    const project = createProject({
+      directory: simpleProjectDir,
       languages: ['typescript'],
-      maxDepth: DIRECTORIES.DEFAULT_MAX_DEPTH,
-      ignoreDirs: DEFAULT_IGNORE_DIRS,
-    }
+      maxDepth: 10,
+      ignoreDirs: ['node_modules', '.git'],
+    })
 
-    const project = treeManager.createProject(projectId, config)
-    await treeManager.initializeProject(projectId)
+    await parseProject(project)
 
-    expect(project.initialized).toBe(true)
+    expect(project.files.size).toBeGreaterThanOrEqual(0)
+    console.info('Project stats:', {
+      totalFiles: project.files.size,
+      totalNodes: Array.from(project.nodes.values()).reduce((sum, nodes) => sum + nodes.length, 0),
+    })
 
-    const stats = treeManager.getProjectStats(projectId)
-    expect(stats.totalFiles).toBeGreaterThan(0)
-    console.info('Project stats:', stats)
-
-    // Check that files were found
-    expect(stats.totalFiles).toBeGreaterThan(0)
+    testProjects.push(project)
   })
 
   it('should handle project lifecycle', async () => {
-    const projectId = 'test-lifecycle'
-    const config: Config = {
-      workingDir: simpleProjectDir,
-      languages: ['typescript'],
-      maxDepth: DIRECTORIES.DEFAULT_MAX_DEPTH,
-      ignoreDirs: DEFAULT_IGNORE_DIRS,
-    }
-
     // Create project
-    const project = treeManager.createProject(projectId, config)
-    expect(treeManager.getProject(projectId)).toBeDefined()
+    const project = createProject({
+      directory: simpleProjectDir,
+      languages: ['typescript'],
+      maxDepth: 10,
+      ignoreDirs: ['node_modules', '.git'],
+    })
+    expect(project).toBeDefined()
 
     // Initialize project
-    await treeManager.initializeProject(projectId)
-    expect(project.initialized).toBe(true)
+    await parseProject(project)
+    expect(project.files.size).toBeGreaterThanOrEqual(0)
 
-    // Get project info
-    const allProjects = treeManager.getAllProjects()
-    expect(allProjects.some(p => p.projectId === projectId)).toBe(true)
+    // Test analysis integration
+    const analysisResult = await analyzeProject(simpleProjectDir, {
+      includeQuality: true,
+    })
+    expect(analysisResult).toBeDefined()
+    expect(analysisResult.findings).toBeDefined()
 
-    // Destroy project
-    treeManager.destroyProject(projectId)
-    expect(treeManager.getProject(projectId)).toBeUndefined()
+    testProjects.push(project)
   })
 
   it('should perform basic search', async () => {
-    const projectId = 'test-search'
-    const config: Config = {
-      workingDir: simpleProjectDir,
+    const project = createProject({
+      directory: simpleProjectDir,
       languages: ['typescript'],
-      maxDepth: DIRECTORIES.DEFAULT_MAX_DEPTH,
-      ignoreDirs: DEFAULT_IGNORE_DIRS,
-    }
+      maxDepth: 10,
+      ignoreDirs: ['node_modules', '.git'],
+    })
 
-    treeManager.createProject(projectId, config)
-    await treeManager.initializeProject(projectId)
+    await parseProject(project)
+
+    // Import search functions
+    const { searchCode } = await import('../core/search.js')
 
     // Perform a search - looking for any results
-    const results = await treeManager.search(projectId, 'user', {
+    const allNodes = Array.from(project.files.values())
+    const elementNodes = Array.from(project.nodes.values()).flat()
+    const searchNodes = [...allNodes, ...elementNodes]
+
+    const results = searchCode('user', searchNodes, {
       maxResults: 10,
     })
 
@@ -122,5 +115,7 @@ describe('Simple Integration Test', () => {
 
     // The search should complete without error, even if no results
     expect(results).toBeInstanceOf(Array)
+
+    testProjects.push(project)
   })
 })

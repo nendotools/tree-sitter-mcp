@@ -1,51 +1,105 @@
 /**
- * MCP Server implementation for Tree-Sitter service
+ * Simplified MCP server - streamlined from complex server implementation
  */
 
+import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
-  CallToolRequestSchema,
   ListToolsRequestSchema,
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 
-import type { Config } from '../types/index.js'
-import {
-  createMCPServerLogger,
-  createServerComponents,
-  createToolSchemas,
-  createToolRequestHandler,
-  setupSignalHandlers,
-} from './server/index.js'
+import { handleToolRequest } from './handlers.js'
+import { MCP_TOOLS, MCP_RESOURCES } from './schemas.js'
+import { getLogger } from '../utils/logger.js'
+import { handleError } from '../utils/errors.js'
+import type { JsonObject } from '../types/core.js'
 
-export async function startMCPServer(_config: Config): Promise<void> {
-  // Initialize logger with debug configuration
-  const logger = await createMCPServerLogger()
+/**
+ * Starts the MCP server with stdio transport
+ */
+export async function startMCPServer(): Promise<void> {
+  const logger = getLogger()
 
-  // Create server components (TreeManager, FileWatcher, Server)
-  const { server, treeManager, fileWatcher } = createServerComponents()
+  try {
+    const server = new Server(
+      {
+        name: 'tree-sitter-mcp',
+        version: '1.0.0',
+      },
+      {
+        capabilities: {
+          resources: {},
+          tools: {},
+        },
+      },
+    )
 
-  // Set up tool schemas
-  const toolSchemas = createToolSchemas()
-  server.setRequestHandler(ListToolsRequestSchema, () => {
-    return {
-      tools: toolSchemas,
-    }
-  })
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: MCP_TOOLS,
+    }))
 
-  // Set up tool request handler
-  const toolRequestHandler = createToolRequestHandler({
-    treeManager,
-    fileWatcher,
-    logger,
-  })
-  server.setRequestHandler(CallToolRequestSchema, toolRequestHandler)
+    server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      try {
+        const toolRequest = {
+          ...request,
+          params: {
+            ...request.params,
+            arguments: request.params.arguments as JsonObject,
+          },
+        }
+        return await handleToolRequest(toolRequest)
+      }
+      catch (error) {
+        logger.error('Tool request failed:', error)
+        throw handleError(error, `Tool request failed: ${request.params.name}`)
+      }
+    })
 
-  // Set up signal handlers for graceful shutdown
-  setupSignalHandlers(server, fileWatcher, logger)
+    server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+      resources: MCP_RESOURCES,
+    }))
 
-  // Start the server
-  const transport = new StdioServerTransport()
-  logger.info('Starting Tree-Sitter MCP server...')
-  await server.connect(transport)
-  logger.info('MCP server started successfully')
+    server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      try {
+        const uri = request.params.uri
+
+        if (uri.startsWith('analysis://')) {
+          const projectPath = uri.replace('analysis://', '')
+          const { analyzeProject } = await import('../analysis/index.js')
+
+          const result = await analyzeProject(projectPath, {
+            includeQuality: true,
+            includeDeadcode: true,
+            includeStructure: true,
+          })
+
+          return {
+            contents: [{
+              uri,
+              mimeType: 'application/json',
+              text: JSON.stringify(result, null, 2),
+            }],
+          }
+        }
+
+        throw new Error(`Unknown resource: ${uri}`)
+      }
+      catch (error) {
+        logger.error('Resource request failed:', error)
+        throw handleError(error, `Resource request failed: ${request.params.uri}`)
+      }
+    })
+
+    const transport = new StdioServerTransport()
+    await server.connect(transport)
+
+    logger.info('MCP server started successfully')
+  }
+  catch (error) {
+    logger.error('Failed to start MCP server:', error)
+    throw handleError(error, 'Failed to start MCP server')
+  }
 }
