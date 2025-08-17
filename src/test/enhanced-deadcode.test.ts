@@ -20,9 +20,9 @@ describe('Enhanced Dead Code Analyzer - Real Detection Scenarios', () => {
   const getFileNodes = (projectId: string) => {
     const project = treeManager.getProject(projectId)
     if (!project) throw new Error(`Project ${projectId} not found`)
-    
-    return Array.from(project.fileIndex.values()).filter(node => 
-      node && node.type === 'file' && node.content
+
+    return Array.from(project.fileIndex.values()).filter(node =>
+      node && node.type === 'file' && node.content,
     )
   }
 
@@ -30,17 +30,18 @@ describe('Enhanced Dead Code Analyzer - Real Detection Scenarios', () => {
   const ensureDir = async (dirPath: string) => {
     try {
       await mkdir(dirPath, { recursive: true })
-    } catch (error) {
+    }
+    catch {
       // Directory might already exist, ignore error
     }
   }
 
   beforeEach(async () => {
     treeManager = new TreeManager(getParserRegistry())
-    
+
     // Create temporary test directory
     testDir = await mkdtemp(join(tmpdir(), 'deadcode-test-'))
-    
+
     testConfig = {
       workingDir: testDir,
       languages: ['typescript', 'javascript', 'tsx', 'json'],
@@ -55,11 +56,12 @@ describe('Enhanced Dead Code Analyzer - Real Detection Scenarios', () => {
     for (const project of projects) {
       try {
         treeManager.destroyProject(project.projectId)
-      } catch {
+      }
+      catch {
         // Project may already be destroyed
       }
     }
-    
+
     // Clean up test directory
     if (testDir) {
       await rm(testDir, { recursive: true, force: true })
@@ -118,8 +120,8 @@ export const App = () => {
         metrics: { deadCode: { orphanedFiles: 0, unusedExports: 0, unusedDependencies: 0 } },
         summary: {
           totalIssues: 0,
-          severityBreakdown: { info: 0, warning: 0, critical: 0 }
-        }
+          severityBreakdown: { info: 0, warning: 0, critical: 0 },
+        },
       }
 
       const coordinator = new DeadCodeCoordinator()
@@ -128,11 +130,11 @@ export const App = () => {
       // Verify results
       expect(analysisResult.findings.length).toBeGreaterThan(0)
       expect(analysisResult.metrics.deadCode?.unusedExports).toBeGreaterThan(0)
-      
+
       // Should detect unused exports from index.ts
       const unusedExports = analysisResult.findings.filter(f => f.category === 'unused_export')
       expect(unusedExports.length).toBeGreaterThan(0)
-      
+
       // Should detect exports like Button, ButtonProps, buttonVariants
       const indexExports = unusedExports.filter(f => f.location.includes('index.ts'))
       expect(indexExports.length).toBeGreaterThan(0)
@@ -183,8 +185,8 @@ export const App = () => {
         metrics: { deadCode: { orphanedFiles: 0, unusedExports: 0, unusedDependencies: 0 } },
         summary: {
           totalIssues: 0,
-          severityBreakdown: { info: 0, warning: 0, critical: 0 }
-        }
+          severityBreakdown: { info: 0, warning: 0, critical: 0 },
+        },
       }
 
       const coordinator = new DeadCodeCoordinator()
@@ -193,10 +195,10 @@ export const App = () => {
       // Verify orphaned files are detected
       expect(analysisResult.findings.length).toBeGreaterThan(0)
       expect(analysisResult.metrics.deadCode?.orphanedFiles).toBeGreaterThan(0)
-      
+
       const orphanedFiles = analysisResult.findings.filter(f => f.category === 'orphaned_file')
       expect(orphanedFiles.length).toBeGreaterThanOrEqual(2) // UnusedModal.tsx and UnusedCard.tsx
-      
+
       const modalOrphaned = orphanedFiles.some(f => f.location.includes('UnusedModal.tsx'))
       const cardOrphaned = orphanedFiles.some(f => f.location.includes('UnusedCard.tsx'))
       expect(modalOrphaned).toBe(true)
@@ -257,8 +259,8 @@ export const app = {
         metrics: { deadCode: { orphanedFiles: 0, unusedExports: 0, unusedDependencies: 0 } },
         summary: {
           totalIssues: 0,
-          severityBreakdown: { info: 0, warning: 0, critical: 0 }
-        }
+          severityBreakdown: { info: 0, warning: 0, critical: 0 },
+        },
       }
 
       const coordinator = new DeadCodeCoordinator()
@@ -266,12 +268,12 @@ export const app = {
 
       // Verify API dead code detection
       expect(analysisResult.findings.length).toBeGreaterThan(0)
-      
+
       // Should detect games-api.ts as orphaned
       const orphanedFiles = analysisResult.findings.filter(f => f.category === 'orphaned_file')
       const gamesApiOrphaned = orphanedFiles.some(f => f.location.includes('games-api.ts'))
       expect(gamesApiOrphaned).toBe(true)
-      
+
       // Should detect unused exports from users-api.ts
       const unusedExports = analysisResult.findings.filter(f => f.category === 'unused_export')
       const unusedUserExports = unusedExports.filter(f => f.location.includes('users-api.ts'))
@@ -285,7 +287,7 @@ export const app = {
       await ensureDir(join(testDir, 'components', 'layout'))
       await ensureDir(join(testDir, 'components', 'ui'))
       await ensureDir(join(testDir, 'pages'))
-      
+
       await writeFile(join(testDir, 'components', 'layout', 'Header.tsx'), `
 import React from 'react'
 
@@ -334,8 +336,8 @@ export const HomePage = () => (
         metrics: { deadCode: { orphanedFiles: 0, unusedExports: 0, unusedDependencies: 0 } },
         summary: {
           totalIssues: 0,
-          severityBreakdown: { info: 0, warning: 0, critical: 0 }
-        }
+          severityBreakdown: { info: 0, warning: 0, critical: 0 },
+        },
       }
 
       const coordinator = new DeadCodeCoordinator()
@@ -343,17 +345,17 @@ export const HomePage = () => (
 
       // Verify mixed usage detection
       expect(analysisResult.findings.length).toBeGreaterThan(0)
-      
+
       const unusedExports = analysisResult.findings.filter(f => f.category === 'unused_export')
-      
+
       // Should detect HeaderSubtitle and IconButton as unused
-      const headerSubtitleUnused = unusedExports.some(f => 
-        f.location.includes('Header.tsx') && f.description.includes('HeaderSubtitle')
+      const headerSubtitleUnused = unusedExports.some(f =>
+        f.location.includes('Header.tsx') && f.description.includes('HeaderSubtitle'),
       )
-      const iconButtonUnused = unusedExports.some(f => 
-        f.location.includes('Button.tsx') && f.description.includes('IconButton')
+      const iconButtonUnused = unusedExports.some(f =>
+        f.location.includes('Button.tsx') && f.description.includes('IconButton'),
       )
-      
+
       expect(headerSubtitleUnused).toBe(true)
       expect(iconButtonUnused).toBe(true)
     })
@@ -364,13 +366,13 @@ export const HomePage = () => (
       // Create Next.js-style structure
       await ensureDir(join(testDir, 'pages', 'api'))
       await ensureDir(join(testDir, 'components'))
-      
+
       await writeFile(join(testDir, 'package.json'), JSON.stringify({
         name: 'test-app',
         dependencies: {
           next: '^13.0.0',
-          react: '^18.0.0'
-        }
+          react: '^18.0.0',
+        },
       }))
 
       await writeFile(join(testDir, 'next.config.js'), `
@@ -428,8 +430,8 @@ export const AdminCard = () => <div>Admin Card</div>
         metrics: { deadCode: { orphanedFiles: 0, unusedExports: 0, unusedDependencies: 0 } },
         summary: {
           totalIssues: 0,
-          severityBreakdown: { info: 0, warning: 0, critical: 0 }
-        }
+          severityBreakdown: { info: 0, warning: 0, critical: 0 },
+        },
       }
 
       const coordinator = new DeadCodeCoordinator()
@@ -437,17 +439,17 @@ export const AdminCard = () => <div>Admin Card</div>
 
       // Verify framework-aware detection
       const orphanedFiles = analysisResult.findings.filter(f => f.category === 'orphaned_file')
-      
+
       // AdminCard should be detected as orphaned
       const adminCardOrphaned = orphanedFiles.some(f => f.location.includes('AdminCard.tsx'))
       expect(adminCardOrphaned).toBe(true)
-      
+
       // Pages and API routes should NOT be detected as orphaned (they're entry points)
       const pageOrphaned = orphanedFiles.some(f => f.location.includes('pages/index.tsx'))
       const apiOrphaned = orphanedFiles.some(f => f.location.includes('pages/api/users.ts'))
       expect(pageOrphaned).toBe(false)
       expect(apiOrphaned).toBe(false)
-      
+
       // UserCard should NOT be orphaned (it's imported by the page)
       const userCardOrphaned = orphanedFiles.some(f => f.location.includes('UserCard.tsx'))
       expect(userCardOrphaned).toBe(false)
@@ -462,20 +464,20 @@ export const AdminCard = () => <div>Admin Card</div>
 
       for (let i = 0; i < fileCount; i++) {
         const isUsed = i < 10 // Only first 10 files are used
-        const content = isUsed 
+        const content = isUsed
           ? `export const Component${i} = () => <div>Component ${i}</div>`
           : `export const UnusedComponent${i} = () => <div>Unused ${i}</div>`
-        
+
         promises.push(writeFile(join(testDir, `component-${i}.tsx`), content))
       }
 
       // Create a main file that only imports first 10 components
-      const imports = Array.from({ length: 10 }, (_, i) => 
-        `import { Component${i} } from './component-${i}'`
+      const imports = Array.from({ length: 10 }, (_, i) =>
+        `import { Component${i} } from './component-${i}'`,
       ).join('\n')
-      
+
       const usage = Array.from({ length: 10 }, (_, i) => `<Component${i} />`).join('\n    ')
-      
+
       promises.push(writeFile(join(testDir, 'main.tsx'), `
 import React from 'react'
 ${imports}
@@ -491,7 +493,7 @@ export const App = () => (
 
       // Create and analyze
       const startTime = performance.now()
-      
+
       await treeManager.createProject('performance-test', testConfig)
       await treeManager.initializeProject('performance-test')
 
@@ -505,23 +507,23 @@ export const App = () => (
         metrics: { deadCode: { orphanedFiles: 0, unusedExports: 0, unusedDependencies: 0 } },
         summary: {
           totalIssues: 0,
-          severityBreakdown: { info: 0, warning: 0, critical: 0 }
-        }
+          severityBreakdown: { info: 0, warning: 0, critical: 0 },
+        },
       }
 
       const coordinator = new DeadCodeCoordinator()
       await coordinator.analyze(fileNodes, analysisResult)
-      
+
       const analysisTime = performance.now() - startTime
 
       // Verify performance and results
       expect(analysisTime).toBeLessThan(5000) // Should complete within 5 seconds
       expect(analysisResult.findings.length).toBeGreaterThan(0)
-      
+
       // Should detect ~40 orphaned files (component-10 through component-49)
       const orphanedFiles = analysisResult.findings.filter(f => f.category === 'orphaned_file')
       expect(orphanedFiles.length).toBeGreaterThanOrEqual(30) // At least 30 unused files
-      
+
       console.log(`Performance test: ${fileCount + 1} files analyzed in ${analysisTime.toFixed(2)}ms`)
       console.log(`Found ${orphanedFiles.length} orphaned files out of ${fileCount} total components`)
     })

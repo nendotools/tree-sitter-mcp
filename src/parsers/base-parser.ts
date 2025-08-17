@@ -63,7 +63,13 @@ export class BaseParser implements LanguageParser {
    * @returns Complete parse results including elements, imports, exports, and errors
    */
   parse(content: string, filePath: string): ParseResult {
-    const tree = this.parser.parse(content)
+    // For large files, we need to set bufferSize to avoid "Invalid argument" errors
+    // Default buffer size is too small for files > ~10KB
+    const options = {
+      bufferSize: Math.max(1024 * 1024, content.length * 2), // At least 1MB or 2x file size
+    }
+    const tree = this.parser.parse(content, undefined, options)
+
     const elements: ParsedElement[] = []
     const imports: string[] = []
     const exports: string[] = []
@@ -293,16 +299,24 @@ export class BaseParser implements LanguageParser {
     imports: string[],
     exports: string[],
   ): void {
-    // Check for import statements
-    if (node.type.includes('import')) {
+    // Check for import statements - be more specific about node types
+    if (node.type === 'import_statement' || node.type === 'import_declaration' || node.type.includes('import')) {
       const importPath = this.extractImportPath(node, source)
+
       if (importPath && !imports.includes(importPath)) {
         imports.push(importPath)
       }
     }
 
     // Check for export statements
-    if (node.type.includes('export')) {
+    if (node.type === 'export_statement' || node.type === 'export_declaration' || node.type.includes('export')) {
+      // Check for export re-exports: export { ... } from './file'
+      // These create dependencies just like imports
+      const reExportPath = this.extractImportPath(node, source)
+      if (reExportPath && !imports.includes(reExportPath)) {
+        imports.push(reExportPath)
+      }
+
       const exportName = this.extractExportName(node, source)
       if (exportName && !exports.includes(exportName)) {
         exports.push(exportName)
@@ -312,12 +326,15 @@ export class BaseParser implements LanguageParser {
 
   private extractImportPath(node: Parser.SyntaxNode, source: string): string | null {
     // Find string literal in import statement
-    const stringNode = this.findChildByType(node, ['string', 'string_literal'])
+    const stringNode = this.findChildByType(node, ['string', 'string_literal', 'string_fragment'])
+
     if (stringNode) {
       const path = source.substring(stringNode.startIndex, stringNode.endIndex)
       // Remove quotes
-      return path.replace(/^['"`]|['"`]$/g, '')
+      const cleanPath = path.replace(/^['"`]|['"`]$/g, '')
+      return cleanPath
     }
+
     return null
   }
 

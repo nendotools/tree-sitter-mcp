@@ -27,7 +27,6 @@ export class PythonAnalyzer extends BaseLanguageAnalyzer {
 
     // Filter to only Python files to avoid processing all files
     const pythonFiles = fileNodes.filter(node => this.isLanguageFile(node.path) && node.content)
-    console.log(`  🐍 PythonAnalyzer processing ${pythonFiles.length} Python files`)
 
     for (const fileNode of pythonFiles) {
       if (!fileNode.content) continue

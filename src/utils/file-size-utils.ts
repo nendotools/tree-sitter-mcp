@@ -35,6 +35,6 @@ export function getFileSizeLimit(operation: 'deadcode' | 'search' | 'analysis'):
 /**
  * Logs file size warnings for debugging
  */
-export function logLargeFileSkip(filePath: string, contentLength: number, maxSize: number): void {
-  console.log(`  ⚠️ Skipping large file: ${filePath} (${contentLength} chars > ${maxSize})`)
+export function logLargeFileSkip(_filePath: string, _contentLength: number, _maxSize: number): void {
+  // File size logging removed - use logger utility for production logging
 }

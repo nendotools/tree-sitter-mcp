@@ -27,7 +27,6 @@ export class JavaScriptAnalyzer extends BaseLanguageAnalyzer {
 
     // Filter to only JS/TS files to avoid processing all files
     const jsFiles = fileNodes.filter(node => this.isLanguageFile(node.path) && node.content)
-    console.log(`  🔍 JavaScriptAnalyzer processing ${jsFiles.length} JS/TS files`)
 
     for (const fileNode of jsFiles) {
       if (!fileNode.content) continue

@@ -372,6 +372,8 @@ export class TreeManager {
       children: [],
       lastModified: new Date(),
       content: content,
+      imports: parseResult.imports,
+      exports: parseResult.exports,
     }
 
     project.fileIndex.set(filePath, fileNode)

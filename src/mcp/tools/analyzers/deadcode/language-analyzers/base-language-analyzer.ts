@@ -113,7 +113,7 @@ export abstract class BaseLanguageAnalyzer {
         }
       }
     }
-    
+
     if (resolved.endsWith('.mjs')) {
       const basePath = resolved.slice(0, -4) // Remove .mjs extension
       const tsExtensions = ['.ts', '.tsx']

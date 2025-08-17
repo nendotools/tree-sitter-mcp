@@ -87,19 +87,19 @@ export const USAGE_CONFIG = {
 
 /** Project indicator files for mono-repo detection by language */
 export const PROJECT_INDICATORS = [
-  'package.json',      // JavaScript/TypeScript
+  'package.json', // JavaScript/TypeScript
   'package-lock.json',
   'yarn.lock',
   'pnpm-lock.yaml',
-  'Cargo.toml',        // Rust
-  'go.mod',            // Go
-  'pyproject.toml',    // Python
+  'Cargo.toml', // Rust
+  'go.mod', // Go
+  'pyproject.toml', // Python
   'requirements.txt',
   'Pipfile',
-  'composer.json',     // PHP
-  'pom.xml',           // Java
+  'composer.json', // PHP
+  'pom.xml', // Java
   'build.gradle',
-  'tsconfig.json',     // TypeScript
+  'tsconfig.json', // TypeScript
 ] as const
 
 /** Directories to ignore during mono-repo scanning */
