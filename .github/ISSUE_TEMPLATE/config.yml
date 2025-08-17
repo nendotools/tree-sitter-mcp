@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/nendotools/tree-sitter-mcp/discussions
+    about: Ask questions, share ideas, and discuss usage
+  - name: Documentation
+    url: https://github.com/nendotools/tree-sitter-mcp/tree/main/docs
+    about: Read the full documentation and guides
+  - name: Roadmap
+    url: https://github.com/nendotools/tree-sitter-mcp/tree/main/roadmap
+    about: See what features are planned for future releases

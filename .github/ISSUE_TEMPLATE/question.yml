@@ -1,0 +1,92 @@
+name: Question/Help
+description: Ask a question or get help using Tree-Sitter MCP
+title: "[Question]: "
+labels: ["question", "help-wanted"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about using Tree-Sitter MCP? We're here to help! 
+        
+        **Note:** For general discussions, consider using [GitHub Discussions](https://github.com/nendotools/tree-sitter-mcp/discussions) instead.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What would you like to know?
+      placeholder: Describe your question or what you're trying to accomplish...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Question Category
+      description: What area does your question relate to?
+      options:
+        - Installation/Setup
+        - CLI Usage
+        - MCP Integration
+        - Language Support
+        - Code Analysis
+        - Performance
+        - Configuration
+        - Troubleshooting
+        - Best Practices
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide context about what you're trying to do
+      placeholder: |
+        - What are you trying to accomplish?
+        - What have you tried so far?
+        - What specific challenges are you facing?
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment (if relevant)
+      description: Your system information
+      value: |
+        - OS: [e.g., macOS 14.0, Windows 11, Ubuntu 22.04]
+        - Node.js version: [e.g., 18.17.0]
+        - Package version: [e.g., 2.0.0]
+        - Usage mode: [CLI, MCP with Claude, MCP with other client]
+      render: markdown
+
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What You've Tried
+      description: What approaches have you already attempted?
+      placeholder: |
+        - Commands you've run
+        - Documentation you've consulted
+        - Configurations you've tried
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Outcome
+      description: What result are you hoping to achieve?
+      placeholder: Describe what you want to accomplish...
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues and discussions
+          required: true
+        - label: I have consulted the documentation
+          required: true
+        - label: This is not a bug report (use Bug Report template for bugs)
+          required: true

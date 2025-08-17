@@ -10,13 +10,14 @@ import { searchCode, findUsage } from '../core/search.js'
 import { startMCPServer } from '../mcp/server.js'
 import { renderAnalysis, type AnalysisData } from '../constants/templates.js'
 import { initializeLogger, getLogger } from '../utils/logger.js'
+import { getVersion } from '../utils/version.js'
 import type { AnalysisOptions as CoreAnalysisOptions } from '../types/analysis.js'
 
 export function createCLI(): Command {
   const program = new Command()
     .name('tree-sitter-mcp')
     .description('Tree-sitter MCP server for code analysis and search')
-    .version('1.0.0')
+    .version(getVersion())
     .option('--mcp', 'Run as MCP server')
     .option('--debug', 'Enable debug logging')
     .option('--quiet', 'Suppress non-error output')

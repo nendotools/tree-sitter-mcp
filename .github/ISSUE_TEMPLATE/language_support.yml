@@ -1,0 +1,169 @@
+name: Language Support Request
+description: Request support for a new programming language
+title: "[Language]: Add support for "
+labels: ["language-support", "enhancement", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Request support for a new programming language in Tree-Sitter MCP. This helps us prioritize which languages to add next.
+
+  - type: input
+    id: language
+    attributes:
+      label: Programming Language
+      description: Which programming language should be supported?
+      placeholder: "e.g., Swift, Dart, Zig, etc."
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Why do you need support for this language?
+      placeholder: |
+        - What type of projects are you working on?
+        - How would you use Tree-Sitter MCP with this language?
+        - What analysis would be most valuable?
+    validations:
+      required: true
+
+  - type: textarea
+    id: elements
+    attributes:
+      label: Important Language Elements
+      description: What code elements should Tree-Sitter MCP be able to find/analyze?
+      placeholder: |
+        - Functions/methods
+        - Classes/structs/interfaces
+        - Variables/constants
+        - Modules/packages
+        - Language-specific constructs (e.g., traits, protocols, etc.)
+      value: |
+        - [ ] Functions/methods
+        - [ ] Classes/structs
+        - [ ] Variables/constants
+        - [ ] Interfaces/protocols
+        - [ ] Language-specific: 
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority for You
+      description: How important is this language support?
+      options:
+        - Low - Occasionally useful
+        - Medium - Regular need
+        - High - Frequent usage
+        - Critical - Primary language
+    validations:
+      required: true
+
+  - type: input
+    id: file-extensions
+    attributes:
+      label: File Extensions
+      description: What file extensions does this language use?
+      placeholder: "e.g., .swift, .dart, .zig"
+    validations:
+      required: true
+
+  - type: input
+    id: tree-sitter-grammar
+    attributes:
+      label: Tree-Sitter Grammar
+      description: Link to the Tree-Sitter grammar for this language (if you know it)
+      placeholder: "e.g., https://github.com/tree-sitter/tree-sitter-swift"
+
+  - type: textarea
+    id: sample-code
+    attributes:
+      label: Sample Code
+      description: Provide a small example of typical code in this language
+      placeholder: |
+        ```language
+        // Sample code showing common patterns
+        function example() {
+          return "hello world";
+        }
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: ecosystem
+    attributes:
+      label: Language Ecosystem
+      description: Information about the language ecosystem
+      placeholder: |
+        - Popular frameworks/libraries
+        - Common project structures
+        - Package managers
+        - Build tools
+        - Testing frameworks
+
+  - type: checkboxes
+    id: similar-languages
+    attributes:
+      label: Similar Languages
+      description: Which currently supported languages is this most similar to?
+      options:
+        - label: JavaScript/TypeScript (dynamic, interpreted)
+        - label: Python (dynamic, interpreted)
+        - label: Java (static, compiled, OOP)
+        - label: C/C++ (systems, compiled)
+        - label: Go (static, compiled, simple)
+        - label: Rust (static, compiled, memory-safe)
+        - label: Ruby (dynamic, interpreted, OOP)
+        - label: Other/Unique
+
+  - type: textarea
+    id: analysis-needs
+    attributes:
+      label: Analysis Requirements
+      description: What kind of code analysis would be most valuable for this language?
+      placeholder: |
+        - Code quality metrics
+        - Dead code detection
+        - Dependency analysis
+        - Language-specific patterns
+        - Performance analysis
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution Interest
+      description: Would you be interested in helping implement this?
+      options:
+        - label: I can help implement the language support
+        - label: I can provide test cases and sample code
+        - label: I can test the implementation
+        - label: I have domain expertise in this language
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
+      description: Any other relevant information about this language
+      placeholder: |
+        - Language version/specification
+        - Special parsing considerations
+        - Community size and usage
+        - Links to language documentation
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have verified this language is not already supported
+          required: true
+        - label: A Tree-Sitter grammar exists for this language (or I've noted it doesn't)
+          required: true
+        - label: I have provided sample code and use case information
+          required: true

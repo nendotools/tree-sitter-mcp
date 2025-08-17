@@ -69,6 +69,7 @@ export interface AnalysisOptions {
   includeQuality?: boolean
   includeDeadcode?: boolean
   includeStructure?: boolean
+  includeConfigValidation?: boolean
   target?: string
   scope?: 'project' | 'file' | 'method'
 }

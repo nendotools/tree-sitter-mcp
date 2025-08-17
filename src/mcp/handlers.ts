@@ -58,12 +58,6 @@ export async function handleToolRequest(request: MCPToolRequest): Promise<MCPToo
     case 'analyze_code':
       return handleAnalyzeCode(args)
 
-    case 'initialize_project':
-      return handleInitializeProject(args)
-
-    case 'project_status':
-      return handleProjectStatus(args)
-
     default:
       throw new Error(`Unknown tool: ${name}`)
   }
@@ -184,6 +178,7 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
       includeQuality: analysisTypesArray.includes('quality'),
       includeDeadcode: analysisTypesArray.includes('deadcode'),
       includeStructure: analysisTypesArray.includes('structure'),
+      includeConfigValidation: analysisTypesArray.includes('config-validation'),
       scope: scopeValue,
     }
 
@@ -206,76 +201,5 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
   }
   catch (error) {
     throw handleError(error, 'Code analysis failed')
-  }
-}
-
-async function handleInitializeProject(args: JsonObject): Promise<MCPToolResult> {
-  const {
-    directory = process.cwd(),
-    languages = [],
-    ignoreDirs = [],
-    maxDepth = 10,
-    autoWatch = false,
-  } = args
-
-  try {
-    const project = createProject({
-      directory: typeof directory === 'string' ? directory : process.cwd(),
-      languages: Array.isArray(languages) ? languages as string[] : [],
-      ignoreDirs: Array.isArray(ignoreDirs) ? ignoreDirs as string[] : [],
-      maxDepth: Number(maxDepth),
-      autoWatch: Boolean(autoWatch),
-    })
-
-    await parseProject(project)
-
-    return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          projectId: project.id,
-          directory: project.config.directory,
-          filesCount: project.files.size,
-          nodesCount: Array.from(project.nodes.values()).reduce((sum, nodes) => sum + nodes.length, 0),
-          isMonorepo: project.isMonorepo || false,
-          subProjects: project.subProjects?.length || 0,
-          status: 'initialized',
-        }, null, 2),
-      }],
-    }
-  }
-  catch (error) {
-    throw handleError(error, 'Project initialization failed')
-  }
-}
-
-async function handleProjectStatus(args: JsonObject): Promise<MCPToolResult> {
-  const { projectId, includeStats = false } = args
-
-  try {
-    // In a full implementation, we'd maintain project state
-    // For now, return a simple status
-    return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          projectId,
-          status: 'active',
-          initialized: true,
-          lastUpdate: new Date().toISOString(),
-          ...(includeStats
-            ? {
-                stats: {
-                  memoryUsage: process.memoryUsage(),
-                  uptime: process.uptime(),
-                },
-              }
-            : {}),
-        }, null, 2),
-      }],
-    }
-  }
-  catch (error) {
-    throw handleError(error, 'Project status check failed')
   }
 }

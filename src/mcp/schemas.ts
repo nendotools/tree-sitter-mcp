@@ -9,10 +9,6 @@ export const MCP_TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        projectId: {
-          type: 'string',
-          description: 'Project to search in',
-        },
         query: {
           type: 'string',
           description: 'Search query (name of element)',
@@ -42,7 +38,7 @@ export const MCP_TOOLS = [
           description: 'Filter by file path pattern',
         },
       },
-      required: ['projectId', 'query'],
+      required: ['query'],
     },
   },
   {
@@ -51,10 +47,6 @@ export const MCP_TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        projectId: {
-          type: 'string',
-          description: 'Project to search in',
-        },
         identifier: {
           type: 'string',
           description: 'Function, variable, class, or identifier name to find usage of',
@@ -75,7 +67,7 @@ export const MCP_TOOLS = [
           default: 50,
         },
       },
-      required: ['projectId', 'identifier'],
+      required: ['identifier'],
     },
   },
   {
@@ -92,7 +84,7 @@ export const MCP_TOOLS = [
           type: 'array',
           items: {
             type: 'string',
-            enum: ['quality', 'structure', 'deadcode'],
+            enum: ['quality', 'structure', 'deadcode', 'config-validation'],
           },
           description: 'Analysis types to run',
           default: ['quality'],
@@ -114,64 +106,12 @@ export const MCP_TOOLS = [
           description: 'Show only issues at or above this severity level',
           default: 'info',
         },
+        target: {
+          type: 'string',
+          description: 'Specific file path or method name when scope is file/method',
+        },
       },
       required: ['projectId', 'analysisTypes', 'scope'],
-    },
-  },
-  {
-    name: 'initialize_project',
-    description: 'Initialize and index a project for code search and analysis',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        projectId: {
-          type: 'string',
-          description: 'Unique identifier for the project',
-        },
-        directory: {
-          type: 'string',
-          description: 'Directory to analyze (default: current directory)',
-        },
-        languages: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'List of languages to parse (empty = all)',
-        },
-        ignoreDirs: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Directories to ignore during analysis',
-        },
-        maxDepth: {
-          type: 'number',
-          description: 'Maximum directory depth to traverse',
-          default: 10,
-        },
-        autoWatch: {
-          type: 'boolean',
-          description: 'Automatically watch for file changes',
-          default: false,
-        },
-      },
-      required: ['projectId'],
-    },
-  },
-  {
-    name: 'project_status',
-    description: 'Get project status, memory usage, and indexing statistics',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        projectId: {
-          type: 'string',
-          description: 'Specific project ID (empty for all projects)',
-        },
-        includeStats: {
-          type: 'boolean',
-          description: 'Include detailed statistics',
-          default: false,
-        },
-      },
     },
   },
 ]

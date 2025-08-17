@@ -35,38 +35,38 @@ export interface BuildData {
  * Create console output using template literals with conditional sections
  */
 export function createConsoleOutput(data: AnalysisData): string {
-  const baseTemplate = `📊 Analysis Summary
+  const baseTemplate = `Analysis Summary
 Total findings: ${data.totalFindings}
 Critical: ${data.critical}
 Warnings: ${data.warnings}
 Info: ${data.info}
 
-📈 Quality Metrics
+Quality Metrics
 Code Quality Score: ${data.qualityScore}/10
 Average Complexity: ${data.avgComplexity}
 Average Method Length: ${data.avgMethodLength} lines
 Total Methods: ${data.totalMethods}
 
-🗑️  Dead Code Metrics
+Dead Code Metrics
 Total Files: ${data.analyzedFiles}
 Unused Files: ${data.unusedFiles || 0}
 Unused Functions: ${data.unusedFunctions || 0}
 
-🏗️  Structure Metrics
+Structure Metrics
 Files Analyzed: ${data.analyzedFiles}
 Circular Dependencies: ${data.circularDependencies || 0}`
 
   const criticalSection = data.criticalIssues
     ? `
 
-🚨 Critical Issues
+Critical Issues
 ${data.criticalIssues}`
     : ''
 
   const warningSection = data.warningIssues
     ? `
 
-⚠️  Warnings (showing first 3)
+Warnings (showing first 3)
 ${data.warningIssues}`
     : ''
 
@@ -79,15 +79,15 @@ ${data.statusMessage}`
 }
 
 export const BUILD_TEMPLATES = {
-  CONSOLE: `📊 New codebase statistics:
+  CONSOLE: `New codebase statistics:
    Lines of code: {lines}
    Files: {files}
    Directories: {directories}
 
-🎯 Reduction achieved:
-   From {originalLines} lines → {lines} lines
-   From {originalFiles} files → {files} files
-   From {originalDirectories} directories → {directories} directories`,
+Reduction achieved:
+   From {originalLines} lines -> {lines} lines
+   From {originalFiles} files -> {files} files
+   From {originalDirectories} directories -> {directories} directories`,
 
   JSON: `{
   "statistics": {

@@ -1,0 +1,165 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for Tree-Sitter MCP
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in improving Tree-Sitter MCP! Please provide detailed information about your feature request.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A clear and concise description of the feature you'd like to see
+      placeholder: Briefly describe the feature...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What type of feature is this?
+      options:
+        - Language Support (new programming language)
+        - Analysis Enhancement (better code quality detection)
+        - CLI Improvement (command-line interface)
+        - MCP Integration (Model Context Protocol features)
+        - Performance Optimization
+        - Documentation
+        - Developer Experience
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem/Use Case
+      description: What problem does this feature solve? What use case does it enable?
+      placeholder: |
+        - What problem are you trying to solve?
+        - How would this feature help you or other users?
+        - What's your current workflow that could be improved?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe how you think this feature should work
+      placeholder: |
+        - How should this feature behave?
+        - What should the API/interface look like?
+        - Any specific implementation ideas?
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Usage Examples
+      description: Show how this feature would be used
+      placeholder: |
+        ```bash
+        # CLI example
+        tree-sitter-mcp new-command --option value
+        ```
+        
+        ```json
+        // MCP tool example
+        {
+          "tool": "new_feature",
+          "parameters": {
+            "example": "value"
+          }
+        }
+        ```
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other approaches have you considered?
+      placeholder: |
+        - Have you tried any workarounds?
+        - Are there existing tools that do something similar?
+        - Any other solutions you've considered?
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority Level
+      description: How important is this feature to you?
+      options:
+        - Low - Nice to have
+        - Medium - Would improve my workflow
+        - High - Blocking my use case
+        - Critical - Essential for adoption
+    validations:
+      required: true
+
+  - type: textarea
+    id: languages
+    attributes:
+      label: Programming Languages (if applicable)
+      description: If this is language-specific, which languages should be supported?
+      placeholder: |
+        - JavaScript/TypeScript
+        - Python
+        - Go
+        - Rust
+        - Java
+        - Other: specify
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Expected Impact
+      description: Who would benefit from this feature?
+      placeholder: |
+        - Individual developers
+        - Teams
+        - Specific types of projects
+        - CI/CD pipelines
+        - AI assistants using MCP
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Implementation
+      description: Are you interested in contributing to this feature?
+      options:
+        - label: I'm willing to implement this feature myself
+        - label: I can help with testing/feedback
+        - label: I can provide domain expertise
+        - label: I would like someone else to implement this
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other information, mockups, references, or context
+      placeholder: |
+        - Screenshots or mockups
+        - Links to similar features in other tools
+        - References to standards or specifications
+        - Any other relevant information
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm you've completed these steps
+      options:
+        - label: I have searched existing issues and feature requests
+          required: true
+        - label: I have checked the roadmap to see if this is already planned
+          required: true
+        - label: This feature aligns with the project's goals
+          required: true

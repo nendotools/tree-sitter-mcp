@@ -15,6 +15,7 @@ import { handleToolRequest } from './handlers.js'
 import { MCP_TOOLS, MCP_RESOURCES } from './schemas.js'
 import { getLogger } from '../utils/logger.js'
 import { handleError } from '../utils/errors.js'
+import { getVersion } from '../utils/version.js'
 import type { JsonObject } from '../types/core.js'
 
 /**
@@ -27,7 +28,7 @@ export async function startMCPServer(): Promise<void> {
     const server = new Server(
       {
         name: 'tree-sitter-mcp',
-        version: '1.0.0',
+        version: getVersion(),
       },
       {
         capabilities: {
