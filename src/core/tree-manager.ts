@@ -3,7 +3,6 @@
  */
 
 import { readFileSync } from 'fs'
-import { minimatch } from 'minimatch'
 import { MEMORY } from '../constants/service-constants.js'
 import { NODE_TYPES } from '../constants/analysis-constants.js'
 import { ERROR_MESSAGES as ERRORS } from '../constants/app-constants.js'
@@ -15,7 +14,6 @@ import type {
   ProjectInfo,
   SearchOptions,
   SearchResult,
-  SearchScope,
   NodeType,
   ParseResult,
 } from '../types/index.js'
@@ -24,8 +22,10 @@ import { getLogger } from '../utils/logger.js'
 import { FileWalker } from './file-walker.js'
 import { ParserRegistry } from '../parsers/registry.js'
 import { generateId } from '../utils/helpers.js'
-import { findProjectRootWithMonoRepo } from '../utils/project-detection.js'
-import { resolve, relative, basename } from 'path'
+import { SearchEngine } from './search/search-engine.js'
+import { ProjectMemoryManager } from './memory/project-memory-manager.js'
+import { MonoRepoManager } from './mono-repo/mono-repo-manager.js'
+import { resolve, basename } from 'path'
 
 /**
  * Tree Manager is the core engine that manages in-memory AST representations of projects
@@ -45,9 +45,10 @@ import { resolve, relative, basename } from 'path'
 export class TreeManager {
   private projects: Map<string, ProjectTree> = new Map()
   private maxProjects: number = MEMORY.MAX_PROJECTS
-  private maxMemoryMB: number = MEMORY.MAX_MEMORY_MB
-  private currentMemoryMB: number = 0
   private parserRegistry: ParserRegistry
+  private searchEngine: SearchEngine = new SearchEngine()
+  private memoryManager: ProjectMemoryManager
+  private monoRepoManager: MonoRepoManager
   private logger = getLogger()
 
   /**
@@ -57,6 +58,8 @@ export class TreeManager {
    */
   constructor(parserRegistry: ParserRegistry) {
     this.parserRegistry = parserRegistry
+    this.memoryManager = new ProjectMemoryManager(this.logger)
+    this.monoRepoManager = new MonoRepoManager(this.logger)
   }
 
   /**
@@ -80,7 +83,11 @@ export class TreeManager {
     }
 
     if (this.projects.size >= this.maxProjects) {
-      this.evictLRUProject()
+      const lruProject = this.memoryManager.findLRUProject(this.projects)
+      if (lruProject) {
+        this.destroyProject(lruProject.projectId)
+        this.logger.info(`Evicted LRU project: ${lruProject.projectId}`)
+      }
     }
 
     const project: ProjectTree = {
@@ -128,7 +135,7 @@ export class TreeManager {
 
     this.logger.info(`Initializing project: ${projectId}`)
 
-    await this.setupMonoRepoStructure(project)
+    await this.monoRepoManager.setupMonoRepoStructure(project)
     await this.buildProjectIndexes(project)
     this.finalizeProjectInitialization(project)
 
@@ -198,8 +205,7 @@ export class TreeManager {
     const project = this.validateAndGetProject(projectId)
     project.accessedAt = new Date()
 
-    const results = this.performSearch(project, query, options)
-    return this.rankAndLimitResults(results, options.maxResults || 20)
+    return this.searchEngine.search(project, query, options)
   }
 
   /**
@@ -214,7 +220,7 @@ export class TreeManager {
       throw new TreeSitterMCPError(ERRORS.PROJECT_NOT_FOUND, 'PROJECT_NOT_FOUND', { projectId })
     }
 
-    this.currentMemoryMB -= project.memoryUsage / (1024 * 1024)
+    this.memoryManager.trackProjectRemoved(project)
     this.projects.delete(projectId)
     this.logger.info(`Destroyed project: ${projectId}`)
   }
@@ -378,12 +384,10 @@ export class TreeManager {
 
     project.fileIndex.set(filePath, fileNode)
 
-    let belongsToSubProject: string | undefined
-    if (project.isMonoRepo && project.subProjects) {
-      belongsToSubProject = this.findFileSubProject(filePath, project)
-      if (belongsToSubProject && project.subProjectFileIndex) {
-        project.subProjectFileIndex.get(belongsToSubProject)!.set(filePath, fileNode)
-      }
+    // Add to sub-project file index if applicable
+    const belongsToSubProject = this.monoRepoManager.findFileSubProject(filePath, project)
+    if (belongsToSubProject) {
+      this.monoRepoManager.addFileToSubProject(project, filePath, fileNode, belongsToSubProject)
     }
     for (const element of parseResult.elements) {
       const elementNode: TreeNode = {
@@ -408,12 +412,9 @@ export class TreeManager {
       }
       project.nodeIndex.get(element.name)!.push(elementNode)
 
-      if (belongsToSubProject && project.subProjectNodeIndex) {
-        const subProjectNodeIndex = project.subProjectNodeIndex.get(belongsToSubProject)!
-        if (!subProjectNodeIndex.has(element.name)) {
-          subProjectNodeIndex.set(element.name, [])
-        }
-        subProjectNodeIndex.get(element.name)!.push(elementNode)
+      // Add to sub-project node index if applicable
+      if (belongsToSubProject) {
+        this.monoRepoManager.addNodeToSubProject(project, element.name, elementNode, belongsToSubProject)
       }
 
       fileNode.children.push(elementNode)
@@ -452,336 +453,7 @@ export class TreeManager {
   }
 
   /**
-   * Splits identifier into words for fuzzy matching
-   *
-   * @param name - Identifier to split
-   * @returns Array of words
-   */
-  private splitIntoWords(name: string): string[] {
-    // Handle snake_case and ALL_CAPS first
-    if (name.includes('_')) {
-      return name.split('_').filter(Boolean)
-    }
-
-    // Handle camelCase and mixed patterns
-    // Split on transitions: lowercase->uppercase, digit->letter, letter->digit
-    return name
-      .replace(/([a-z])([A-Z])/g, '$1|$2') // camelCase: user|Name
-      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1|$2') // XMLHttp: XML|Http
-      .replace(/([a-zA-Z])(\d)/g, '$1|$2') // letter->digit: user|2
-      .replace(/(\d)([a-zA-Z])/g, '$1|$2') // digit->letter: 2|Name
-      .split('|')
-      .filter(Boolean)
-  }
-
-  /**
-   * Calculates fuzzy match score between query and name
-   *
-   * @param name - Node name to check
-   * @param query - Search query (original case)
-   * @param options - Search options
-   * @returns Match score (0 = no match, higher = better match)
-   */
-  private calculateFuzzyScore(name: string, query: string, options: SearchOptions): number {
-    const nameLower = name.toLowerCase()
-    const queryLower = query.toLowerCase()
-
-    // Handle empty query
-    if (query.length === 0) {
-      return 0
-    }
-
-    if (options.exactMatch) {
-      return nameLower === queryLower ? 100 : 0
-    }
-
-    let baseScore = 0
-
-    // 1. Exact match (case insensitive)
-    if (nameLower === queryLower) {
-      baseScore = name === query ? 100 : 90 // Exact case gets higher score
-    }
-    // 2. Exact prefix match
-    else if (nameLower.startsWith(queryLower)) {
-      baseScore = name.startsWith(query) ? 85 : 75 // Exact case gets higher score
-    }
-    // 3. Cross-format word matching (e.g., accessToken <-> access_token)
-    else {
-      const nameWords = this.splitIntoWords(name)
-      const queryWords = this.splitIntoWords(query)
-
-      // Check word-level matching with similarity tolerance
-      const nameWordsLower = nameWords.map(w => w.toLowerCase())
-      const queryWordsLower = queryWords.map(w => w.toLowerCase())
-
-      // Exact word matches
-      const exactMatches = queryWordsLower.filter(qWord =>
-        nameWordsLower.some(nWord => nWord === qWord),
-      )
-
-      // Prefix word matches (e.g., "acc" matches "account")
-      const prefixMatches = queryWordsLower.filter(qWord =>
-        !exactMatches.includes(qWord)
-        && nameWordsLower.some(nWord => nWord.startsWith(qWord) && qWord.length >= 3),
-      )
-
-      // Suffix word matches (e.g., "count" matches "account")
-      const suffixMatches = queryWordsLower.filter(qWord =>
-        !exactMatches.includes(qWord) && !prefixMatches.includes(qWord)
-        && nameWordsLower.some(nWord => nWord.endsWith(qWord) && qWord.length >= 3),
-      )
-
-      const totalMatches = exactMatches.length + prefixMatches.length + suffixMatches.length
-      const totalQueryWords = queryWordsLower.length
-
-      if (exactMatches.length === totalQueryWords && totalQueryWords > 0) {
-        // All query words exactly match name words - highest score
-        baseScore = Math.max(baseScore, 85)
-      }
-      else if (totalMatches === totalQueryWords && totalQueryWords > 0) {
-        // All query words match (exact + prefix + suffix) - high score
-        baseScore = Math.max(baseScore, 80)
-      }
-      else if (totalMatches > 0) {
-        // Partial word matches - score based on match ratio and quality
-        const exactRatio = exactMatches.length / totalQueryWords
-        const totalRatio = totalMatches / totalQueryWords
-        const qualityScore = (exactRatio * 0.8) + (totalRatio * 0.6)
-        baseScore = Math.max(baseScore, Math.floor(75 * qualityScore))
-      }
-
-      // 4. Word boundary prefix match (existing logic)
-      for (const nameWord of nameWords) {
-        if (nameWord.toLowerCase().startsWith(queryLower)) {
-          baseScore = Math.max(baseScore, nameWord.startsWith(query) ? 70 : 60)
-        }
-        // Check if query is exact match for a word
-        else if (nameWord.toLowerCase() === queryLower) {
-          baseScore = Math.max(baseScore, nameWord === query ? 75 : 65)
-        }
-      }
-    }
-
-    // 5. Substring match (current behavior)
-    if (baseScore === 0 && nameLower.includes(queryLower)) {
-      baseScore = name.includes(query) ? 55 : 50 // Exact case gets higher score
-    }
-
-    // 6. Character sequence match (fuzzy)
-    if (baseScore === 0) {
-      const sequenceScore = this.calculateSequenceMatch(nameLower, queryLower)
-      if (sequenceScore > 0) {
-        baseScore = Math.min(40, sequenceScore)
-      }
-    }
-
-    // Apply bonuses
-    if (baseScore > 0) {
-      // Position bonus
-      const queryPos = nameLower.indexOf(queryLower)
-      if (queryPos === 0) {
-        baseScore += 5 // Starts at beginning
-      }
-      else if (queryPos <= 2) {
-        baseScore += 2 // Within first few characters
-      }
-
-      // Length ratio bonus
-      const lengthRatio = query.length / name.length
-      if (lengthRatio >= 0.5 && lengthRatio <= 1.0) {
-        baseScore += 5
-      }
-    }
-
-    return baseScore
-  }
-
-  /**
-   * Calculates character sequence matching score
-   *
-   * @param name - Name to check (lowercase)
-   * @param query - Query to match (lowercase)
-   * @returns Sequence match score
-   */
-  private calculateSequenceMatch(name: string, query: string): number {
-    if (query.length === 0) return 0
-    if (query.length > name.length) return 0
-
-    let nameIndex = 0
-    let queryIndex = 0
-    let matches = 0
-
-    while (nameIndex < name.length && queryIndex < query.length) {
-      if (name[nameIndex] === query[queryIndex]) {
-        matches++
-        queryIndex++
-      }
-      nameIndex++
-    }
-
-    if (queryIndex < query.length) {
-      return 0 // Didn't match all query characters
-    }
-
-    // Score based on percentage of characters matched and compactness
-    const matchPercentage = matches / query.length
-    const compactness = query.length / (nameIndex - queryIndex + query.length)
-
-    return Math.floor(matchPercentage * compactness * 40)
-  }
-
-  /**
-   * Checks if a name matches the search query with fuzzy scoring
-   *
-   * @param name - Element name to check
-   * @param query - Lowercase search query
-   * @param options - Search options including exact match flag
-   * @returns Match score (0 = no match, higher = better match)
-   */
-  private matchesQuery(name: string, query: string, options: SearchOptions): number {
-    // If query is empty, return a default score for path-pattern-only searches
-    if (!query || query.trim().length === 0) {
-      return 50 // Default score for path-pattern matches
-    }
-    return this.calculateFuzzyScore(name, query, options)
-  }
-
-  /**
-   * Applies search filters to determine if a node should be included in results
-   *
-   * @param node - Tree node to filter
-   * @param options - Search options containing filter criteria
-   * @returns True if node passes all filters
-   */
-  private matchesFilters(node: TreeNode, options: SearchOptions): boolean {
-    if (options.types && options.types.length > 0) {
-      if (!options.types.includes(node.type)) {
-        return false
-      }
-    }
-
-    if (options.languages && options.languages.length > 0) {
-      if (!node.language || !options.languages.includes(node.language)) {
-        return false
-      }
-    }
-
-    if (options.pathPattern) {
-      // Use glob pattern matching for path patterns
-      if (!minimatch(node.path, options.pathPattern)) {
-        return false
-      }
-    }
-
-    return true
-  }
-
-  /**
-   * Creates a search result object from a tree node
-   *
-   * @param node - Tree node to create result from
-   * @param fuzzyScore - Fuzzy matching score for the name match
-   * @param options - Search options for priority type bonus
-   * @returns Search result with node, score, and context
-   */
-  private createSearchResult(
-    node: TreeNode,
-    fuzzyScore: number,
-    options: SearchOptions,
-  ): SearchResult {
-    return {
-      node,
-      filePath: node.path,
-      score: this.calculateScore(node, fuzzyScore, options),
-      context: {
-        parentName: node.parent?.name,
-        parentType: node.parent?.type,
-      },
-    }
-  }
-
-  /**
-   * Calculates relevance score for a search result
-   *
-   * @param node - Tree node to calculate score for
-   * @param fuzzyScore - Base fuzzy matching score
-   * @param options - Search options for priority type bonus
-   * @returns Numeric score for result ranking
-   */
-  private calculateScore(node: TreeNode, fuzzyScore: number, options: SearchOptions): number {
-    let score = fuzzyScore
-
-    // Node type bonuses (as before)
-    if (node.type === NODE_TYPES.CLASS || node.type === NODE_TYPES.INTERFACE) {
-      score += 10
-    }
-    else if (node.type === NODE_TYPES.FUNCTION || node.type === NODE_TYPES.METHOD) {
-      score += 5
-    }
-
-    // Priority type bonus
-    if (options.priorityType && node.type === options.priorityType) {
-      score += 15
-    }
-
-    return score
-  }
-
-  /**
-   * Estimates memory usage for a project in bytes
-   *
-   * @param project - Project to estimate memory for
-   * @returns Estimated memory usage in bytes
-   */
-  private estimateProjectMemory(project: ProjectTree): number {
-    const nodeCount = project.nodeIndex.size
-    const fileCount = project.fileIndex.size
-
-    return (
-      nodeCount * MEMORY.DEFAULT_NODE_SIZE_BYTES
-      + fileCount * 1024
-      + project.nodeIndex.size * MEMORY.DEFAULT_INDEX_ENTRY_BYTES
-    )
-  }
-
-  /**
-   * Evicts the least recently used project to free memory
-   */
-  private evictLRUProject(): void {
-    let oldestProject: ProjectTree | null = null
-    let oldestTime = new Date()
-
-    for (const project of this.projects.values()) {
-      if (project.accessedAt < oldestTime) {
-        oldestTime = project.accessedAt
-        oldestProject = project
-      }
-    }
-
-    if (oldestProject) {
-      this.destroyProject(oldestProject.projectId)
-      this.logger.info(`Evicted LRU project: ${oldestProject.projectId}`)
-    }
-  }
-
-  /**
-   * Checks memory limits and evicts projects if necessary
-   */
-  private checkMemoryLimits(): void {
-    if (this.currentMemoryMB > this.maxMemoryMB) {
-      this.logger.warn('Memory limit exceeded, evicting projects...')
-      while (this.currentMemoryMB > this.maxMemoryMB && this.projects.size > 1) {
-        this.evictLRUProject()
-      }
-    }
-  }
-
-  /**
-   * Validates project exists and returns it, throwing if not found
-   *
-   * @param projectId - Project identifier to validate
-   * @returns The project tree
-   * @throws TreeSitterMCPError if project doesn't exist
+   * Validates that a project exists and returns it
    */
   private validateAndGetProject(projectId: string): ProjectTree {
     const project = this.getProject(projectId)
@@ -792,56 +464,9 @@ export class TreeManager {
   }
 
   /**
-   * Detects and sets up mono-repo structure for a project
-   *
-   * @param project - Project to setup mono-repo structure for
-   */
-  private async setupMonoRepoStructure(project: ProjectTree): Promise<void> {
-    const monoRepoInfo = await findProjectRootWithMonoRepo(project.config.workingDir)
-
-    if (!monoRepoInfo.isMonoRepo || monoRepoInfo.subProjects.length === 0) {
-      return
-    }
-
-    project.isMonoRepo = true
-    this.logger.info(`Detected mono-repo with ${monoRepoInfo.subProjects.length} sub-projects`)
-
-    for (const subProject of monoRepoInfo.subProjects) {
-      this.registerSubProject(project, subProject)
-    }
-  }
-
-  /**
-   * Registers a sub-project within a mono-repo structure
-   *
-   * @param project - Parent project tree
-   * @param subProject - Sub-project information containing path, languages, and indicators
-   */
-  private registerSubProject(project: ProjectTree, subProject: any): void {
-    const subProjectName = this.getSubProjectName(subProject.path, project.config.workingDir)
-
-    project.subProjects!.set(subProjectName, {
-      name: subProjectName,
-      path: subProject.path,
-      languages: subProject.languages,
-      indicators: subProject.indicators,
-    })
-
-    project.subProjectFileIndex!.set(subProjectName, new Map())
-    project.subProjectNodeIndex!.set(subProjectName, new Map())
-
-    this.logger.info(
-      `  • Registered sub-project: ${subProjectName} (${subProject.languages.join(', ')})`,
-    )
-  }
-
-  /**
-   * Walks directory structure and builds file/node indexes
-   *
-   * @param project - Project to build indexes for
+   * Builds the project's file and node indexes
    */
   private async buildProjectIndexes(project: ProjectTree): Promise<void> {
-    // Debug TreeManager configuration
     this.logger.debug(`🔧 TreeManager Configuration for ${project.projectId}:`)
     this.logger.debug(`  - workingDir: ${project.config.workingDir}`)
     this.logger.debug(`  - maxDepth: ${project.config.maxDepth}`)
@@ -853,15 +478,14 @@ export class TreeManager {
 
     this.logger.info(`FileWalker returned ${files.length} files for project ${project.projectId}`)
 
-    // Debug file type breakdown
     const fileTypes: Record<string, number> = {}
+    let processedCount = 0
     for (const file of files) {
       const extension = file.file.path.split('.').pop() || 'no-ext'
       fileTypes[extension] = (fileTypes[extension] || 0) + 1
     }
     this.logger.debug(`📁 File type breakdown: ${JSON.stringify(fileTypes, null, 2)}`)
 
-    let processedCount = 0
     for (const file of files) {
       this.logger.debug(`📝 Processing file ${processedCount + 1}/${files.length}: ${file.file.path}`)
       await this.addFileToTree(project, file)
@@ -872,276 +496,15 @@ export class TreeManager {
   }
 
   /**
-   * Finalizes project initialization with memory management
-   *
-   * @param project - Project to finalize
+   * Finalizes project initialization
    */
   private finalizeProjectInitialization(project: ProjectTree): void {
     project.initialized = true
     project.lastUpdate = new Date()
-    project.memoryUsage = this.estimateProjectMemory(project)
 
-    this.currentMemoryMB += project.memoryUsage / (1024 * 1024)
-    this.checkMemoryLimits()
-  }
+    this.memoryManager.trackProjectAdded(project)
+    this.memoryManager.enforceMemoryLimits(this.projects, projectId => this.destroyProject(projectId))
 
-  /**
-   * Derives a sub-project name from its path relative to project root
-   *
-   * @param subProjectPath - Absolute path to sub-project
-   * @param projectRoot - Project root directory path
-   * @returns Sub-project name for indexing
-   */
-  private getSubProjectName(subProjectPath: string, projectRoot: string): string {
-    const relativePath = relative(projectRoot, subProjectPath)
-    return relativePath.split('/')[0] || basename(subProjectPath)
-  }
-
-  /**
-   * Determines which sub-project a file belongs to in a mono-repo
-   *
-   * @param filePath - File path to classify
-   * @param project - Project containing sub-projects
-   * @returns Sub-project name or undefined if not in any sub-project
-   */
-  private findFileSubProject(filePath: string, project: ProjectTree): string | undefined {
-    if (!project.isMonoRepo || !project.subProjects) {
-      return undefined
-    }
-
-    const absoluteFilePath = resolve(project.config.workingDir, filePath)
-
-    for (const [subProjectName, subProjectInfo] of project.subProjects) {
-      if (
-        absoluteFilePath.startsWith(subProjectInfo.path + '/')
-        || absoluteFilePath === subProjectInfo.path
-      ) {
-        return subProjectName
-      }
-    }
-
-    return undefined
-  }
-
-  /**
-   * Performs the actual search across node indexes
-   *
-   * @param project - Project to search in
-   * @param query - Search query
-   * @param options - Search options
-   * @returns Array of matching search results
-   */
-  private performSearch(
-    project: ProjectTree,
-    query: string,
-    options: SearchOptions,
-  ): SearchResult[] {
-    const results: SearchResult[] = []
-    const nodeIndexesToSearch = this.getNodeIndexesToSearch(project, options.scope)
-
-    // Search in node indexes (code elements)
-    for (const { nodeIndex, subProjectName } of nodeIndexesToSearch) {
-      this.searchInNodeIndex(nodeIndex, query, options, results, subProjectName)
-    }
-
-    // Search in file indexes if 'file' type is requested
-    if (!options.types || options.types.includes('file')) {
-      this.searchInFileIndex(project, query, options, results)
-    }
-
-    return results
-  }
-
-  /**
-   * Searches within a specific node index
-   *
-   * @param nodeIndex - Node index to search in
-   * @param lowerQuery - Lowercase query string
-   * @param options - Search options
-   * @param results - Results array to populate
-   * @param subProjectName - Sub-project name if applicable
-   */
-  private searchInNodeIndex(
-    nodeIndex: Map<string, TreeNode[]>,
-    query: string,
-    options: SearchOptions,
-    results: SearchResult[],
-    subProjectName?: string,
-  ): void {
-    const threshold = options.fuzzyThreshold || 30
-
-    for (const [name, nodes] of nodeIndex) {
-      const fuzzyScore = this.matchesQuery(name, query, options)
-
-      if (fuzzyScore >= threshold) {
-        for (const node of nodes) {
-          if (this.matchesFilters(node, options)) {
-            const result = this.createSearchResult(node, fuzzyScore, options)
-            result.subProject = subProjectName
-            results.push(result)
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * Searches within file indexes for file-type results
-   *
-   * @param project - Project to search in
-   * @param query - Search query
-   * @param options - Search options
-   * @param results - Results array to populate
-   */
-  private searchInFileIndex(
-    project: ProjectTree,
-    query: string,
-    options: SearchOptions,
-    results: SearchResult[],
-  ): void {
-    const threshold = options.fuzzyThreshold || 30
-
-    // Search main project file index
-    this.searchFileIndexMap(project.fileIndex, query, options, results, threshold)
-
-    // Search sub-project file indexes if mono-repo
-    if (project.isMonoRepo && project.subProjectFileIndex) {
-      for (const [subProjectName, fileIndex] of project.subProjectFileIndex) {
-        // Check if this sub-project should be included based on scope options
-        if (this.shouldIncludeSubProject(subProjectName, options.scope)) {
-          this.searchFileIndexMap(fileIndex, query, options, results, threshold, subProjectName)
-        }
-      }
-    }
-  }
-
-  /**
-   * Searches within a specific file index map
-   *
-   * @param fileIndex - File index to search in
-   * @param query - Search query
-   * @param options - Search options
-   * @param results - Results array to populate
-   * @param threshold - Fuzzy matching threshold
-   * @param subProjectName - Sub-project name if applicable
-   */
-  private searchFileIndexMap(
-    fileIndex: Map<string, TreeNode>,
-    query: string,
-    options: SearchOptions,
-    results: SearchResult[],
-    threshold: number,
-    subProjectName?: string,
-  ): void {
-    for (const [, fileNode] of fileIndex) {
-      // Fast path: check filters first (especially path pattern) before expensive fuzzy matching
-      if (!this.matchesFilters(fileNode, options)) {
-        continue
-      }
-
-      // Match against filename (basename) and full path
-      const filename = fileNode.name
-      const fullPath = fileNode.path
-
-      const filenameScore = this.matchesQuery(filename, query, options)
-      const pathScore = this.matchesQuery(fullPath, query, options)
-      const bestScore = Math.max(filenameScore, pathScore)
-
-      if (bestScore >= threshold) {
-        const result = this.createSearchResult(fileNode, bestScore, options)
-        result.subProject = subProjectName
-        results.push(result)
-      }
-    }
-  }
-
-  /**
-   * Checks if a sub-project should be included based on scope options
-   *
-   * @param subProjectName - Name of the sub-project
-   * @param scope - Search scope options
-   * @returns True if sub-project should be included
-   */
-  private shouldIncludeSubProject(
-    subProjectName: string,
-    scope?: { subProjects?: string[], excludeSubProjects?: string[] },
-  ): boolean {
-    if (!scope) return true
-
-    if (scope.subProjects && scope.subProjects.length > 0) {
-      return scope.subProjects.includes(subProjectName)
-    }
-
-    if (scope.excludeSubProjects && scope.excludeSubProjects.length > 0) {
-      return !scope.excludeSubProjects.includes(subProjectName)
-    }
-
-    return true
-  }
-
-  /**
-   * Ranks results by score and limits to specified maximum
-   *
-   * @param results - Search results to rank
-   * @param maxResults - Maximum number of results to return
-   * @returns Ranked and limited results
-   */
-  private rankAndLimitResults(results: SearchResult[], maxResults: number): SearchResult[] {
-    results.sort((a, b) => b.score - a.score)
-    return results.slice(0, maxResults)
-  }
-
-  /**
-   * Determines which node indexes to search based on scope options
-   *
-   * @param project - Project containing node indexes
-   * @param scope - Search scope configuration
-   * @returns Array of node indexes to search with optional sub-project names
-   */
-  private getNodeIndexesToSearch(
-    project: ProjectTree,
-    scope?: SearchScope,
-  ): Array<{
-    nodeIndex: Map<string, TreeNode[]>
-    subProjectName?: string
-  }> {
-    const indexesToSearch: Array<{
-      nodeIndex: Map<string, TreeNode[]>
-      subProjectName?: string
-    }> = []
-
-    if (!project.isMonoRepo || !scope) {
-      indexesToSearch.push({ nodeIndex: project.nodeIndex })
-      return indexesToSearch
-    }
-
-    if (scope.subProjects && scope.subProjects.length > 0) {
-      for (const subProjectName of scope.subProjects) {
-        const subProjectNodeIndex = project.subProjectNodeIndex?.get(subProjectName)
-        if (subProjectNodeIndex) {
-          indexesToSearch.push({
-            nodeIndex: subProjectNodeIndex,
-            subProjectName,
-          })
-        }
-      }
-      return indexesToSearch
-    }
-
-    if (scope.crossProjectSearch && project.subProjectNodeIndex) {
-      for (const [subProjectName, nodeIndex] of project.subProjectNodeIndex) {
-        if (scope.excludeSubProjects?.includes(subProjectName)) {
-          continue
-        }
-        indexesToSearch.push({
-          nodeIndex,
-          subProjectName,
-        })
-      }
-      return indexesToSearch
-    }
-
-    indexesToSearch.push({ nodeIndex: project.nodeIndex })
-    return indexesToSearch
+    this.logger.info(`Project ${project.projectId} initialized with ${project.fileIndex.size} files`)
   }
 }

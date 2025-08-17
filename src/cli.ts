@@ -30,10 +30,7 @@ import { listSupportedLanguages } from './parsers/registry.js'
 
 // Import all modules statically for better dependency analysis and performance
 import { handleSearch as executeModularSearch } from './cli/search/index.js'
-import { TreeManager } from './core/tree-manager.js'
-import { getParserRegistry } from './parsers/registry.js'
-import { DeadCodeCoordinator } from './mcp/tools/analyzers/deadcode/deadcode-coordinator.js'
-import { QualityAnalyzer } from './mcp/tools/analyzers/quality-analyzer.js'
+import { runAnalysis } from './cli/analysis/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -147,7 +144,7 @@ program
       }
       else {
         // Code analysis mode
-        await handleAnalyzeCode(directory, analysisType, options)
+        await runAnalysis(directory, analysisType, options)
       }
     },
   )
@@ -384,202 +381,6 @@ async function handleSearch(
 
   // Delegate to modular search system
   await executeModularSearch(query, directory, options, opts)
-}
-
-/**
- * Handles code analysis commands (deadcode, quality, etc.)
- *
- * @param directory - Directory to analyze
- * @param analysisType - Type of analysis to run
- * @param options - Analysis options
- */
-async function handleAnalyzeCode(directory: string, analysisType: string, options: any): Promise<void> {
-  const logger = getLogger()
-  const projectId = `cli-analysis-${Date.now()}`
-
-  try {
-    logger.output(chalk.cyan(`🔍 Running ${analysisType} analysis on ${directory}...`))
-
-    // Setup TreeManager and parse files
-    const treeManager = new TreeManager(getParserRegistry())
-
-    // Smart language detection for JS/TS projects
-    const languages = options.languages ? options.languages.split(',') : ['typescript', 'javascript', 'tsx', 'jsx']
-
-    // Auto-include JSON for JS/TS projects to parse package.json and configs
-    const isJsProject = languages.some((lang: string) => ['typescript', 'javascript', 'tsx', 'jsx'].includes(lang))
-    if (isJsProject && !languages.includes('json')) {
-      languages.push('json')
-    }
-
-    // Auto-include Vue for Vue/Nuxt projects (check for vue dependencies in package.json)
-    try {
-      // Try multiple package.json locations for mono-repos
-      const packageJsonPaths = [
-        `${directory}/package.json`,
-        `${directory}/client/package.json`, // Common mono-repo pattern
-        `${directory}/frontend/package.json`, // Alternative pattern
-      ]
-
-      for (const packageJsonPath of packageJsonPaths) {
-        try {
-          const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
-          const allDeps = { ...packageJson.dependencies, ...packageJson.devDependencies }
-
-          if ((allDeps.vue || allDeps.nuxt || allDeps['@nuxt/core']) && !languages.includes('vue')) {
-            languages.push('vue')
-            break
-          }
-        }
-        catch {
-          // Try next path
-          continue
-        }
-      }
-    }
-    catch {
-      // Ignore package.json read errors
-    }
-
-    const config = {
-      workingDir: directory,
-      languages,
-      maxDepth: 10,
-      ignoreDirs: [
-        'node_modules', '.git', 'dist', 'build', 'out', 'lib',
-        'coverage', '.next', 'target', 'bin', '.turbo', '.cache',
-        '__pycache__', '.pytest_cache', '.mypy_cache',
-      ],
-    }
-
-    await treeManager.createProject(projectId, config)
-    await treeManager.initializeProject(projectId)
-
-    const project = treeManager.getProject(projectId)
-    if (!project) {
-      throw new Error('Failed to initialize project')
-    }
-
-    logger.output(chalk.dim(`📁 Analyzed ${project.fileIndex.size} files`))
-
-    // Get appropriate analyzer
-    let analyzer: any
-    switch (analysisType) {
-      case 'deadcode':
-        analyzer = new DeadCodeCoordinator()
-        break
-      case 'quality':
-        analyzer = new QualityAnalyzer()
-        break
-      default:
-        throw new Error(`Unsupported analysis type: ${analysisType}`)
-    }
-
-    // Prepare analysis result structure
-    const result = {
-      projectId,
-      analysisTypes: [analysisType as any],
-      scope: 'project' as const,
-      summary: { totalFindings: 0, criticalFindings: 0, warningFindings: 0, infoFindings: 0 },
-      findings: [] as any[],
-      metrics: {} as any,
-    }
-
-    const allNodes = Array.from(project.fileIndex.values())
-    await analyzer.analyze(allNodes, result)
-
-    // Format and display results
-    logger.output(chalk.cyan(`\n📊 ${analysisType.charAt(0).toUpperCase() + analysisType.slice(1)} Analysis Results:`))
-
-    if (result.findings.length === 0) {
-      logger.output(chalk.green('✅ No issues found!'))
-    }
-    else {
-      if (analysisType === 'deadcode') {
-        // Dead code specific formatting
-        const orphanedFiles = result.findings.filter(f => f.category === 'orphaned_file')
-        const unusedExports = result.findings.filter(f => f.category === 'unused_export')
-        const unusedBarrelGroups = result.findings.filter(f => f.category === 'unused_barrel_group')
-
-        if (unusedBarrelGroups.length > 0) {
-          logger.output(chalk.blue(`\n📦 Unused Module Barrels (${unusedBarrelGroups.length}):`))
-          unusedBarrelGroups.forEach((finding) => {
-            logger.output(`  ${chalk.blue('•')} ${finding.description}`)
-            logger.output(`    ${chalk.dim(finding.context)}`)
-          })
-        }
-
-        if (orphanedFiles.length > 0) {
-          logger.output(chalk.yellow(`\n💀 Orphaned Files (${orphanedFiles.length}):`))
-          orphanedFiles.slice(0, 20).forEach((finding) => {
-            logger.output(`  ${chalk.red('•')} ${finding.location}`)
-          })
-          if (orphanedFiles.length > 20) {
-            logger.output(chalk.dim(`    ... and ${orphanedFiles.length - 20} more`))
-          }
-        }
-
-        if (unusedExports.length > 0) {
-          logger.output(chalk.yellow(`\n📤 Unused Exports (${unusedExports.length}):`))
-          unusedExports.slice(0, 10).forEach((finding) => {
-            logger.output(`  ${chalk.yellow('•')} ${finding.description}`)
-            logger.output(`    ${chalk.dim(finding.location)}`)
-          })
-          if (unusedExports.length > 10) {
-            logger.output(chalk.dim(`    ... and ${unusedExports.length - 10} more`))
-          }
-        }
-      }
-      else {
-        // Generic findings formatting
-        const groupedFindings = result.findings.reduce((acc, finding) => {
-          const key = finding.severity || 'info'
-          if (!acc[key]) acc[key] = []
-          acc[key].push(finding)
-          return acc
-        }, {} as Record<string, any[]>)
-
-        for (const [severity, findings] of Object.entries(groupedFindings)) {
-          const icon = severity === 'critical' ? '🔴' : severity === 'warning' ? '🟡' : '🔵'
-          const findingList = findings as any[]
-          logger.output(chalk.yellow(`\n${icon} ${severity.toUpperCase()} (${findingList.length}):`))
-          findingList.slice(0, 10).forEach((finding: any) => {
-            logger.output(`  • ${finding.description}`)
-            logger.output(`    ${chalk.dim(finding.location)}`)
-          })
-          if (findingList.length > 10) {
-            logger.output(chalk.dim(`    ... and ${findingList.length - 10} more`))
-          }
-        }
-      }
-    }
-
-    // Show metrics if requested
-    if (options.includeMetrics && result.metrics) {
-      logger.output(chalk.cyan('\n📈 Metrics:'))
-      if (analysisType === 'deadcode' && result.metrics.deadCode) {
-        const metrics = result.metrics.deadCode
-        logger.output(`  Orphaned files: ${metrics.orphanedFiles}`)
-        logger.output(`  Unused exports: ${metrics.unusedExports}`)
-        logger.output(`  Unused dependencies: ${metrics.unusedDependencies}`)
-      }
-      else {
-        // Generic metrics display
-        Object.entries(result.metrics).forEach(([key, value]) => {
-          logger.output(`  ${key}: ${JSON.stringify(value)}`)
-        })
-      }
-    }
-
-    logger.output('')
-
-    // Cleanup
-    treeManager.destroyProject(projectId)
-  }
-  catch (error) {
-    logger.error(`${analysisType} analysis failed: ${error}`)
-    process.exit(1)
-  }
 }
 
 // Enhanced help text
