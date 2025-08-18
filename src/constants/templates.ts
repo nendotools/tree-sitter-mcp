@@ -31,6 +31,65 @@ export interface BuildData {
   originalDirectories?: number
 }
 
+export const SETUP_TEMPLATE = `MCP Setup Instructions:
+
+For Claude Code (Recommended):
+
+Run this command to add the MCP server:
+  claude mcp add tree-sitter-mcp -s user -- npx -y @nendo/tree-sitter-mcp --mcp
+
+If already installed, check with:
+  claude mcp list
+
+For Claude Desktop:
+
+Add to your config (~/.config/claude-desktop/claude_desktop_config.json):
+  {
+    "mcpServers": {
+      "tree-sitter-mcp": {
+        "command": "npx",
+        "args": ["@nendo/tree-sitter-mcp", "--mcp"],
+        "cwd": "/path/to/your/project"
+      }
+    }
+  }
+
+For Other MCP Clients:
+
+The server can be started with:
+  npx @nendo/tree-sitter-mcp --mcp
+
+Or globally installed:
+  npm install -g @nendo/tree-sitter-mcp
+  tree-sitter-mcp --mcp
+
+Server will communicate via stdio using the MCP protocol.`
+
+export const SETUP_AUTO_SUCCESS_TEMPLATE = `✅ Successfully installed tree-sitter-mcp!
+
+The MCP server is now available in Claude Code.
+Use /mcp to see available tools or start using the analysis functions.`
+
+export const SETUP_AUTO_EXISTS_TEMPLATE = `✅ tree-sitter-mcp is already installed!
+
+The MCP server is available in Claude Code.
+Use /mcp to see available tools or start using the analysis functions.`
+
+export const SETUP_AUTO_FAILED_TEMPLATE = `❌ Automatic setup failed: {error}
+
+Falling back to manual instructions:
+
+{manualInstructions}`
+
+export const SETUP_CLAUDE_NOT_FOUND_TEMPLATE = `❌ Claude Code CLI not found
+
+Please install Claude Code first to use automatic setup.
+You can download it from: https://claude.ai/download
+
+Falling back to manual instructions:
+
+{manualInstructions}`
+
 /**
  * Create console output using template literals with conditional sections
  */

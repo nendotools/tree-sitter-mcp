@@ -4,11 +4,12 @@
 
 import { Command } from 'commander'
 import chalk from 'chalk'
+import { execSync } from 'child_process'
 import { analyzeProject, formatAnalysisReport } from '../analysis/index.js'
 import { createProject, parseProject } from '../project/manager.js'
 import { searchCode, findUsage } from '../core/search.js'
 import { startMCPServer } from '../mcp/server.js'
-import { renderAnalysis, type AnalysisData } from '../constants/templates.js'
+import { renderAnalysis, type AnalysisData, SETUP_TEMPLATE, SETUP_AUTO_SUCCESS_TEMPLATE, SETUP_AUTO_EXISTS_TEMPLATE, SETUP_AUTO_FAILED_TEMPLATE, SETUP_CLAUDE_NOT_FOUND_TEMPLATE } from '../constants/templates.js'
 import { initializeLogger, getLogger } from '../utils/logger.js'
 import { getVersion } from '../utils/version.js'
 import type { AnalysisOptions as CoreAnalysisOptions } from '../types/analysis.js'
@@ -55,6 +56,7 @@ export function createCLI(): Command {
   program
     .command('setup')
     .description('Setup MCP integration')
+    .option('--auto', 'Automatically run the Claude MCP add command')
     .action(handleSetup)
 
   program.action(handleDefaultAction)
@@ -268,25 +270,52 @@ async function handleFindUsage(identifier: string, options: FindUsageOptions): P
   }
 }
 
-function handleSetup(): void {
+interface SetupOptions {
+  auto?: boolean
+}
+
+async function handleSetup(options: SetupOptions): Promise<void> {
   const logger = getLogger()
 
-  logger.output(chalk.cyan('MCP Setup Instructions:'))
-  logger.output('')
-  logger.output('1. Add to your Claude Desktop config (~/.config/claude-desktop/claude_desktop_config.json):')
-  logger.output('')
-  logger.output(chalk.gray('  {'))
-  logger.output(chalk.gray('    "mcpServers": {'))
-  logger.output(chalk.gray('      "tree-sitter-mcp": {'))
-  logger.output(chalk.gray('        "command": "npx",'))
-  logger.output(chalk.gray('        "args": ["tree-sitter-mcp", "--mcp"],'))
-  logger.output(chalk.gray('        "cwd": "/path/to/your/project"'))
-  logger.output(chalk.gray('      }'))
-  logger.output(chalk.gray('    }'))
-  logger.output(chalk.gray('  }'))
-  logger.output('')
-  logger.output('2. Restart Claude Desktop')
-  logger.output('3. The server will be available for code analysis and search')
+  if (options.auto) {
+    await runAutoSetup(logger)
+  }
+  else {
+    logger.output(SETUP_TEMPLATE)
+  }
+}
+
+async function runAutoSetup(logger: any): Promise<void> {
+  try {
+    // First check if Claude Code is available
+    execSync('claude --version', { stdio: 'pipe' })
+
+    const output = execSync('claude mcp list', { encoding: 'utf8' })
+
+    if (output.includes('tree-sitter-mcp')) {
+      logger.output(SETUP_AUTO_EXISTS_TEMPLATE)
+    }
+    else {
+      execSync('claude mcp add tree-sitter-mcp -s user -- npx -y @nendo/tree-sitter-mcp --mcp', { stdio: 'inherit' })
+      logger.output(SETUP_AUTO_SUCCESS_TEMPLATE)
+    }
+  }
+  catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+    // Check if it's specifically a Claude Code availability issue
+    if (errorMessage.includes('claude: command not found') || errorMessage.includes('not recognized')) {
+      const claudeNotFoundOutput = SETUP_CLAUDE_NOT_FOUND_TEMPLATE
+        .replace('{manualInstructions}', SETUP_TEMPLATE)
+      logger.output(claudeNotFoundOutput)
+    }
+    else {
+      const failedOutput = SETUP_AUTO_FAILED_TEMPLATE
+        .replace('{error}', errorMessage)
+        .replace('{manualInstructions}', SETUP_TEMPLATE)
+      logger.output(failedOutput)
+    }
+  }
 }
 
 interface DefaultOptions {

@@ -11,6 +11,7 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 
+import { analyzeProject } from '../analysis/index.js'
 import { handleToolRequest } from './handlers.js'
 import { MCP_TOOLS, MCP_RESOURCES } from './schemas.js'
 import { getLogger } from '../utils/logger.js'
@@ -69,7 +70,6 @@ export async function startMCPServer(): Promise<void> {
 
         if (uri.startsWith('analysis://')) {
           const projectPath = uri.replace('analysis://', '')
-          const { analyzeProject } = await import('../analysis/index.js')
 
           const result = await analyzeProject(projectPath, {
             includeQuality: true,

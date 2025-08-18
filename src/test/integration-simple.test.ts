@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { resolve } from 'path'
 import { createProject, parseProject } from '../project/manager.js'
 import { analyzeProject } from '../analysis/index.js'
+import { searchCode } from '../core/search.js'
 import type { Project } from '../types/core.js'
 
 describe('Simple Integration Test', () => {
@@ -98,9 +99,6 @@ describe('Simple Integration Test', () => {
     })
 
     await parseProject(project)
-
-    // Import search functions
-    const { searchCode } = await import('../core/search.js')
 
     // Perform a search - looking for any results
     const allNodes = Array.from(project.files.values())
