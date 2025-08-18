@@ -19,6 +19,7 @@ tree-sitter-mcp search <query> [options]
 ```
 
 **Options:**
+- `--project-id <id>` - Project identifier for AST caching (auto-generated if not provided)
 - `--type <types...>` - Filter by element types (function, class, variable, etc.)
 - `--exact` - Use exact matching instead of fuzzy
 - `--max-results <n>` - Maximum results to return (default: 20)
@@ -53,6 +54,7 @@ tree-sitter-mcp find-usage <identifier> [options]
 ```
 
 **Options:**
+- `--project-id <id>` - Project identifier for AST caching (auto-generated if not provided)
 - `--exact` - Require exact identifier match (default: true)
 - `--case-sensitive` - Case sensitive search
 - `--max-results <n>` - Maximum results to return (default: 50)
@@ -79,6 +81,7 @@ tree-sitter-mcp analyze [directory] [options]
 ```
 
 **Options:**
+- `--project-id <id>` - Project identifier for AST caching (auto-generated if not provided)
 - `--quality` - Include quality analysis (default: true)
 - `--structure` - Include structure analysis
 - `--deadcode` - Include dead code analysis  
@@ -176,6 +179,26 @@ tree-sitter-mcp search "" --type class --max-results 100
 **Generate quality report:**
 ```bash
 tree-sitter-mcp analyze --quality --structure --deadcode --output markdown --metrics > quality-report.md
+```
+
+### AST Caching
+
+**Use project identifiers for faster repeated analysis:**
+```bash
+# First run parses and caches the AST
+tree-sitter-mcp search "User" --project-id "my-api"
+
+# Subsequent runs reuse cached AST for instant results
+tree-sitter-mcp find-usage "UserService" --project-id "my-api"
+tree-sitter-mcp analyze --project-id "my-api" --deadcode
+
+# Auto-generated project ID from directory name
+tree-sitter-mcp search "config" /path/to/my-project
+# Creates project ID "my-project" automatically
+
+# Manual project IDs for better organization
+tree-sitter-mcp analyze --project-id "frontend-v2" ./src
+tree-sitter-mcp analyze --project-id "api-server" ./backend
 ```
 
 ## Exit Codes
