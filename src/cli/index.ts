@@ -6,13 +6,16 @@ import { Command } from 'commander'
 import chalk from 'chalk'
 import { execSync } from 'child_process'
 import { analyzeProject, formatAnalysisReport } from '../analysis/index.js'
-import { createProject, parseProject } from '../project/manager.js'
 import { searchCode, findUsage } from '../core/search.js'
+import { createPersistentManager, getOrCreateProject } from '../project/persistent-manager.js'
 import { startMCPServer } from '../mcp/server.js'
 import { renderAnalysis, type AnalysisData, SETUP_TEMPLATE, SETUP_AUTO_SUCCESS_TEMPLATE, SETUP_AUTO_EXISTS_TEMPLATE, SETUP_AUTO_FAILED_TEMPLATE, SETUP_CLAUDE_NOT_FOUND_TEMPLATE } from '../constants/templates.js'
 import { initializeLogger, getLogger } from '../utils/logger.js'
 import { getVersion } from '../utils/version.js'
 import type { AnalysisOptions as CoreAnalysisOptions } from '../types/analysis.js'
+
+// Shared persistent manager instance
+const persistentManager = createPersistentManager(10)
 
 export function createCLI(): Command {
   const program = new Command()
@@ -27,6 +30,7 @@ export function createCLI(): Command {
     .command('search <query>')
     .description('Search for code elements')
     .option('-d, --directory <dir>', 'Directory to search', process.cwd())
+    .option('-p, --project-id <id>', 'Project ID for persistent AST caching')
     .option('-t, --type <types...>', 'Filter by element types (function, class, etc.)')
     .option('-l, --languages <langs...>', 'Filter by programming languages')
     .option('-m, --max-results <num>', 'Maximum number of results', '20')
@@ -37,6 +41,7 @@ export function createCLI(): Command {
   program
     .command('analyze [directory]')
     .description('Analyze code quality, dead code, and structure')
+    .option('-p, --project-id <id>', 'Project ID for persistent AST caching')
     .option('--quality', 'Include quality analysis', true)
     .option('--deadcode', 'Include dead code analysis')
     .option('--structure', 'Include structure analysis')
@@ -47,6 +52,7 @@ export function createCLI(): Command {
     .command('find-usage <identifier>')
     .description('Find all usages of an identifier')
     .option('-d, --directory <dir>', 'Directory to search', process.cwd())
+    .option('-p, --project-id <id>', 'Project ID for persistent AST caching')
     .option('-l, --languages <langs...>', 'Filter by programming languages')
     .option('--case-sensitive', 'Case sensitive search')
     .option('--exact', 'Exact match only')
@@ -66,6 +72,7 @@ export function createCLI(): Command {
 
 interface SearchOptions {
   directory: string
+  projectId?: string
   type?: string[]
   languages?: string[]
   maxResults: string
@@ -81,12 +88,11 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
   try {
     logger.info(`Searching for: ${query}`)
 
-    const project = createProject({
+    const project = await getOrCreateProject(persistentManager, {
       directory: options.directory,
       languages: options.languages || [],
-    })
-
-    await parseProject(project)
+      autoWatch: false,
+    }, options.projectId)
 
     const allNodes = Array.from(project.files.values())
     const elementNodes = Array.from(project.nodes.values()).flat()
@@ -139,6 +145,7 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
 }
 
 interface AnalysisOptions {
+  projectId?: string
   quality?: boolean
   deadcode?: boolean
   structure?: boolean
@@ -157,9 +164,15 @@ async function handleAnalysis(directory: string = process.cwd(), options: Analys
       includeStructure: options.structure,
     }
 
-    logger.info(`Analyzing ${directory}...`)
+    // Create/get persistent project to cache parsing
+    const project = await getOrCreateProject(persistentManager, {
+      directory,
+      autoWatch: false,
+    }, options.projectId)
 
-    const result = await analyzeProject(directory, analysisOptions)
+    logger.info(`Analyzing ${project.config.directory} (project: ${project.id})...`)
+
+    const result = await analyzeProject(project.config.directory, analysisOptions)
 
     // Collect data for template rendering
     const { metrics, summary } = result
@@ -196,6 +209,7 @@ async function handleAnalysis(directory: string = process.cwd(), options: Analys
 
 interface FindUsageOptions {
   directory: string
+  projectId?: string
   languages?: string[]
   caseSensitive?: boolean
   exact?: boolean
@@ -210,12 +224,11 @@ async function handleFindUsage(identifier: string, options: FindUsageOptions): P
   try {
     logger.info(`Finding usage of: ${identifier}`)
 
-    const project = createProject({
+    const project = await getOrCreateProject(persistentManager, {
       directory: options.directory,
       languages: options.languages || [],
-    })
-
-    await parseProject(project)
+      autoWatch: false,
+    }, options.projectId)
 
     const allNodes = Array.from(project.files.values())
     const elementNodes = Array.from(project.nodes.values()).flat()

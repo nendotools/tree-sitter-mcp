@@ -3,12 +3,15 @@
  */
 
 import { analyzeProject } from '../analysis/index.js'
-import { createProject, parseProject } from '../project/manager.js'
 import { searchCode, findUsage } from '../core/search.js'
+import { createPersistentManager, getOrCreateProject } from '../project/persistent-manager.js'
 import { getLogger } from '../utils/logger.js'
 import { handleError } from '../utils/errors.js'
 import type { AnalysisOptions } from '../types/analysis.js'
-import type { JsonObject } from '../types/core.js'
+import type { JsonObject, Project } from '../types/core.js'
+
+// Shared persistent manager instance for MCP
+const mcpPersistentManager = createPersistentManager(10)
 
 interface MCPToolParams {
   name: string
@@ -27,16 +30,15 @@ interface MCPToolResult {
   [key: string]: unknown
 }
 
-async function createTempProject(directory = process.cwd()) {
-  const project = createProject({
+async function getOrCreateMCPProject(projectId?: string, directory = process.cwd()): Promise<Project> {
+  return getOrCreateProject(mcpPersistentManager, {
     directory,
     languages: [],
-  })
-  await parseProject(project)
-  return project
+    autoWatch: true,
+  }, typeof projectId === 'string' ? projectId : undefined)
 }
 
-function getSearchNodes(project: ReturnType<typeof createProject>) {
+function getSearchNodes(project: Project) {
   const allNodes = Array.from(project.files.values())
   const elementNodes = Array.from(project.nodes.values()).flat()
   return [...allNodes, ...elementNodes]
@@ -65,6 +67,7 @@ export async function handleToolRequest(request: MCPToolRequest): Promise<MCPToo
 
 async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
   const {
+    projectId,
     query,
     maxResults = 20,
     fuzzyThreshold = 30,
@@ -78,7 +81,9 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
   }
 
   try {
-    const project = await createTempProject()
+    const project = await getOrCreateMCPProject(
+      typeof projectId === 'string' ? projectId : undefined,
+    )
     const searchNodes = getSearchNodes(project)
 
     const results = searchCode(query as string, searchNodes, {
@@ -93,6 +98,7 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
       content: [{
         type: 'text',
         text: JSON.stringify({
+          projectId: project.id,
           query,
           results: results.map(r => ({
             name: r.node.name,
@@ -117,6 +123,7 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
 
 async function handleFindUsage(args: JsonObject): Promise<MCPToolResult> {
   const {
+    projectId,
     identifier,
     caseSensitive = false,
     exactMatch = true,
@@ -128,7 +135,9 @@ async function handleFindUsage(args: JsonObject): Promise<MCPToolResult> {
   }
 
   try {
-    const project = await createTempProject()
+    const project = await getOrCreateMCPProject(
+      typeof projectId === 'string' ? projectId : undefined,
+    )
     const searchNodes = getSearchNodes(project)
 
     const results = findUsage(identifier, searchNodes, {
@@ -140,6 +149,7 @@ async function handleFindUsage(args: JsonObject): Promise<MCPToolResult> {
       content: [{
         type: 'text',
         text: JSON.stringify({
+          projectId: project.id,
           identifier,
           usages: results.slice(0, Number(maxResults)).map(result => ({
             path: result.node.path,
@@ -174,6 +184,10 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
   const scopeValue = validScopes.includes(scope as typeof validScopes[number]) ? scope as typeof validScopes[number] : 'project'
 
   try {
+    const project = await getOrCreateMCPProject(
+      typeof projectId === 'string' ? projectId : undefined,
+    )
+
     const options: AnalysisOptions = {
       includeQuality: analysisTypesArray.includes('quality'),
       includeDeadcode: analysisTypesArray.includes('deadcode'),
@@ -182,7 +196,7 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
       scope: scopeValue,
     }
 
-    const result = await analyzeProject(process.cwd(), options)
+    const result = await analyzeProject(project.config.directory, options)
 
     return {
       content: [{
@@ -191,7 +205,8 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
           analysis: {
             ...result,
             timestamp: new Date().toISOString(),
-            projectId,
+            projectId: project.id,
+            directory: project.config.directory,
             scope,
             analysisTypes,
           },
