@@ -10,7 +10,6 @@ import { handleError } from '../utils/errors.js'
 import type { AnalysisOptions } from '../types/analysis.js'
 import type { JsonObject, Project } from '../types/core.js'
 
-// Shared persistent manager instance for MCP
 const mcpPersistentManager = createPersistentManager(10)
 
 interface MCPToolParams {
@@ -31,11 +30,14 @@ interface MCPToolResult {
 }
 
 async function getOrCreateMCPProject(projectId?: string, directory = process.cwd()): Promise<Project> {
+  const actualDirectory = projectId && projectId.startsWith('/') ? projectId : directory
+  const actualProjectId = projectId && !projectId.startsWith('/') ? projectId : undefined
+
   return getOrCreateProject(mcpPersistentManager, {
-    directory,
+    directory: actualDirectory,
     languages: [],
     autoWatch: true,
-  }, typeof projectId === 'string' ? projectId : undefined)
+  }, actualProjectId)
 }
 
 function getSearchNodes(project: Project) {
@@ -128,6 +130,7 @@ async function handleFindUsage(args: JsonObject): Promise<MCPToolResult> {
     caseSensitive = false,
     exactMatch = true,
     maxResults = 50,
+    pathPattern,
   } = args
 
   if (typeof identifier !== 'string') {
@@ -143,6 +146,7 @@ async function handleFindUsage(args: JsonObject): Promise<MCPToolResult> {
     const results = findUsage(identifier, searchNodes, {
       caseSensitive: Boolean(caseSensitive),
       exactMatch: Boolean(exactMatch),
+      pathPattern: typeof pathPattern === 'string' ? pathPattern : undefined,
     })
 
     return {
@@ -176,6 +180,8 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
     projectId,
     analysisTypes = ['quality'],
     scope = 'project',
+    pathPattern,
+    maxResults = 20,
   } = args
 
   const validScopes = ['project', 'file', 'method'] as const
@@ -198,17 +204,38 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
 
     const result = await analyzeProject(project.config.directory, options)
 
+    let filteredFindings = result.findings
+    if (typeof pathPattern === 'string') {
+      filteredFindings = result.findings.filter(finding =>
+        finding.location.includes(pathPattern),
+      )
+    }
+
+    const severityOrder = { critical: 0, warning: 1, info: 2 }
+    filteredFindings.sort((a, b) => {
+      const aOrder = severityOrder[a.severity] ?? 3
+      const bOrder = severityOrder[b.severity] ?? 3
+      return aOrder - bOrder
+    })
+
+    const limitedFindings = filteredFindings.slice(0, Number(maxResults))
+
     return {
       content: [{
         type: 'text',
         text: JSON.stringify({
           analysis: {
             ...result,
+            findings: limitedFindings,
             timestamp: new Date().toISOString(),
             projectId: project.id,
             directory: project.config.directory,
             scope,
             analysisTypes,
+            pathPattern: typeof pathPattern === 'string' ? pathPattern : undefined,
+            maxResults: Number(maxResults),
+            totalFindings: result.findings.length,
+            filteredFindings: limitedFindings.length,
           },
         }, null, 2),
       }],

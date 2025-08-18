@@ -92,7 +92,6 @@ export interface ResolutionResult {
   framework?: string
 }
 
-// MCP tool arguments
 export interface SearchCodeArgs {
   projectId: string
   query: string
@@ -109,6 +108,7 @@ export interface FindUsageArgs {
   caseSensitive?: boolean
   exactMatch?: boolean
   maxResults?: number
+  pathPattern?: string
 }
 
 export interface AnalyzeCodeArgs {
@@ -117,6 +117,8 @@ export interface AnalyzeCodeArgs {
   scope?: 'project' | 'file' | 'method'
   includeMetrics?: boolean
   severity?: 'critical' | 'warning' | 'info'
+  pathPattern?: string
+  maxResults?: number
 }
 
 export interface InitializeProjectArgs {

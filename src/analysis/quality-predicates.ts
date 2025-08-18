@@ -81,19 +81,12 @@ export function isAnonymousFunction(node: TreeNode): boolean {
 
   const name = node.name.toLowerCase()
 
-  // Only exclude truly anonymous functions (not assigned to variables)
-  // If it has a meaningful name, it's probably assigned: const myFunc = () => {}
-
-  // Exclude only parser-generated anonymous names
   return name === 'anonymous'
     || name === ''
     || /^function\d*$/.test(name) // function, function1, function2, etc.
     || /^arrow\d*$/.test(name) // arrow, arrow1, arrow2, etc.
     || /^\$\d+$/.test(name) // $1, $2, etc. (common in some parsers)
     || /^_+\d*$/.test(name) // _, __, ___1, etc.
-
-  // Don't exclude functions that contain "anonymous" but have meaningful names
-  // e.g., "handleAnonymousUser" is a real function name
 }
 
 /**
@@ -105,32 +98,26 @@ export function isSpecialFunction(node: TreeNode): boolean {
   const name = node.name.toLowerCase()
   const content = node.content.toLowerCase()
 
-  // Skip constructors
   if (name === 'constructor' || name.includes('constructor')) {
     return true
   }
 
-  // Skip initialization functions
   if (name.startsWith('init') || name.startsWith('setup') || name.startsWith('create')) {
     return true
   }
 
-  // Skip getter/setter patterns
   if (name.startsWith('get') || name.startsWith('set') || name.startsWith('is') || name.startsWith('has')) {
     return true
   }
 
-  // Skip factory functions
   if (name.includes('factory') || name.includes('builder') || name.includes('make')) {
     return true
   }
 
-  // Skip callback/handler functions
   if (name.includes('handler') || name.includes('callback') || name.includes('listener')) {
     return true
   }
 
-  // Skip simple return statements (common in short functions)
   if (content.includes('return ') && content.split('\n').length <= 3) {
     return true
   }

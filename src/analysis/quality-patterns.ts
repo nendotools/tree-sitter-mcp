@@ -18,7 +18,6 @@ export function detectMagicValues(node: TreeNode): Finding[] {
   const findings: Finding[] = []
   const content = node.content
 
-  // Magic numbers - be selective about what we flag
   const magicNumberPattern = /\b(\d{3,})\b/g
   const acceptableNumbers = new Set([
     '100', '200', '201', '400', '401', '403', '404', '500', '1000', // HTTP codes
@@ -32,7 +31,6 @@ export function detectMagicValues(node: TreeNode): Finding[] {
     if (number && !acceptableNumbers.has(number)
       && !isInComment(content, match.index)
       && !isInTypeDefinition(content, match.index)) {
-      // Be less aggressive - only flag large numbers or suspicious contexts
       const numValue = parseInt(number)
       if (numValue > 10000 || isInSuspiciousContext(content, match.index)) {
         findings.push({
@@ -48,7 +46,6 @@ export function detectMagicValues(node: TreeNode): Finding[] {
     }
   }
 
-  // Magic strings - flag ALL strings except in type definitions
   const magicStringPattern = /(["'`])([^"'`\n]{4,})\1/g
   while ((match = magicStringPattern.exec(content)) !== null) {
     const str = match[2]
@@ -89,7 +86,6 @@ export function detectDeepNesting(node: TreeNode): Finding[] {
     lineNumber++
     const trimmed = line.trim()
 
-    // Count opening braces/control structures
     const loopOpenings = (trimmed.match(/\b(for|while)\s*\(/g) || []).length
     const otherOpenings = (trimmed.match(/\b(if|switch|try)\s*\(|{/g) || []).length
     const closings = (trimmed.match(/}/g) || []).length
@@ -98,10 +94,8 @@ export function detectDeepNesting(node: TreeNode): Finding[] {
     currentNesting += (loopOpenings + otherOpenings) - closings
     maxNesting = Math.max(maxNesting, currentNesting)
 
-    // Apply loop tolerance: if we're inside loops, allow one extra level per loop
     const adjustedNesting = Math.max(0, currentNesting - loopNesting)
 
-    // Check for deeply nested lines using appropriate thresholds
     if (adjustedNesting >= NESTING_THRESHOLD.MODERATE) {
       const severity = adjustedNesting >= NESTING_THRESHOLD.DEEP ? 'critical' : 'warning'
 
@@ -129,7 +123,6 @@ export function detectDeepNesting(node: TreeNode): Finding[] {
 export function detectGodClasses(functionNodes: TreeNode[]): Finding[] {
   const findings: Finding[] = []
 
-  // Group functions by file to detect God classes/objects
   const functionsByFile = new Map<string, TreeNode[]>()
 
   functionNodes.forEach((node) => {
@@ -142,13 +135,11 @@ export function detectGodClasses(functionNodes: TreeNode[]): Finding[] {
   })
 
   functionsByFile.forEach((functions, filePath) => {
-    // Skip certain file types that legitimately have many functions
     const fileName = filePath.split('/').pop()?.toLowerCase() || ''
     if (fileName.includes('util') || fileName.includes('helper') || fileName.includes('constants')) {
       return
     }
 
-    // Critical threshold for God classes
     if (functions.length >= 20) {
       findings.push({
         type: 'quality',
@@ -160,7 +151,6 @@ export function detectGodClasses(functionNodes: TreeNode[]): Finding[] {
         metrics: { functionCount: functions.length },
       })
     }
-    // Warning threshold
     else if (functions.length >= 12) {
       findings.push({
         type: 'quality',
@@ -184,14 +174,12 @@ export function analyzeFunctionUsage(functionNodes: TreeNode[]): Map<string, num
   const usage = new Map<string, number>()
   const functionNames = new Set(functionNodes.map(node => node.name).filter(Boolean))
 
-  // Count how many times each function name appears across all files
   functionNodes.forEach((node) => {
     if (!node.content) return
 
     functionNames.forEach((funcName) => {
       if (!funcName) return
 
-      // Look for function calls (basic pattern matching)
       const callPatterns = [
         new RegExp(`\\b${escapeRegExp(funcName)}\\s*\\(`, 'g'),
         new RegExp(`\\.${escapeRegExp(funcName)}\\s*\\(`, 'g'),
@@ -206,7 +194,6 @@ export function analyzeFunctionUsage(functionNodes: TreeNode[]): Map<string, num
         }
       })
 
-      // Don't count the function's own definition
       if (node.name === funcName) {
         count = Math.max(0, count - 1)
       }
@@ -224,7 +211,6 @@ export function analyzeFunctionUsage(functionNodes: TreeNode[]): Map<string, num
 export function analyzeMicroFunctionPatterns(functionUsage: Map<string, number>, functionNodes: TreeNode[]): Finding[] {
   const findings: Finding[] = []
 
-  // Group short single-use functions by file (exclude anonymous functions)
   const shortFunctionsByFile = new Map<string, TreeNode[]>()
 
   functionNodes.forEach((node) => {
@@ -243,7 +229,6 @@ export function analyzeMicroFunctionPatterns(functionUsage: Map<string, number>,
     }
   })
 
-  // Check for files with excessive micro-functions
   shortFunctionsByFile.forEach((functions, filePath) => {
     if (functions.length >= 3) {
       findings.push({

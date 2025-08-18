@@ -26,7 +26,6 @@ export function handleError(error: unknown, context?: string): TreeSitterError {
   )
 }
 
-// 3 basic error types instead of dozens
 export const ERROR_CODES = {
   PARSE_ERROR: 'PARSE_ERROR',
   FILE_ERROR: 'FILE_ERROR',

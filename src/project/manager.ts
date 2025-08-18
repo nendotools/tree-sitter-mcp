@@ -26,12 +26,10 @@ export function createProject(config: ProjectConfig, isSubProject = false): Proj
     nodes: new Map(),
   }
 
-  // Only detect monorepo for root projects, not subprojects
   if (!isSubProject) {
     const monorepoInfo = detectMonorepo(project.config.directory)
     if (monorepoInfo.isMonorepo) {
       project.isMonorepo = true
-      // Create subprojects without recursive monorepo detection
       project.subProjects = monorepoInfo.subProjects.map(subPath =>
         createProject({ ...config, directory: subPath }, true),
       )
@@ -47,7 +45,6 @@ export async function parseProject(project: Project): Promise<Project> {
   try {
     logger.info(`Parsing project: ${project.config.directory}`)
 
-    // For monorepos, only parse sub-projects, not the root directory
     if (project.subProjects && project.subProjects.length > 0) {
       logger.info(`Parsing ${project.subProjects.length} sub-projects`)
       for (const subProject of project.subProjects) {
@@ -60,7 +57,6 @@ export async function parseProject(project: Project): Promise<Project> {
       }
     }
     else {
-      // Find all files to parse for single projects
       const files = await findProjectFiles(
         project.config.directory,
         project.config.languages,
@@ -68,13 +64,11 @@ export async function parseProject(project: Project): Promise<Project> {
 
       logger.info(`Found ${files.length} files to parse`)
 
-      // Parse each file
       for (const filePath of files) {
         try {
           const fileNode = await parseFile(filePath)
           project.files.set(filePath, fileNode)
 
-          // Index all nodes from this file
           const allNodes = extractAllNodes(fileNode)
           project.nodes.set(filePath, allNodes)
         }
@@ -139,17 +133,14 @@ export function watchProject(project: Project, onUpdate?: (changes: FileChange[]
 export function getAllNodes(project: Project): TreeNode[] {
   const allNodes: TreeNode[] = []
 
-  // Add file nodes
   for (const fileNode of project.files.values()) {
     allNodes.push(fileNode)
   }
 
-  // Add element nodes
   for (const elementNodes of project.nodes.values()) {
     allNodes.push(...elementNodes)
   }
 
-  // Add nodes from sub-projects
   if (project.subProjects) {
     for (const subProject of project.subProjects) {
       allNodes.push(...getAllNodes(subProject))
@@ -172,7 +163,6 @@ export function getProjectStats(project: Project): {
     directories: new Set<string>(),
   }
 
-  // Collect language and directory info
   for (const filePath of project.files.keys()) {
     const ext = filePath.split('.').pop()?.toLowerCase()
     if (ext) stats.languages.add(ext)

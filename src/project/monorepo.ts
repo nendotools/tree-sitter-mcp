@@ -19,7 +19,6 @@ const IGNORE_DIRS = new Set([
   '.next', '.nuxt', '.output', '.cache', '.tmp', 'vendor', '__pycache__',
   '.vscode', '.idea', 'coverage', '.nyc_output', 'venv', '.venv', '.env',
   '.pytest_cache', '.mypy_cache', '.tox', 'htmlcov', '.coverage',
-  // Test directories - these break quality rules by design
   'test', 'tests', '__tests__', 'spec', 'specs', '__test__',
 ])
 
@@ -65,7 +64,6 @@ export function findSubProjects(directory: string, maxDepth = 3): string[] {
       const entries = readDirSync(dir)
       let hasProjectIndicator = false
 
-      // Check if current directory has project indicators
       for (const entry of entries) {
         if (PROJECT_INDICATORS.includes(entry)) {
           hasProjectIndicator = true
@@ -77,7 +75,6 @@ export function findSubProjects(directory: string, maxDepth = 3): string[] {
         subProjects.push(dir)
       }
 
-      // Recursively search subdirectories
       for (const entry of entries) {
         const fullPath = join(dir, entry)
         if (isDirectory(fullPath) && !IGNORE_DIRS.has(entry)) {
@@ -86,13 +83,12 @@ export function findSubProjects(directory: string, maxDepth = 3): string[] {
       }
     }
     catch {
-      // Ignore directories we can't read
+      /* ignore filesystem errors */
     }
   }
 
   search(directory, 0)
 
-  // If no sub-projects found, include the root directory
   if (subProjects.length === 0) {
     subProjects.push(directory)
   }
@@ -117,7 +113,7 @@ function detectNpmWorkspaces(directory: string): string[] {
     }
   }
   catch {
-    // Ignore parsing errors
+    /* ignore parsing errors */
   }
 
   return []
@@ -150,7 +146,7 @@ function detectPnpmWorkspaces(directory: string): string[] {
     }
   }
   catch {
-    // Ignore parsing errors
+    /* ignore parsing errors */
   }
 
   return []
@@ -167,7 +163,7 @@ function detectLernaWorkspaces(directory: string): string[] {
     }
   }
   catch {
-    // Ignore parsing errors
+    /* ignore parsing errors */
   }
 
   return []
@@ -187,7 +183,6 @@ export function findRootProject(directory: string): string {
   let current = resolve(directory)
 
   while (current !== resolve(current, '..')) {
-    // Check for root project indicators
     const hasGit = isDirectory(join(current, '.git'))
     const hasPackageJson = isFile(join(current, 'package.json'))
     const hasCargoToml = isFile(join(current, 'Cargo.toml'))

@@ -46,7 +46,6 @@ export function validateImportPath(importPath: string, currentFile: string): {
     return { isValid: false, reason: 'Path too long' }
   }
 
-  // Check for circular imports (basic check)
   if (importPath === currentFile) {
     return { isValid: false, reason: 'Circular import detected' }
   }
@@ -61,7 +60,6 @@ export function resolveAndValidate(importPath: string, basePath: string): string
     const resolved = resolve(basePath, importPath)
     const normalized = normalizePath(resolved)
 
-    // Security check - ensure resolved path is within project bounds
     if (!normalized.startsWith(normalizePath(basePath))) {
       return null
     }

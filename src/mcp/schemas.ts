@@ -1,5 +1,5 @@
 /**
- * MCP tool and resource schemas - simplified from complex schema system
+ * MCP tool and resource schemas - consistent parameter support across all tools
  */
 
 export const MCP_TOOLS = [
@@ -12,6 +12,14 @@ export const MCP_TOOLS = [
         query: {
           type: 'string',
           description: 'Search query (name of element)',
+        },
+        projectId: {
+          type: 'string',
+          description: 'Project ID for targeting specific cached project',
+        },
+        pathPattern: {
+          type: 'string',
+          description: 'Filter by file path pattern',
         },
         maxResults: {
           type: 'number',
@@ -33,10 +41,6 @@ export const MCP_TOOLS = [
           items: { type: 'string' },
           description: 'Filter by element types (function, class, variable, etc.)',
         },
-        pathPattern: {
-          type: 'string',
-          description: 'Filter by file path pattern',
-        },
       },
       required: ['query'],
     },
@@ -50,6 +54,14 @@ export const MCP_TOOLS = [
         identifier: {
           type: 'string',
           description: 'Function, variable, class, or identifier name to find usage of',
+        },
+        projectId: {
+          type: 'string',
+          description: 'Project ID for targeting specific cached project',
+        },
+        pathPattern: {
+          type: 'string',
+          description: 'Filter by file path pattern',
         },
         caseSensitive: {
           type: 'boolean',
@@ -80,6 +92,10 @@ export const MCP_TOOLS = [
           type: 'string',
           description: 'Project to analyze',
         },
+        pathPattern: {
+          type: 'string',
+          description: 'Filter by file path pattern',
+        },
         analysisTypes: {
           type: 'array',
           items: {
@@ -109,6 +125,11 @@ export const MCP_TOOLS = [
         target: {
           type: 'string',
           description: 'Specific file path or method name when scope is file/method',
+        },
+        maxResults: {
+          type: 'number',
+          description: 'Maximum number of findings to return',
+          default: 20,
         },
       },
       required: ['projectId', 'analysisTypes', 'scope'],

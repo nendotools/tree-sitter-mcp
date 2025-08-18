@@ -3,7 +3,6 @@
  */
 
 export const CONSOLE_MESSAGES = {
-  // Analysis messages
   CODEBASE_STATS: '📊 New codebase statistics:',
   LINES_OF_CODE: '   Lines of code:',
   FILES_COUNT: '   Files:',
@@ -11,17 +10,14 @@ export const CONSOLE_MESSAGES = {
   COMPLEXITY_STATS: '   Complexity:',
   FUNCTIONS_COUNT: '   Functions:',
 
-  // Build messages
   BUILDING: 'Building project...',
   BUILD_SUCCESS: 'Build completed successfully',
   BUILD_FAILED: 'Build failed',
 
-  // Analysis progress
   ANALYZING: 'Analyzing project...',
   PARSING_FILES: 'Parsing files...',
   ANALYSIS_COMPLETE: 'Analysis complete',
 
-  // Error messages
   FILE_NOT_FOUND: 'File not found',
   PARSE_ERROR: 'Failed to parse file',
   INVALID_CONFIG: 'Invalid configuration',

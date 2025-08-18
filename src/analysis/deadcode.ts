@@ -14,19 +14,14 @@ export interface DeadcodeAnalysisResult {
 }
 
 export function analyzeDeadcode(project: Project): DeadcodeAnalysisResult {
-  // Detect entry points
   const entryPoints = detectEntryPoints(project)
 
-  // Build dependency graph
   const dependencyGraph = buildDependencyGraph(project)
 
-  // Traverse from entry points
   const reachable = traverseDependencies(entryPoints, dependencyGraph)
 
-  // Detect framework conventions
   const frameworkFiles = detectFrameworkConventions(project)
 
-  // Find unreachable files and nodes
   const deadcodeResult = findUnreachableCode(project, reachable, frameworkFiles)
 
   const metrics: DeadcodeMetrics = {
@@ -45,7 +40,6 @@ export function analyzeDeadcode(project: Project): DeadcodeAnalysisResult {
 function detectEntryPoints(project: Project): string[] {
   const entryPoints: string[] = []
 
-  // Common entry point patterns
   const entryPatterns = [
     'index.js', 'index.ts', 'main.js', 'main.ts', 'app.js', 'app.ts',
     'server.js', 'server.ts', 'cli.js', 'cli.ts',
@@ -58,7 +52,6 @@ function detectEntryPoints(project: Project): string[] {
       entryPoints.push(filePath)
     }
 
-    // Package.json main field
     if (fileName === 'package.json') {
       try {
         const content = project.files.get(filePath)?.content
@@ -80,11 +73,10 @@ function detectEntryPoints(project: Project): string[] {
         }
       }
       catch {
-        // Ignore JSON parse errors
+        /* ignore parsing errors */
       }
     }
 
-    // Files with process.argv or command line handling
     const fileNode = project.files.get(filePath)
     if (fileNode?.content) {
       if (fileNode.content.includes('process.argv')
@@ -95,7 +87,6 @@ function detectEntryPoints(project: Project): string[] {
     }
   }
 
-  // If no entry points found, consider all top-level files
   if (entryPoints.length === 0) {
     for (const [filePath] of project.files) {
       const depth = filePath.split('/').length
@@ -118,7 +109,6 @@ function buildDependencyGraph(project: Project): Map<string, Set<string>> {
       const imports = extractImports(fileNode.content)
 
       for (const importPath of imports) {
-        // Try to resolve the import to an actual file
         const resolved = resolveImportToFile(importPath, filePath, project)
         if (resolved) {
           dependencies.add(resolved)
@@ -159,7 +149,6 @@ function traverseDependencies(entryPoints: string[], dependencyGraph: Map<string
 function detectFrameworkConventions(project: Project): Set<string> {
   const frameworkFiles = new Set<string>()
 
-  // Next.js conventions
   for (const [filePath] of project.files) {
     if (filePath.includes('/pages/')
       || filePath.includes('/app/')
@@ -169,7 +158,6 @@ function detectFrameworkConventions(project: Project): Set<string> {
     }
   }
 
-  // Nuxt conventions
   for (const [filePath] of project.files) {
     if (filePath.includes('/pages/')
       || filePath.includes('/layouts/')
@@ -179,7 +167,6 @@ function detectFrameworkConventions(project: Project): Set<string> {
     }
   }
 
-  // Vue CLI conventions
   for (const [filePath] of project.files) {
     if (filePath.includes('/src/views/')
       || filePath.includes('/src/components/')
@@ -188,7 +175,6 @@ function detectFrameworkConventions(project: Project): Set<string> {
     }
   }
 
-  // Test files are also framework conventions
   for (const [filePath] of project.files) {
     if (isTestFile(filePath)) {
       frameworkFiles.add(filePath)
@@ -206,17 +192,14 @@ function findUnreachableCode(
   const unusedFiles: string[] = []
   const unusedNodes: TreeNode[] = []
 
-  // Find unused files
   for (const [filePath] of project.files) {
     if (!reachable.has(filePath) && !frameworkFiles.has(filePath)) {
       unusedFiles.push(filePath)
     }
   }
 
-  // Find unused nodes within used files
   for (const [filePath, nodes] of project.nodes) {
     if (reachable.has(filePath)) {
-      // File is used, but some functions/variables might not be
       const fileContent = project.files.get(filePath)?.content || ''
 
       for (const node of nodes) {
@@ -238,12 +221,10 @@ function findUnreachableCode(
 }
 
 function resolveImportToFile(importPath: string, currentFile: string, project: Project): string | null {
-  // Simple resolution - in practice, this would use the import resolver
   if (importPath.startsWith('./') || importPath.startsWith('../')) {
     const dir = currentFile.split('/').slice(0, -1).join('/')
     const resolved = `${dir}/${importPath}`
 
-    // Try different extensions
     const extensions = ['', '.js', '.ts', '.jsx', '.tsx', '/index.js', '/index.ts']
     for (const ext of extensions) {
       const candidate = resolved + ext
@@ -262,11 +243,9 @@ function resolveRelativePath(basePath: string, relativePath: string): string {
 }
 
 function isNodeUsed(nodeName: string, fileContent: string, _project: Project): boolean {
-  // Simple usage detection - check if the name appears elsewhere in the file
   const regex = new RegExp(`\\b${escapeRegExp(nodeName)}\\b`, 'g')
   const matches = fileContent.match(regex)
 
-  // If it appears more than once, it's likely used (definition + usage)
   return (matches?.length || 0) > 1
 }
 
@@ -291,7 +270,6 @@ function countUnusedImports(project: Project, unusedFiles: string[]): number {
 function generateDeadcodeFindings(result: DeadcodeResult): Finding[] {
   const findings: Finding[] = []
 
-  // Unused files
   for (const filePath of result.unusedFiles) {
     findings.push({
       type: 'deadcode',
@@ -303,7 +281,6 @@ function generateDeadcodeFindings(result: DeadcodeResult): Finding[] {
     })
   }
 
-  // Unused functions
   for (const node of result.unusedNodes.filter(n => n.type === 'function')) {
     findings.push({
       type: 'deadcode',

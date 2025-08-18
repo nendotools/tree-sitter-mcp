@@ -73,7 +73,6 @@ function buildDependencyGraph(fileNodes: TreeNode[]): Map<string, string[]> {
 }
 
 function resolveImportPath(importPath: string, currentFile: string, fileNodes: TreeNode[]): string | null {
-  // Only resolve relative imports for circular dependency detection
   if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
     return null
   }

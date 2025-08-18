@@ -24,7 +24,6 @@ export function isInTypeDefinition(content: string, index: number): boolean {
   const beforeIndex = content.substring(0, index)
   const afterIndex = content.substring(index)
 
-  // Look for type definition patterns around the magic value
   const typePatterns = [
     /\b(?:type|interface)\s+\w+.*=/, // type X =
     /:\s*['"`]/, // object property with string type
@@ -39,12 +38,10 @@ export function isInTypeDefinition(content: string, index: number): boolean {
     /\bRecord</, // record types
   ]
 
-  // Check surrounding context (100 chars before, 20 after for better context)
   const contextBefore = beforeIndex.slice(-100)
   const contextAfter = afterIndex.slice(0, 20)
   const context = contextBefore + contextAfter
 
-  // Also check for TypeScript union patterns more specifically
   const unionPatterns = [
     /\|\s*['"`]\w+['"`]\s*\|/, // middle of union: 'a' | 'b' | 'c'
     /=\s*['"`]\w+['"`]\s*\|/, // start of union: = 'a' | 'b'
@@ -65,7 +62,6 @@ export function isInSuspiciousContext(content: string, index: number): boolean {
   const beforeIndex = content.substring(0, index)
   const contextBefore = beforeIndex.slice(-30)
 
-  // Contexts where numbers might be suspicious
   const suspiciousPatterns = [
     /setTimeout\s*\(\s*[^,]*,\s*$/, // timeout values
     /\bport\s*[=:]\s*$/, // port assignments
@@ -102,7 +98,6 @@ export function isCommonString(str: string): boolean {
     /^\)\.[a-zA-Z]+\(\).*\|\|/, // Default value patterns: ).method() ||
   ]
 
-  // Skip user-facing messages, natural language, and technical terms
   const commonTerms = [
     'javascript', 'typescript', 'function', 'method', 'class', 'interface',
     'component', 'import', 'export', 'default', 'module', 'require',

@@ -14,7 +14,6 @@ import { initializeLogger, getLogger } from '../utils/logger.js'
 import { getVersion } from '../utils/version.js'
 import type { AnalysisOptions as CoreAnalysisOptions } from '../types/analysis.js'
 
-// Shared persistent manager instance
 const persistentManager = createPersistentManager(10)
 
 export function createCLI(): Command {
@@ -31,6 +30,7 @@ export function createCLI(): Command {
     .description('Search for code elements')
     .option('-d, --directory <dir>', 'Directory to search', process.cwd())
     .option('-p, --project-id <id>', 'Project ID for persistent AST caching')
+    .option('--path-pattern <pattern>', 'Filter by file path pattern')
     .option('-t, --type <types...>', 'Filter by element types (function, class, etc.)')
     .option('-l, --languages <langs...>', 'Filter by programming languages')
     .option('-m, --max-results <num>', 'Maximum number of results', '20')
@@ -42,9 +42,11 @@ export function createCLI(): Command {
     .command('analyze [directory]')
     .description('Analyze code quality, dead code, and structure')
     .option('-p, --project-id <id>', 'Project ID for persistent AST caching')
+    .option('--path-pattern <pattern>', 'Filter by file path pattern')
     .option('--quality', 'Include quality analysis', true)
     .option('--deadcode', 'Include dead code analysis')
     .option('--structure', 'Include structure analysis')
+    .option('--max-results <num>', 'Maximum number of findings to return', '20')
     .option('--output <format>', 'Output format (json, text, markdown)', 'json')
     .action(handleAnalysis)
 
@@ -53,6 +55,7 @@ export function createCLI(): Command {
     .description('Find all usages of an identifier')
     .option('-d, --directory <dir>', 'Directory to search', process.cwd())
     .option('-p, --project-id <id>', 'Project ID for persistent AST caching')
+    .option('--path-pattern <pattern>', 'Filter by file path pattern')
     .option('-l, --languages <langs...>', 'Filter by programming languages')
     .option('--case-sensitive', 'Case sensitive search')
     .option('--exact', 'Exact match only')
@@ -73,6 +76,7 @@ export function createCLI(): Command {
 interface SearchOptions {
   directory: string
   projectId?: string
+  pathPattern?: string
   type?: string[]
   languages?: string[]
   maxResults: string
@@ -94,7 +98,6 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
       autoWatch: false,
     }, options.projectId)
 
-    // Collect nodes from main project and all sub-projects (for monorepos)
     const allNodes = Array.from(project.files.values())
     const elementNodes = Array.from(project.nodes.values()).flat()
 
@@ -111,6 +114,7 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
       maxResults: parseInt(options.maxResults),
       exactMatch: options.exact,
       types: options.type,
+      pathPattern: options.pathPattern,
     })
 
     if (options.output === 'json') {
@@ -155,9 +159,11 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
 
 interface AnalysisOptions {
   projectId?: string
+  pathPattern?: string
   quality?: boolean
   deadcode?: boolean
   structure?: boolean
+  maxResults?: string
   output?: string
   debug?: boolean
   quiet?: boolean
@@ -173,7 +179,6 @@ async function handleAnalysis(directory: string = process.cwd(), options: Analys
       includeStructure: options.structure,
     }
 
-    // Create/get persistent project to cache parsing
     const project = await getOrCreateProject(persistentManager, {
       directory,
       autoWatch: false,
@@ -183,8 +188,29 @@ async function handleAnalysis(directory: string = process.cwd(), options: Analys
 
     const result = await analyzeProject(project.config.directory, analysisOptions)
 
-    // Collect data for template rendering
-    const { metrics, summary } = result
+    let filteredFindings = result.findings
+    if (options.pathPattern) {
+      filteredFindings = result.findings.filter(finding =>
+        finding.location.includes(options.pathPattern!),
+      )
+    }
+
+    const severityOrder = { critical: 0, warning: 1, info: 2 }
+    filteredFindings.sort((a, b) => {
+      const aOrder = severityOrder[a.severity] ?? 3
+      const bOrder = severityOrder[b.severity] ?? 3
+      return aOrder - bOrder
+    })
+
+    const maxResults = options.maxResults ? parseInt(options.maxResults) : 20
+    const limitedFindings = filteredFindings.slice(0, maxResults)
+
+    const filteredResult = {
+      ...result,
+      findings: limitedFindings,
+    }
+
+    const { metrics, summary } = filteredResult
     const analysisData: AnalysisData = {
       totalFindings: summary.totalFindings,
       critical: summary.criticalFindings,
@@ -219,6 +245,7 @@ async function handleAnalysis(directory: string = process.cwd(), options: Analys
 interface FindUsageOptions {
   directory: string
   projectId?: string
+  pathPattern?: string
   languages?: string[]
   caseSensitive?: boolean
   exact?: boolean
@@ -239,7 +266,6 @@ async function handleFindUsage(identifier: string, options: FindUsageOptions): P
       autoWatch: false,
     }, options.projectId)
 
-    // Collect nodes from main project and all sub-projects (for monorepos)
     const allNodes = Array.from(project.files.values())
     const elementNodes = Array.from(project.nodes.values()).flat()
 
@@ -255,6 +281,7 @@ async function handleFindUsage(identifier: string, options: FindUsageOptions): P
     const results = findUsage(identifier, searchNodes, {
       caseSensitive: options.caseSensitive,
       exactMatch: options.exact,
+      pathPattern: options.pathPattern,
     })
 
     if (options.output === 'json') {
@@ -318,7 +345,6 @@ async function handleSetup(options: SetupOptions): Promise<void> {
 
 async function runAutoSetup(logger: any): Promise<void> {
   try {
-    // First check if Claude Code is available
     execSync('claude --version', { stdio: 'pipe' })
 
     const output = execSync('claude mcp list', { encoding: 'utf8' })
@@ -334,7 +360,6 @@ async function runAutoSetup(logger: any): Promise<void> {
   catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
-    // Check if it's specifically a Claude Code availability issue
     if (errorMessage.includes('claude: command not found') || errorMessage.includes('not recognized')) {
       const claudeNotFoundOutput = SETUP_CLAUDE_NOT_FOUND_TEMPLATE
         .replace('{manualInstructions}', SETUP_TEMPLATE)
@@ -358,7 +383,6 @@ function handleDefaultAction(options: DefaultOptions): void {
     startMCPServer()
   }
   else {
-    // eslint-disable-next-line no-console
-    console.log('Use --help to see available commands')
+    console.info('Use --help to see available commands')
   }
 }

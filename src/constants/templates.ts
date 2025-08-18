@@ -279,7 +279,6 @@ export function populateTemplateWithSections(
 ): string {
   let result = template
 
-  // Replace sections first
   for (const [key, value] of Object.entries(sections)) {
     if (value !== undefined && value !== null) {
       const placeholder = `{${key}}`
@@ -287,7 +286,6 @@ export function populateTemplateWithSections(
     }
   }
 
-  // Replace data placeholders
   for (const [key, value] of Object.entries(data)) {
     if (value !== undefined && value !== null) {
       const placeholder = `{${key}}`
@@ -295,7 +293,6 @@ export function populateTemplateWithSections(
     }
   }
 
-  // Remove unused placeholders
   result = result.replace(/\{[^}]+\}/g, '')
 
   return result

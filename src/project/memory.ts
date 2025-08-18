@@ -20,7 +20,6 @@ export function createMemoryManager(maxProjects = 10): MemoryManager {
 }
 
 export function addProject(manager: MemoryManager, project: Project): void {
-  // If at capacity, remove LRU project
   if (manager.projects.size >= manager.maxProjects) {
     const lruProject = findLRUProject(manager)
     if (lruProject) {
@@ -85,7 +84,6 @@ export function getMemoryStats(manager: MemoryManager): {
     }
   }
 
-  // Rough memory usage calculation
   let memoryUsage = 0
   for (const project of manager.projects.values()) {
     memoryUsage += project.files.size * 1000 // Rough estimate: 1KB per file

@@ -13,7 +13,6 @@ const DEFAULT_IGNORE_DIRS = new Set([
   '.next', '.nuxt', '.output', '.cache', '.tmp', 'vendor', '__pycache__',
   '.vscode', '.idea', 'coverage', '.nyc_output', 'venv', '.venv', '.env',
   '.pytest_cache', '.mypy_cache', '.tox', 'htmlcov', '.coverage',
-  // Test directories - these break quality rules by design
   'test', 'tests', '__tests__', 'spec', 'specs', '__test__',
 ])
 
@@ -52,7 +51,6 @@ export async function walkDirectory(
         const stats = await stat(fullPath)
 
         if (stats.isDirectory()) {
-          // Skip dot-directories unless includeHidden is true
           if (!includeHidden && entry.startsWith('.')) {
             continue
           }
@@ -61,19 +59,16 @@ export async function walkDirectory(
           }
         }
         else if (stats.isFile()) {
-          // Skip dot-files unless includeHidden is true
           if (!includeHidden && entry.startsWith('.')) {
             continue
           }
 
-          // Skip test files - they break quality rules by design
           if (isTestFile(entry)) {
             continue
           }
 
           const language = getLanguageByExtension(extname(fullPath))
 
-          // If languages filter is specified, only include matching files
           if (languages.length === 0 || (language && languages.includes(language.name))) {
             files.push(resolve(fullPath))
           }

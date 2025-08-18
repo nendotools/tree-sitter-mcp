@@ -66,14 +66,12 @@ function analyzeQualityIssues(functionNodes: TreeNode[]): Finding[] {
   const functionUsage = analyzeFunctionUsage(functionNodes)
   const findings: Finding[] = []
 
-  // Basic metrics analysis (consolidate thin wrappers)
   functionNodes.forEach((node) => {
     const complexity = calculateComplexity(node)
     const length = calculateMethodLength(node)
     const params = getParameterCount(node)
     const thresholds = getQualityThresholds(node.path)
 
-    // Inline complexity check
     if (complexity > thresholds.complexityWarning) {
       findings.push({
         type: 'quality' as const,
@@ -88,7 +86,6 @@ function analyzeQualityIssues(functionNodes: TreeNode[]): Finding[] {
       })
     }
 
-    // Inline method length check
     if (length > thresholds.lengthWarning) {
       findings.push({
         type: 'quality' as const,
@@ -103,7 +100,6 @@ function analyzeQualityIssues(functionNodes: TreeNode[]): Finding[] {
       })
     }
 
-    // Inline parameter count check
     if (params > thresholds.parameterWarning) {
       findings.push({
         type: 'quality' as const,
@@ -118,7 +114,6 @@ function analyzeQualityIssues(functionNodes: TreeNode[]): Finding[] {
       })
     }
 
-    // Abstraction analysis (inline simple check)
     if (shouldCheckForUnnecessaryAbstraction(node, length)) {
       const usageCount = functionUsage.get(node.name!) || 0
       if (usageCount <= 1) {
@@ -127,7 +122,6 @@ function analyzeQualityIssues(functionNodes: TreeNode[]): Finding[] {
     }
   })
 
-  // Complex pattern analysis (keep substantial functions)
   functionNodes.forEach((node) => {
     if (!isTestFile(node.path) && node.content) {
       findings.push(...detectMagicValues(node))
@@ -135,7 +129,6 @@ function analyzeQualityIssues(functionNodes: TreeNode[]): Finding[] {
     }
   })
 
-  // Usage pattern analysis (substantial functions)
   findings.push(...analyzeMicroFunctionPatterns(functionUsage, functionNodes))
   findings.push(...detectGodClasses(functionNodes))
 

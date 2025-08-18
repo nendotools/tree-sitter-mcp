@@ -37,14 +37,12 @@ export function searchCode(
       })
     }
 
-    // Also search in children
     if (node.children) {
       const childResults = searchCode(query, node.children, options)
       results.push(...childResults)
     }
   }
 
-  // Sort by score and limit results
   return results
     .sort((a, b) => b.score - a.score)
     .slice(0, maxResults)
@@ -59,19 +57,14 @@ function calculateScore(query: string, node: TreeNode, exactMatch: boolean, fuzz
     return name === query ? 100 : 0
   }
 
-  // Exact match gets highest score
   if (name === query) return 100
 
-  // Case-insensitive exact match
   if (nameLower === queryLower) return 95
 
-  // Prefix match
   if (nameLower.startsWith(queryLower)) return 85
 
-  // Contains match
   if (nameLower.includes(queryLower)) return 70
 
-  // Fuzzy match using simple algorithm
   const fuzzyScore = calculateFuzzyScore(queryLower, nameLower)
   return fuzzyScore >= fuzzyThreshold ? fuzzyScore : 0
 }
@@ -92,7 +85,6 @@ function calculateFuzzyScore(query: string, target: string): number {
     targetIndex++
   }
 
-  // Calculate score based on how many characters matched
   const ratio = matchCount / query.length
   return Math.round(ratio * 80) // Max 80 for fuzzy matches
 }
@@ -122,13 +114,15 @@ function getMatches(query: string, node: TreeNode): string[] {
 export function findUsage(
   identifier: string,
   nodes: TreeNode[],
-  options: { caseSensitive?: boolean, exactMatch?: boolean } = {},
+  options: { caseSensitive?: boolean, exactMatch?: boolean, pathPattern?: string } = {},
 ): FindUsageResult[] {
-  const { caseSensitive = false, exactMatch = true } = options
+  const { caseSensitive = false, exactMatch = true, pathPattern } = options
   const results: FindUsageResult[] = []
 
   function searchInNode(node: TreeNode) {
     if (!node.content) return
+
+    if (pathPattern && !node.path.includes(pathPattern)) return
 
     const searchText = caseSensitive ? node.content : node.content.toLowerCase()
     const searchId = caseSensitive ? identifier : identifier.toLowerCase()
@@ -142,7 +136,6 @@ export function findUsage(
       const matchIndex = match.index
       const lines = node.content.split('\n')
 
-      // Find line and column of the match
       let currentIndex = 0
       let lineNumber = 0
       let columnNumber = 0
@@ -157,7 +150,6 @@ export function findUsage(
         currentIndex += lineLength
       }
 
-      // Get context - if in a function, show the whole function, otherwise show surrounding lines
       const context = getUsageContext(node, lineNumber, lines)
 
       results.push({
@@ -170,7 +162,6 @@ export function findUsage(
       })
     }
 
-    // Search in children
     if (node.children) {
       node.children.forEach(searchInNode)
     }
@@ -184,7 +175,6 @@ export function findUsage(
  * Get contextual information around a usage
  */
 function getUsageContext(node: TreeNode, lineNumber: number, lines: string[]): string {
-  // If this is a function node, return the whole function (truncated if too long)
   if (node.type === 'function') {
     const content = lines.join('\n')
     if (content.length <= 500) {
@@ -193,13 +183,11 @@ function getUsageContext(node: TreeNode, lineNumber: number, lines: string[]): s
     return content.substring(0, 500) + '...'
   }
 
-  // Otherwise, return surrounding lines (10 before, 3 after)
   const startLine = Math.max(0, lineNumber - 10)
   const endLine = Math.min(lines.length - 1, lineNumber + 3)
 
   const contextLines = lines.slice(startLine, endLine + 1)
 
-  // Add line numbers for better reference
   return contextLines
     .map((line, index) => {
       const actualLineNum = startLine + index + 1

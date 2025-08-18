@@ -122,14 +122,12 @@ export function adjustScoreForIssues(baseScore: number, findings: Finding[], tot
   const productionIssues = qualityFindings.filter(f => !isTestFile(f.location))
   const testIssues = qualityFindings.filter(f => isTestFile(f.location))
 
-  // Separate micro-function issues (only penalize if usage ≤ 1)
   const microFunctionIssues = productionIssues.filter(f =>
     (f.category === QUALITY_CATEGORIES.UNNECESSARY_ABSTRACTION || f.category === QUALITY_CATEGORIES.EXCESSIVE_ABSTRACTION)
     && f.severity === 'critical'
     && Number(f.metrics?.usageCount ?? 0) <= 1,
   )
 
-  // Other critical production issues
   const otherCriticalProduction = productionIssues.filter(f =>
     f.severity === 'critical'
     && f.category !== QUALITY_CATEGORIES.UNNECESSARY_ABSTRACTION
@@ -145,22 +143,17 @@ export function adjustScoreForIssues(baseScore: number, findings: Finding[], tot
   const productionMethods = totalMethods - testMethods
   let adjustedScore = baseScore
 
-  // Penalties for production issues
   if (productionMethods > 0) {
-    // Regular critical issues (complexity, length, etc.)
     if (otherCriticalProduction > 0) {
       const criticalDensity = otherCriticalProduction / productionMethods
       adjustedScore -= criticalDensity * 4
     }
 
-    // Micro-function penalties (only for usage ≤ 1)
     if (microFunctionIssues.length > 0) {
       const microFunctionDensity = microFunctionIssues.length / productionMethods
-      // Slightly lighter penalty than regular critical issues
       adjustedScore -= microFunctionDensity * 3
     }
 
-    // Warning penalties
     if (warningProduction > 0) {
       const warningDensity = warningProduction / productionMethods
       if (warningDensity > 0.1) {
@@ -169,7 +162,6 @@ export function adjustScoreForIssues(baseScore: number, findings: Finding[], tot
     }
   }
 
-  // Lighter penalties for test issues
   if (testMethods > 0) {
     const testCriticalDensity = criticalTest / testMethods
     const testWarningDensity = warningTest / testMethods

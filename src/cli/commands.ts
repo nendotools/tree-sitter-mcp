@@ -47,7 +47,6 @@ export async function executeSearch(query: string, options: {
     const { node, score } = result
     logger.output(`${chalk.green('●')} ${chalk.bold(node.name || 'unnamed')} ${chalk.dim(`(${node.type})`)}`)
 
-    // Show position information (start and end)
     const position = node.startLine !== undefined && node.endLine !== undefined
       ? node.startColumn !== undefined && node.endColumn !== undefined
         ? `:${node.startLine}:${node.startColumn}-${node.endLine}:${node.endColumn}`
@@ -82,7 +81,6 @@ export async function executeAnalysis(directory: string, options: {
   const result = await analyzeProject(directory, analysisOptions)
 
   if (options.output === 'json') {
-    // Use template for consistent JSON format
     const { metrics, summary } = result
     const analysisData: AnalysisData = {
       totalFindings: summary.totalFindings,
@@ -144,7 +142,6 @@ export async function executeFindUsage(identifier: string, options: {
     const position = `${result.startLine}:${result.startColumn}-${result.endLine}:${result.endColumn}`
     logger.output(`${chalk.green('●')} ${chalk.bold(result.node.path)}:${position}`)
 
-    // Show context with syntax highlighting for the matching line
     if (result.context) {
       const contextLines = result.context.split('\n')
       const maxLines = 8 // Limit context display
@@ -152,7 +149,6 @@ export async function executeFindUsage(identifier: string, options: {
 
       for (const line of displayLines) {
         if (line.startsWith('→ ')) {
-          // This is the matching line - highlight it
           logger.output(`  ${chalk.yellow(line)}`)
         }
         else {
@@ -171,7 +167,6 @@ export async function executeFindUsage(identifier: string, options: {
 function displayTextResults(result: AnalysisResult, logger: Logger): void {
   const { findings, metrics, summary } = result
 
-  // Prepare findings data for template
   const critical = findings.filter((f: Finding) => f.severity === 'critical')
   const warnings = findings.filter((f: Finding) => f.severity === 'warning')
 
@@ -193,7 +188,6 @@ function displayTextResults(result: AnalysisResult, logger: Logger): void {
       ? '🔧 Focus on resolving critical issues first'
       : undefined
 
-  // Collect all data for template rendering
   const analysisData: AnalysisData = {
     totalFindings: summary.totalFindings,
     critical: summary.criticalFindings,
@@ -212,6 +206,5 @@ function displayTextResults(result: AnalysisResult, logger: Logger): void {
     statusMessage,
   }
 
-  // Single template output!
   logger.output('\n' + renderAnalysis(analysisData, 'console'))
 }

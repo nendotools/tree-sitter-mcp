@@ -48,7 +48,6 @@ export function parseContent(content: string, filePath: string, language?: Langu
   const languageConfig = language || getLanguageByExtension(extension)
 
   if (!languageConfig) {
-    // Return basic file node
     return {
       id: `file-${Date.now()}`,
       type: 'file',
@@ -74,7 +73,6 @@ export function parseContent(content: string, filePath: string, language?: Langu
       children: [],
     }
 
-    // Extract functions and classes
     extractElements(rootNode, content, filePath, languageConfig, fileNode)
 
     return fileNode
@@ -91,7 +89,6 @@ function extractElements(
   language: LanguageConfig,
   parent: TreeNode,
 ): void {
-  // Extract functions
   if (language.functionTypes.includes(node.type)) {
     const functionNode = extractFunction(node, content, filePath)
     if (functionNode) {
@@ -99,7 +96,6 @@ function extractElements(
     }
   }
 
-  // Extract classes
   if (language.classTypes.includes(node.type)) {
     const classNode = extractClass(node, content, filePath)
     if (classNode) {
@@ -107,7 +103,6 @@ function extractElements(
     }
   }
 
-  // Recursively process children
   for (const child of node.children) {
     extractElements(child, content, filePath, language, parent)
   }
@@ -115,7 +110,6 @@ function extractElements(
 
 function extractFunction(node: Parser.SyntaxNode, content: string, filePath: string): TreeNode | null {
   try {
-    // Skip arrow functions that are clearly callback parameters
     if (node.type === 'arrow_function' && isCallbackArrowFunction(node, content)) {
       return null
     }
@@ -164,13 +158,11 @@ function extractClass(node: Parser.SyntaxNode, content: string, filePath: string
 }
 
 function getFunctionName(node: Parser.SyntaxNode, content: string): string | null {
-  // Try to find name field
   const nameNode = node.childForFieldName('name')
   if (nameNode) {
     return content.substring(nameNode.startIndex, nameNode.endIndex)
   }
 
-  // Fallback: look for identifier children
   for (const child of node.children) {
     if (child.type === 'identifier') {
       return content.substring(child.startIndex, child.endIndex)
@@ -181,18 +173,14 @@ function getFunctionName(node: Parser.SyntaxNode, content: string): string | nul
 }
 
 function getClassName(node: Parser.SyntaxNode, content: string): string | null {
-  // Try to find name field first
   const nameNode = node.childForFieldName('name')
   if (nameNode) {
     return content.substring(nameNode.startIndex, nameNode.endIndex)
   }
 
-  // Special handling for Go type declarations: type UserRepository struct { ... }
   if (node.type === 'type_declaration') {
-    // Look for type_spec child (second child typically)
     for (const child of node.children) {
       if (child.type === 'type_spec') {
-        // Look for type_identifier inside type_spec (usually first child)
         for (const specChild of child.children) {
           if (specChild.type === 'type_identifier') {
             const name = content.substring(specChild.startIndex, specChild.endIndex)
@@ -202,7 +190,6 @@ function getClassName(node: Parser.SyntaxNode, content: string): string | null {
       }
     }
 
-    // Fallback: look for direct type_identifier children
     for (const child of node.children) {
       if (child && (child.type === 'type_identifier' || child.type === 'identifier')) {
         const name = content.substring(child.startIndex, child.endIndex)
@@ -211,7 +198,6 @@ function getClassName(node: Parser.SyntaxNode, content: string): string | null {
     }
   }
 
-  // Fallback: look for identifier children
   for (const child of node.children) {
     if (child.type === 'type_identifier' || child.type === 'identifier') {
       return content.substring(child.startIndex, child.endIndex)
@@ -224,23 +210,18 @@ function getClassName(node: Parser.SyntaxNode, content: string): string | null {
 function isCallbackArrowFunction(node: Parser.SyntaxNode, content: string): boolean {
   if (!node.parent) return false
 
-  // Check if the arrow function is a direct child of a call expression
-  // Pattern: someArray.map(x => ...) or someFunction((x) => ...)
   if (node.parent.type === 'call_expression' || node.parent.type === 'arguments') {
     return true
   }
 
-  // Check if it's in an argument list
   if (node.parent.type === 'argument_list') {
     return true
   }
 
-  // Check for common callback method patterns in the surrounding context
   const contextStart = Math.max(0, node.startIndex - 50)
   const contextEnd = Math.min(content.length, node.endIndex + 10)
   const context = content.substring(contextStart, contextEnd)
 
-  // Common array/callback methods that take arrow functions
   const callbackPatterns = [
     /\.(map|filter|reduce|forEach|find|some|every|sort)\s*\(\s*$/,
     /\.(then|catch|finally)\s*\(\s*$/,
@@ -256,7 +237,6 @@ function isCallbackArrowFunction(node: Parser.SyntaxNode, content: string): bool
 function extractParameters(node: Parser.SyntaxNode, content: string): TreeNode[] {
   const params: TreeNode[] = []
 
-  // Look for parameters field
   const paramsNode = node.childForFieldName('parameters')
   if (paramsNode) {
     for (const child of paramsNode.children) {
