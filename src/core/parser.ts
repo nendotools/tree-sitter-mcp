@@ -181,10 +181,34 @@ function getFunctionName(node: Parser.SyntaxNode, content: string): string | nul
 }
 
 function getClassName(node: Parser.SyntaxNode, content: string): string | null {
-  // Try to find name field
+  // Try to find name field first
   const nameNode = node.childForFieldName('name')
   if (nameNode) {
     return content.substring(nameNode.startIndex, nameNode.endIndex)
+  }
+
+  // Special handling for Go type declarations: type UserRepository struct { ... }
+  if (node.type === 'type_declaration') {
+    // Look for type_spec child (second child typically)
+    for (const child of node.children) {
+      if (child.type === 'type_spec') {
+        // Look for type_identifier inside type_spec (usually first child)
+        for (const specChild of child.children) {
+          if (specChild.type === 'type_identifier') {
+            const name = content.substring(specChild.startIndex, specChild.endIndex)
+            return name
+          }
+        }
+      }
+    }
+
+    // Fallback: look for direct type_identifier children
+    for (const child of node.children) {
+      if (child && (child.type === 'type_identifier' || child.type === 'identifier')) {
+        const name = content.substring(child.startIndex, child.endIndex)
+        return name
+      }
+    }
   }
 
   // Fallback: look for identifier children

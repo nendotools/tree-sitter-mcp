@@ -41,8 +41,17 @@ export async function analyzeProject(
     const project = createProject(config)
     await parseProject(project)
 
+    // Collect nodes from main project and all sub-projects (for monorepos)
     const nodes = Array.from(project.files.values())
     const elementNodes = Array.from(project.nodes.values()).flat()
+
+    if (project.subProjects) {
+      for (const subProject of project.subProjects) {
+        nodes.push(...Array.from(subProject.files.values()))
+        elementNodes.push(...Array.from(subProject.nodes.values()).flat())
+      }
+    }
+
     const allNodes = [...nodes, ...elementNodes]
 
     logger.info(`Analyzing ${allNodes.length} nodes from ${project.files.size} files`)

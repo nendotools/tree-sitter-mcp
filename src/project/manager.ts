@@ -47,33 +47,40 @@ export async function parseProject(project: Project): Promise<Project> {
   try {
     logger.info(`Parsing project: ${project.config.directory}`)
 
-    // Find all files to parse
-    const files = await findProjectFiles(
-      project.config.directory,
-      project.config.languages,
-    )
-
-    logger.info(`Found ${files.length} files to parse`)
-
-    // Parse each file
-    for (const filePath of files) {
-      try {
-        const fileNode = await parseFile(filePath)
-        project.files.set(filePath, fileNode)
-
-        // Index all nodes from this file
-        const allNodes = extractAllNodes(fileNode)
-        project.nodes.set(filePath, allNodes)
-      }
-      catch (error) {
-        logger.warn(`Failed to parse ${filePath}:`, error)
+    // For monorepos, only parse sub-projects, not the root directory
+    if (project.subProjects && project.subProjects.length > 0) {
+      logger.info(`Parsing ${project.subProjects.length} sub-projects`)
+      for (const subProject of project.subProjects) {
+        try {
+          await parseProject(subProject)
+        }
+        catch (error) {
+          logger.error(`Failed to parse sub-project ${subProject.config.directory}:`, error)
+        }
       }
     }
+    else {
+      // Find all files to parse for single projects
+      const files = await findProjectFiles(
+        project.config.directory,
+        project.config.languages,
+      )
 
-    // Parse sub-projects if this is a monorepo
-    if (project.subProjects) {
-      for (const subProject of project.subProjects) {
-        await parseProject(subProject)
+      logger.info(`Found ${files.length} files to parse`)
+
+      // Parse each file
+      for (const filePath of files) {
+        try {
+          const fileNode = await parseFile(filePath)
+          project.files.set(filePath, fileNode)
+
+          // Index all nodes from this file
+          const allNodes = extractAllNodes(fileNode)
+          project.nodes.set(filePath, allNodes)
+        }
+        catch (error) {
+          logger.warn(`Failed to parse ${filePath}:`, error)
+        }
       }
     }
 

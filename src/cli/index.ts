@@ -94,8 +94,17 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
       autoWatch: false,
     }, options.projectId)
 
+    // Collect nodes from main project and all sub-projects (for monorepos)
     const allNodes = Array.from(project.files.values())
     const elementNodes = Array.from(project.nodes.values()).flat()
+
+    if (project.subProjects) {
+      for (const subProject of project.subProjects) {
+        allNodes.push(...Array.from(subProject.files.values()))
+        elementNodes.push(...Array.from(subProject.nodes.values()).flat())
+      }
+    }
+
     const searchNodes = [...allNodes, ...elementNodes]
 
     const results = searchCode(query, searchNodes, {
@@ -230,8 +239,17 @@ async function handleFindUsage(identifier: string, options: FindUsageOptions): P
       autoWatch: false,
     }, options.projectId)
 
+    // Collect nodes from main project and all sub-projects (for monorepos)
     const allNodes = Array.from(project.files.values())
     const elementNodes = Array.from(project.nodes.values()).flat()
+
+    if (project.subProjects) {
+      for (const subProject of project.subProjects) {
+        allNodes.push(...Array.from(subProject.files.values()))
+        elementNodes.push(...Array.from(subProject.nodes.values()).flat())
+      }
+    }
+
     const searchNodes = [...allNodes, ...elementNodes]
 
     const results = findUsage(identifier, searchNodes, {

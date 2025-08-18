@@ -16,8 +16,11 @@ const PROJECT_INDICATORS = [
 
 const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.svn', '.hg', 'target', 'build', 'dist', 'out',
-  '.next', '.nuxt', '.cache', '.tmp', 'vendor', '__pycache__', '.vscode',
-  '.idea', 'coverage', '.nyc_output',
+  '.next', '.nuxt', '.output', '.cache', '.tmp', 'vendor', '__pycache__',
+  '.vscode', '.idea', 'coverage', '.nyc_output', 'venv', '.venv', '.env',
+  '.pytest_cache', '.mypy_cache', '.tox', 'htmlcov', '.coverage',
+  // Test directories - these break quality rules by design
+  'test', 'tests', '__tests__', 'spec', 'specs', '__test__',
 ])
 
 export function detectMonorepo(directory: string): MonorepoInfo {
