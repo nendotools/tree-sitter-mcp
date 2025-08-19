@@ -26,12 +26,22 @@ tree-sitter-mcp search "handleRequest" --type function
 **Analyze code quality:**
 
 ```bash
-tree-sitter-mcp analyze --deadcode --structure
+tree-sitter-mcp analyze --analysis-types quality deadcode structure
 ```
 
-**Use with Claude Desktop:**
+**Find syntax errors:**
 
-Add to `~/.config/claude-desktop/claude_desktop_config.json`:
+```bash
+tree-sitter-mcp errors --output text
+```
+
+**Setup with Claude Desktop:**
+
+```bash
+tree-sitter-mcp setup --auto
+```
+
+**Or configure manually by adding to `~/.config/claude-desktop/claude_desktop_config.json`:**
 
 ```json
 {
@@ -78,8 +88,22 @@ tree-sitter-mcp find-usage "API_KEY" --case-sensitive
 **Analyze code quality:**
 
 ```bash
-tree-sitter-mcp analyze --quality --structure --deadcode
-tree-sitter-mcp analyze src/components --quality
+tree-sitter-mcp analyze --analysis-types quality structure deadcode
+tree-sitter-mcp analyze src/components --analysis-types quality
+```
+
+**Find syntax errors:**
+
+```bash
+tree-sitter-mcp errors --output text
+tree-sitter-mcp errors src/components --max-results 10
+```
+
+**Setup MCP integration:**
+
+```bash
+tree-sitter-mcp setup --auto
+tree-sitter-mcp setup  # Manual setup instructions
 ```
 
 ## MCP Tools
@@ -87,8 +111,9 @@ tree-sitter-mcp analyze src/components --quality
 When used as an MCP server, provides these tools for AI assistants:
 
 - `search_code` - Search for functions, classes, variables by name
-- `find_usage` - Find all usages of identifiers across the project
+- `find_usage` - Find all usages of identifiers across the project  
 - `analyze_code` - Comprehensive code quality and structure analysis
+- `check_errors` - Find actionable syntax errors with detailed context
 
 See the [full documentation](docs/) for detailed API reference.
 

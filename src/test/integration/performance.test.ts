@@ -4,15 +4,15 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { resolve } from 'path'
-import { createPersistentManager, getOrCreateProject, clearAllProjects } from '../project/persistent-manager.js'
-import { searchCode, findUsage } from '../core/search.js'
-// import { analyzeProject } from '../analysis/index.js'
-import type { PersistentProjectManager } from '../project/persistent-manager.js'
+import { createPersistentManager, getOrCreateProject, clearAllProjects } from '../../project/persistent-manager.js'
+import { searchCode, findUsage } from '../../core/search.js'
+// import { analyzeProject } from '../../analysis/index.js'
+import type { PersistentProjectManager } from '../../project/persistent-manager.js'
 
 describe('Persistence Performance Test', () => {
   let persistentManager: PersistentProjectManager
 
-  const fixturesDir = resolve(import.meta.dirname, 'fixtures')
+  const fixturesDir = resolve(import.meta.dirname, '../fixtures')
   const testProjectDir = resolve(fixturesDir, 'simple-ts')
 
   beforeEach(() => {
@@ -28,11 +28,11 @@ describe('Persistence Performance Test', () => {
   it('should demonstrate AST persistence performance benefits', async () => {
     const projectId = 'perf-test-project'
 
-    console.info('🧪 Testing AST Persistence Performance')
+    console.info('[TEST] Testing AST Persistence Performance')
     console.info('=====================================')
 
     // Test 1: First project creation and parsing
-    console.info('⏱️  Test 1: Initial project parse (cold start)')
+    console.info('[PERF] Test 1: Initial project parse (cold start)')
     const start1 = performance.now()
 
     const project1 = await getOrCreateProject(persistentManager, {
@@ -42,14 +42,14 @@ describe('Persistence Performance Test', () => {
     }, projectId)
 
     const time1 = performance.now() - start1
-    console.info(`✅ First parse: ${time1.toFixed(2)}ms (files: ${project1.files.size})`)
+    console.info(`[RESULT] First parse: ${time1.toFixed(2)}ms (files: ${project1.files.size})`)
 
     expect(project1).toBeDefined()
     expect(project1.id).toBe(projectId)
     expect(project1.files.size).toBeGreaterThanOrEqual(0)
 
     // Test 2: Second project access (should reuse existing)
-    console.info('⏱️  Test 2: Reuse cached project (warm start)')
+    console.info('[PERF] Test 2: Reuse cached project (warm start)')
     const start2 = performance.now()
 
     const project2 = await getOrCreateProject(persistentManager, {
@@ -59,13 +59,13 @@ describe('Persistence Performance Test', () => {
     }, projectId)
 
     const time2 = performance.now() - start2
-    console.info(`✅ Cached access: ${time2.toFixed(2)}ms`)
+    console.info(`[RESULT] Cached access: ${time2.toFixed(2)}ms`)
 
     expect(project2).toBe(project1) // Should be same instance
     expect(project2.id).toBe(projectId)
 
     // Test 3: Search on cached project
-    console.info('⏱️  Test 3: Search on cached project')
+    console.info('[PERF] Test 3: Search on cached project')
     const start3 = performance.now()
 
     const allNodes = Array.from(project2.files.values())
@@ -77,12 +77,12 @@ describe('Persistence Performance Test', () => {
     })
 
     const time3 = performance.now() - start3
-    console.info(`✅ Search on cached: ${time3.toFixed(2)}ms (results: ${results.length})`)
+    console.info(`[RESULT] Search on cached: ${time3.toFixed(2)}ms (results: ${results.length})`)
 
     expect(results).toBeInstanceOf(Array)
 
     // Test 4: Different projectId (should create new project)
-    console.info('⏱️  Test 4: New project with different ID')
+    console.info('[PERF] Test 4: New project with different ID')
     const start4 = performance.now()
 
     const project4 = await getOrCreateProject(persistentManager, {
@@ -92,7 +92,7 @@ describe('Persistence Performance Test', () => {
     }, 'different-project')
 
     const time4 = performance.now() - start4
-    console.info(`✅ New project: ${time4.toFixed(2)}ms`)
+    console.info(`[RESULT] New project: ${time4.toFixed(2)}ms`)
 
     expect(project4).not.toBe(project1) // Should be different instance
     expect(project4.id).toBe('different-project')
@@ -101,7 +101,7 @@ describe('Persistence Performance Test', () => {
     const speedupCache = ((time1 - time2) / time1) * 100
     const speedupSearch = time3 < 50 // Search should be very fast on cached data
 
-    console.info('📊 Performance Summary')
+    console.info('[SUMMARY] Performance Summary')
     console.info('=====================')
     console.info(`Initial parse: ${time1.toFixed(2)}ms`)
     console.info(`Cached access: ${time2.toFixed(2)}ms`)
@@ -118,7 +118,7 @@ describe('Persistence Performance Test', () => {
     // Create a small manager to test eviction
     const smallManager = createPersistentManager(2) // Only 2 projects max
 
-    console.info('🧪 Testing LRU Eviction')
+    console.info('[TEST] Testing LRU Eviction')
     console.info('======================')
 
     // Create first project
@@ -128,7 +128,7 @@ describe('Persistence Performance Test', () => {
     }, 'project-1')
 
     expect(smallManager.memory.projects.size).toBe(1)
-    console.info(`✅ Project 1 created (total: ${smallManager.memory.projects.size})`)
+    console.info(`[RESULT] Project 1 created (total: ${smallManager.memory.projects.size})`)
 
     // Create second project
     await getOrCreateProject(smallManager, {
@@ -137,7 +137,7 @@ describe('Persistence Performance Test', () => {
     }, 'project-2')
 
     expect(smallManager.memory.projects.size).toBe(2)
-    console.info(`✅ Project 2 created (total: ${smallManager.memory.projects.size})`)
+    console.info(`[RESULT] Project 2 created (total: ${smallManager.memory.projects.size})`)
 
     // Create third project (should evict oldest)
     await getOrCreateProject(smallManager, {
@@ -150,13 +150,13 @@ describe('Persistence Performance Test', () => {
     expect(smallManager.memory.projects.has('project-2')).toBe(true) // Kept
     expect(smallManager.memory.projects.has('project-3')).toBe(true) // New
 
-    console.info(`✅ Project 3 created, project 1 evicted (total: ${smallManager.memory.projects.size})`)
+    console.info(`[RESULT] Project 3 created, project 1 evicted (total: ${smallManager.memory.projects.size})`)
 
     clearAllProjects(smallManager)
   })
 
   it('should generate collision-safe project IDs from directory names', async () => {
-    console.info('🧪 Testing ProjectId Generation')
+    console.info('[TEST] Testing ProjectId Generation')
     console.info('===============================')
 
     // Test auto-generation from directory name
@@ -166,7 +166,7 @@ describe('Persistence Performance Test', () => {
     }) // No projectId provided
 
     expect(autoProject.id).toBe('simple-ts') // Should use directory name
-    console.info(`✅ Auto-generated projectId: "${autoProject.id}"`)
+    console.info(`[RESULT] Auto-generated projectId: "${autoProject.id}"`)
 
     // Test explicit projectId
     const explicitProject = await getOrCreateProject(persistentManager, {
@@ -176,18 +176,18 @@ describe('Persistence Performance Test', () => {
 
     expect(explicitProject.id).toBe('custom-name')
     expect(explicitProject).not.toBe(autoProject) // Different projects
-    console.info(`✅ Explicit projectId: "${explicitProject.id}"`)
+    console.info(`[RESULT] Explicit projectId: "${explicitProject.id}"`)
 
     // Verify both projects exist
     expect(persistentManager.memory.projects.size).toBe(2)
-    console.info(`✅ Total projects: ${persistentManager.memory.projects.size}`)
+    console.info(`[RESULT] Total projects: ${persistentManager.memory.projects.size}`)
   })
 
   it('should maintain performance across multiple operations', async () => {
     const projectId = 'multi-op-test'
     const iterations = 5
 
-    console.info('🧪 Testing Multiple Operations Performance')
+    console.info('[TEST] Testing Multiple Operations Performance')
     console.info('=========================================')
 
     // Initial project creation
@@ -225,7 +225,7 @@ describe('Persistence Performance Test', () => {
     const avgSearchTime = searchTimes.reduce((sum, time) => sum + time, 0) / iterations
     const avgUsageTime = findUsageTimes.reduce((sum, time) => sum + time, 0) / iterations
 
-    console.info('📊 Multi-Operation Summary')
+    console.info('[SUMMARY] Multi-Operation Summary')
     console.info('==========================')
     console.info(`Average search time: ${avgSearchTime.toFixed(2)}ms`)
     console.info(`Average usage time: ${avgUsageTime.toFixed(2)}ms`)

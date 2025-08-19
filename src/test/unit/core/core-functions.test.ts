@@ -3,12 +3,13 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { analyzeProject } from '../analysis/index.js'
-import { createProject, parseProject } from '../project/manager.js'
-import { searchCode, findUsage } from '../core/search.js'
+import { resolve } from 'path'
+import { analyzeProject } from '../../../analysis/index.js'
+import { createProject, parseProject } from '../../../project/manager.js'
+import { searchCode, findUsage } from '../../../core/search.js'
 
 describe('Core Functions (Original Test Patterns)', () => {
-  const testFixture = './src/test/fixtures/simple-ts'
+  const testFixture = resolve(import.meta.dirname, '../../fixtures/simple-ts')
 
   it('should initialize and parse a project like TreeManager', async () => {
     // Similar to how TreeManager.initialize() worked

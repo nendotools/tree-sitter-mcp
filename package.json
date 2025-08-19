@@ -1,6 +1,6 @@
 {
   "name": "@nendo/tree-sitter-mcp",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Fast in-memory code search and analysis MCP service using tree-sitter",
   "keywords": [
     "mcp",
@@ -34,7 +34,11 @@
     "dev": "tsx watch src/cli.ts",
     "build": "tsc && chmod +x dist/cli.js",
     "clean": "rm -rf dist",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:unit": "vitest run src/test/unit/",
+    "test:cli": "vitest run src/test/cli/",
+    "test:integration": "vitest run src/test/integration/ --exclude=\"**/monorepo.test.ts\"",
+    "test:mcp": "vitest run src/test/mcp/",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",

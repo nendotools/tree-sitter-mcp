@@ -10,7 +10,7 @@ This directory contains the comprehensive test suite for the Tree-Sitter MCP Ser
 - `config-parser.test.ts` - Configuration file parsing tests (JSON, YAML, TOML, ENV)
 
 ### Integration Tests
-- `integration-simple.test.ts` - ✅ **WORKING** - Basic TreeManager functionality with real fixtures
+- `integration-simple.test.ts` - **WORKING** - Basic TreeManager functionality with real fixtures
 - `integration.test.ts` - Comprehensive integration tests (needs fixes)
 
 ### Test Fixtures
@@ -25,22 +25,22 @@ This directory contains the comprehensive test suite for the Tree-Sitter MCP Ser
 
 The `integration-simple.test.ts` successfully demonstrates:
 
-✅ **Project Creation & Management** 
+**Project Creation & Management** 
 - Creates projects with proper configuration
 - Stores and retrieves project metadata correctly
 
-✅ **File Discovery & Parsing**
+**File Discovery & Parsing**
 - Finds 4 TypeScript files in the simple-ts fixture
 - Successfully parses 26 AST nodes from the code
 - Discovers and indexes configuration files (JSON, YAML, TOML, ENV)
 
-✅ **Search Functionality**
+**Search Functionality**
 - Semantic search finding classes, interfaces, functions, and methods
 - Configuration key/value search across config files
 - Returns proper search results with file paths, line numbers, and context
 - Found results include: `UserData`, `User`, `UserService`, `createUser`, config keys, etc.
 
-✅ **Performance**
+**Performance**
 - Project initialization completes in ~5ms for small projects
 - Search operations complete near-instantly
 
@@ -100,13 +100,13 @@ npm run test:coverage
 
 Based on successful tests, the Tree-Sitter MCP Server can:
 
-- ✅ Parse 20+ languages with full AST analysis (16 programming + 4 config)
-- ✅ Index classes, interfaces, functions, methods, and variables
-- ✅ Parse and index configuration files (JSON, YAML, TOML, ENV)
-- ✅ Search config keys, values, and nested structures
-- ✅ Handle wildcard patterns (.env* matches all environment files)
-- ✅ Perform semantic search across both code and config elements
-- ✅ Handle realistic project structures with mixed file types
-- ✅ Manage multiple projects simultaneously
-- ✅ Track project statistics and memory usage
-- ✅ Return search results with context and scoring
+- Parse 20+ languages with full AST analysis (16 programming + 4 config)
+- Index classes, interfaces, functions, methods, and variables
+- Parse and index configuration files (JSON, YAML, TOML, ENV)
+- Search config keys, values, and nested structures
+- Handle wildcard patterns (.env* matches all environment files)
+- Perform semantic search across both code and config elements
+- Handle realistic project structures with mixed file types
+- Manage multiple projects simultaneously
+- Track project statistics and memory usage
+- Return search results with context and scoring

@@ -183,9 +183,9 @@ function displayTextResults(result: AnalysisResult, logger: Logger): void {
     : undefined
 
   const statusMessage = summary.criticalFindings === 0 && summary.warningFindings <= 5
-    ? '✅ Code quality looks good overall'
+    ? 'Code quality looks good overall'
     : summary.criticalFindings > 0
-      ? '🔧 Focus on resolving critical issues first'
+      ? 'Focus on resolving critical issues first'
       : undefined
 
   const analysisData: AnalysisData = {

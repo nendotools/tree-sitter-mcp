@@ -20,13 +20,7 @@ export function createMemoryManager(maxProjects = 10): MemoryManager {
 }
 
 export function addProject(manager: MemoryManager, project: Project): void {
-  if (manager.projects.size >= manager.maxProjects) {
-    const lruProject = findLRUProject(manager)
-    if (lruProject) {
-      removeProject(manager, lruProject)
-    }
-  }
-
+  // Eviction is handled by the persistent manager to properly clean up all mappings
   manager.projects.set(project.id, project)
   manager.lastAccessed.set(project.id, Date.now())
 }

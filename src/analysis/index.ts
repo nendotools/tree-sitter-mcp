@@ -5,6 +5,7 @@
 import { analyzeQuality } from './quality.js'
 import { analyzeDeadcode } from './deadcode.js'
 import { analyzeStructure } from './structure.js'
+import { analyzeSyntaxErrors } from './syntax.js'
 import { createProject, parseProject } from '../project/manager.js'
 import { handleError } from '../utils/errors.js'
 import { getLogger } from '../utils/logger.js'
@@ -14,11 +15,12 @@ import {
   buildQualitySection,
   buildDeadcodeSection,
   buildStructureSection,
+  // buildSyntaxSection, // TODO: Integrate with markdown reports
   buildCriticalIssuesSection,
   buildWarningsSection,
 } from '../constants/templates.js'
 import type { AnalysisOptions, AnalysisResult } from '../types/analysis.js'
-import type { ProjectConfig } from '../types/core.js'
+import type { ProjectConfig, Project } from '../types/core.js'
 
 /**
  * Analyzes a project using the specified analysis options
@@ -26,20 +28,47 @@ import type { ProjectConfig } from '../types/core.js'
 export async function analyzeProject(
   projectPath: string,
   options: AnalysisOptions,
+): Promise<AnalysisResult>
+
+/**
+ * Analyzes a project instance using the specified analysis options
+ */
+export async function analyzeProject(
+  project: Project,
+  options: AnalysisOptions,
+): Promise<AnalysisResult>
+
+/**
+ * Implementation
+ */
+export async function analyzeProject(
+  projectOrPath: string | Project,
+  options: AnalysisOptions,
 ): Promise<AnalysisResult> {
   const logger = getLogger()
 
   try {
-    logger.info(`Starting analysis of ${projectPath}`)
+    let project: Project
 
-    const config: ProjectConfig = {
-      directory: projectPath,
-      languages: [],
-      autoWatch: false,
+    if (typeof projectOrPath === 'string') {
+      // Path provided - create and parse new project
+      const projectPath = projectOrPath
+      logger.info(`Starting analysis of ${projectPath}`)
+
+      const config: ProjectConfig = {
+        directory: projectPath,
+        languages: [],
+        autoWatch: false,
+      }
+
+      project = createProject(config)
+      await parseProject(project)
     }
-
-    const project = createProject(config)
-    await parseProject(project)
+    else {
+      // Project instance provided - use directly (already parsed)
+      project = projectOrPath
+      logger.info(`Starting analysis of ${project.config.directory}`)
+    }
 
     const nodes = Array.from(project.files.values())
     const elementNodes = Array.from(project.nodes.values()).flat()
@@ -79,13 +108,19 @@ export async function analyzeProject(
       result.findings.push(...structureResult.findings)
     }
 
+    if (options.includeSyntax) {
+      const syntaxResult = analyzeSyntaxErrors(project)
+      result.metrics.syntax = syntaxResult.metrics
+      result.findings.push(...syntaxResult.findings)
+    }
+
     result.summary = calculateSummary(result.findings)
 
     logger.info(`Analysis complete: ${result.findings.length} findings`)
     return result
   }
   catch (error) {
-    throw handleError(error, `Failed to analyze project ${projectPath}`)
+    throw handleError(error, `Failed to analyze project ${typeof projectOrPath === 'string' ? projectOrPath : projectOrPath.config.directory}`)
   }
 }
 

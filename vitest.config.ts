@@ -5,6 +5,21 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    env: {
+      NODE_ENV: 'test',
+    },
+    globalSetup: ['./src/test/setup/global-setup.ts'],
+    setupFiles: ['./src/test/setup/test-setup.ts'],
+    fileParallelism: false,
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        maxForks: 1,
+        minForks: 1,
+      },
+    },
+    testTimeout: 30000,
+    retry: 2,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],

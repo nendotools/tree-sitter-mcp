@@ -19,13 +19,14 @@ tree-sitter-mcp search <query> [options]
 ```
 
 **Options:**
-- `--project-id <id>` - Project identifier for AST caching (auto-generated if not provided)
-- `--type <types...>` - Filter by element types (function, class, variable, etc.)
-- `--exact` - Use exact matching instead of fuzzy
-- `--max-results <n>` - Maximum results to return (default: 20)
+- `-d, --directory <dir>` - Directory to search (default: current directory)
+- `-p, --project-id <id>` - Project identifier for AST caching (auto-generated if not provided)
+- `--path-pattern <pattern>` - Filter results to files containing this text in their path
+- `-t, --type <types...>` - Filter by element types (function, class, variable, etc.)
+- `-m, --max-results <n>` - Maximum results to return (default: 20)
 - `--fuzzy-threshold <n>` - Minimum fuzzy match score (default: 30)
-- `--path-pattern <pattern>` - Filter files by glob pattern
-- `--output <format>` - Output format: text, json, markdown (default: text)
+- `--exact` - Use exact matching instead of fuzzy
+- `--output <format>` - Output format: json, text (default: json)
 
 **Examples:**
 ```bash
@@ -54,11 +55,13 @@ tree-sitter-mcp find-usage <identifier> [options]
 ```
 
 **Options:**
-- `--project-id <id>` - Project identifier for AST caching (auto-generated if not provided)
-- `--exact` - Require exact identifier match (default: true)
+- `-d, --directory <dir>` - Directory to search (default: current directory)
+- `-p, --project-id <id>` - Project identifier for AST caching (auto-generated if not provided)
+- `--path-pattern <pattern>` - Filter results to files containing this text in their path
 - `--case-sensitive` - Case sensitive search
-- `--max-results <n>` - Maximum results to return (default: 50)
-- `--output <format>` - Output format: text, json, markdown (default: text)
+- `--exact` - Require exact identifier match (default: true)
+- `-m, --max-results <n>` - Maximum results to return (default: 50)
+- `--output <format>` - Output format: json, text (default: json)
 
 **Examples:**
 ```bash
@@ -74,20 +77,19 @@ tree-sitter-mcp find-usage "UserService" --output json
 
 ### `analyze`
 
-Analyze code quality, structure, and dead code.
+Analyze code quality, structure, dead code, and configuration issues.
 
 ```bash
-tree-sitter-mcp analyze [directory] [options]
+tree-sitter-mcp analyze [options]
 ```
 
 **Options:**
-- `--project-id <id>` - Project identifier for AST caching (auto-generated if not provided)
-- `--quality` - Include quality analysis (default: true)
-- `--structure` - Include structure analysis
-- `--deadcode` - Include dead code analysis  
-- `--severity <level>` - Minimum severity: info, warning, critical (default: info)
-- `--output <format>` - Output format: text, json, markdown (default: text)
-- `--metrics` - Include quantitative metrics
+- `-d, --directory <dir>` - Directory to analyze (default: current directory)
+- `-p, --project-id <id>` - Project identifier for AST caching (auto-generated if not provided)
+- `--path-pattern <pattern>` - Filter results to files containing this text in their path
+- `-a, --analysis-types <types...>` - Analysis types to run: quality, deadcode, structure (default: quality)
+- `--max-results <num>` - Maximum number of findings to return (default: 20)
+- `--output <format>` - Output format: json, text, markdown (default: json)
 
 **Examples:**
 ```bash
@@ -95,16 +97,46 @@ tree-sitter-mcp analyze [directory] [options]
 tree-sitter-mcp analyze
 
 # Full analysis
-tree-sitter-mcp analyze --quality --structure --deadcode
+tree-sitter-mcp analyze --analysis-types quality deadcode structure
 
-# Analyze specific directory
-tree-sitter-mcp analyze src/components
+# Analyze specific directory  
+tree-sitter-mcp analyze --directory src/components
 
-# Warning level and above
-tree-sitter-mcp analyze --severity warning
+# Just deadcode analysis
+tree-sitter-mcp analyze --analysis-types deadcode
 
-# Markdown report
-tree-sitter-mcp analyze --output markdown --metrics
+# Markdown report with limited results
+tree-sitter-mcp analyze --output markdown --max-results 10
+```
+
+### `errors`
+
+Find actionable syntax errors with detailed context and fix suggestions.
+
+```bash
+tree-sitter-mcp errors [options]
+```
+
+**Options:**
+- `-d, --directory <dir>` - Directory to analyze (default: current directory)
+- `-p, --project-id <id>` - Project identifier for AST caching (auto-generated if not provided)
+- `--path-pattern <pattern>` - Filter results to files containing this text in their path
+- `--max-results <num>` - Maximum number of errors to return (default: 50)
+- `--output <format>` - Output format: json, text (default: json)
+
+**Examples:**
+```bash
+# Check for syntax errors
+tree-sitter-mcp errors
+
+# Check specific directory
+tree-sitter-mcp errors --directory src/components
+
+# Text output with context
+tree-sitter-mcp errors --output text
+
+# Limit to first 10 errors
+tree-sitter-mcp errors --max-results 10
 ```
 
 ### Global Options
@@ -112,19 +144,23 @@ tree-sitter-mcp analyze --output markdown --metrics
 Available for all commands:
 
 - `--help` - Show help
-- `--version` - Show version
-- `--verbose` - Verbose output
+- `--version` - Show version  
+- `--debug` - Enable debug logging
 - `--quiet` - Suppress non-error output
+- `--mcp` - Run as MCP server
 
 ## Output Formats
 
-### Text (Default)
-Human-readable console output with colors and formatting.
-
-### JSON
+### JSON (Default)
 Machine-readable structured data for automation:
 ```bash
 tree-sitter-mcp search "User" --output json | jq '.results[0].name'
+```
+
+### Text
+Human-readable console output with colors and formatting:
+```bash
+tree-sitter-mcp search "User" --output text
 ```
 
 ### Markdown

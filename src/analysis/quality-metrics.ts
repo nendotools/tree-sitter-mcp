@@ -55,7 +55,7 @@ export function calculateMethodLength(node: TreeNode): number {
  * Gets the parameter count for a function node
  */
 export function getParameterCount(node: TreeNode): number {
-  if (node.parameters) {
+  if (node.parameters && node.parameters.length > 0) {
     return node.parameters.length
   }
 

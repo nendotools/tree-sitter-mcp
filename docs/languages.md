@@ -73,13 +73,13 @@ Tree-Sitter MCP supports semantic analysis for 15+ programming languages and con
 
 | Element Type | JavaScript | TypeScript | Python | Go | Rust | Java | Others |
 |--------------|------------|------------|--------|----|----- |------|--------|
-| `function` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| `method` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `class` | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | Varies |
-| `interface` | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ |
-| `struct` | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| `trait` | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| `variable` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `function` | Yes | Yes | Yes | Yes | Yes | No | Yes |
+| `method` | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| `class` | Yes | Yes | Yes | No | No | Yes | Varies |
+| `interface` | No | Yes | No | Yes | No | Yes | Yes |
+| `struct` | No | No | No | Yes | Yes | No | Yes |
+| `trait` | No | No | No | No | Yes | No | No |
+| `variable` | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 
 ### Code Quality Analysis
 

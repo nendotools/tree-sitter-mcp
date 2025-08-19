@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import Parser from 'tree-sitter'
 import JavaScript from 'tree-sitter-javascript'
-import { parseContent } from '../core/parser.js'
+import { parseContent } from '../../../core/parser.js'
 
 describe('Tree-Sitter Parser', () => {
   let parser: Parser

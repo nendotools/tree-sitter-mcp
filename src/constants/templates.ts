@@ -17,6 +17,8 @@ export interface AnalysisData {
   unusedFiles?: number
   unusedFunctions?: number
   circularDependencies?: number
+  filesWithErrors?: number
+  totalSyntaxErrors?: number
   criticalIssues?: string
   warningIssues?: string
   statusMessage?: string
@@ -65,23 +67,23 @@ Or globally installed:
 
 Server will communicate via stdio using the MCP protocol.`
 
-export const SETUP_AUTO_SUCCESS_TEMPLATE = `✅ Successfully installed tree-sitter-mcp!
+export const SETUP_AUTO_SUCCESS_TEMPLATE = `SUCCESS: Successfully installed tree-sitter-mcp!
 
 The MCP server is now available in Claude Code.
 Use /mcp to see available tools or start using the analysis functions.`
 
-export const SETUP_AUTO_EXISTS_TEMPLATE = `✅ tree-sitter-mcp is already installed!
+export const SETUP_AUTO_EXISTS_TEMPLATE = `INFO: tree-sitter-mcp is already installed!
 
 The MCP server is available in Claude Code.
 Use /mcp to see available tools or start using the analysis functions.`
 
-export const SETUP_AUTO_FAILED_TEMPLATE = `❌ Automatic setup failed: {error}
+export const SETUP_AUTO_FAILED_TEMPLATE = `Automatic setup failed: {error}
 
 Falling back to manual instructions:
 
 {manualInstructions}`
 
-export const SETUP_CLAUDE_NOT_FOUND_TEMPLATE = `❌ Claude Code CLI not found
+export const SETUP_CLAUDE_NOT_FOUND_TEMPLATE = `Claude Code CLI not found
 
 Please install Claude Code first to use automatic setup.
 You can download it from: https://claude.ai/download
@@ -113,7 +115,11 @@ Unused Functions: ${data.unusedFunctions || 0}
 
 Structure Metrics
 Files Analyzed: ${data.analyzedFiles}
-Circular Dependencies: ${data.circularDependencies || 0}`
+Circular Dependencies: ${data.circularDependencies || 0}
+
+Syntax Errors
+Files with Errors: ${data.filesWithErrors || 0}
+Total Syntax Errors: ${data.totalSyntaxErrors || 0}`
 
   const criticalSection = data.criticalIssues
     ? `
@@ -231,7 +237,7 @@ export const ANALYSIS_TEMPLATES = {
 - Warnings: {warningFindings}
 - Info: {infoFindings}
 
-{qualitySection}{deadcodeSection}{structureSection}{criticalIssuesSection}{warningsSection}`,
+{qualitySection}{deadcodeSection}{structureSection}{syntaxSection}{criticalIssuesSection}{warningsSection}`,
 
   QUALITY_SECTION: `## Quality Metrics
 - Code Quality Score: {codeQualityScore}/10
@@ -255,6 +261,14 @@ export const ANALYSIS_TEMPLATES = {
 - Circular Dependencies: {circularDependencies}
 - High Coupling Files: {highCouplingFiles}
 - Max Nesting Depth: {maxNestingDepth}
+
+`,
+
+  SYNTAX_SECTION: `## Syntax Errors
+- Total Files: {totalFiles}
+- Files with Errors: {filesWithErrors}
+- Total Syntax Errors: {totalSyntaxErrors}
+- Error Types: {errorTypes}
 
 `,
 
@@ -351,6 +365,24 @@ export function buildWarningsSection(findings: any[], count: number): string {
   const moreWarningsText = count > 10 ? `\n- ... and ${count - 10} more warnings` : ''
 
   return populateTemplate(ANALYSIS_TEMPLATES.WARNINGS_SECTION, { warningsList, moreWarningsText })
+}
+
+/**
+ * Build syntax section
+ */
+export function buildSyntaxSection(syntaxMetrics: any): string {
+  if (!syntaxMetrics) return ''
+
+  const errorTypes = Object.entries(syntaxMetrics.errorsByType || {})
+    .map(([type, count]) => `${type}: ${count}`)
+    .join(', ') || 'None'
+
+  return populateTemplate(ANALYSIS_TEMPLATES.SYNTAX_SECTION, {
+    totalFiles: syntaxMetrics.totalFiles || 0,
+    filesWithErrors: syntaxMetrics.filesWithErrors || 0,
+    totalSyntaxErrors: syntaxMetrics.totalSyntaxErrors || 0,
+    errorTypes,
+  })
 }
 
 /**

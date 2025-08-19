@@ -38,10 +38,8 @@ export async function getOrCreateProject(
   try {
     await access(directory, constants.R_OK)
   }
-  catch (error) {
-    const message = `Directory does not exist or is not accessible: ${directory}`
-    logger.error(message, error)
-    throw new Error(message)
+  catch {
+    throw new Error(`Directory does not exist or is not accessible: ${directory}`)
   }
 
   const rawProjectId = projectId || generateProjectId(manager, directory)
@@ -64,6 +62,16 @@ export async function getOrCreateProject(
   project.id = finalProjectId
 
   await parseProject(project)
+
+  // Handle eviction before adding new project
+  if (manager.memory.projects.size >= manager.memory.maxProjects) {
+    const { findLRUProject } = await import('./memory.js')
+    const lruProjectId = findLRUProject(manager.memory)
+    if (lruProjectId) {
+      logger.debug(`Evicting LRU project: ${lruProjectId}`)
+      removeProjectFromManager(manager, lruProjectId)
+    }
+  }
 
   addProject(manager.memory, project)
   manager.directoryToProject.set(directory, finalProjectId)

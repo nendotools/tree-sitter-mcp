@@ -71,6 +71,7 @@ export function parseContent(content: string, filePath: string, language?: Langu
       path: filePath,
       content,
       children: [],
+      rawNode: rootNode, // Preserve raw tree-sitter node for error detection
     }
 
     extractElements(rootNode, content, filePath, languageConfig, fileNode)

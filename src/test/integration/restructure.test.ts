@@ -3,10 +3,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { analyzeProject } from '../analysis/index.js'
-import { createProject, parseProject } from '../project/manager.js'
-import { searchCode, findUsage } from '../core/search.js'
-import { getLogger } from '../utils/logger.js'
+import { analyzeProject } from '../../analysis/index.js'
+import { createProject, parseProject } from '../../project/manager.js'
+import { searchCode, findUsage } from '../../core/search.js'
+import { getLogger } from '../../utils/logger.js'
 
 describe('Restructured Codebase Basic Tests', () => {
   const testDir = './src/test/fixtures/simple-ts'

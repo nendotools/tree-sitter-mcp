@@ -1,0 +1,6 @@
+{
+  "name": "empty-test-project",
+  "version": "1.0.0",
+  "description": "Empty project for 0-result testing",
+  "main": "index.js"
+}

@@ -2,20 +2,20 @@
  * Validation and sanitization tests
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { resolve } from 'path'
 import {
   createPersistentManager,
   getOrCreateProject,
   sanitizeProjectId,
   clearAllProjects,
-} from '../project/persistent-manager.js'
-import type { PersistentProjectManager } from '../project/persistent-manager.js'
+} from '../../../project/persistent-manager.js'
+import type { PersistentProjectManager } from '../../../project/persistent-manager.js'
 
 describe('Validation and Sanitization', () => {
   let persistentManager: PersistentProjectManager
 
-  const fixturesDir = resolve(import.meta.dirname, 'fixtures')
+  const fixturesDir = resolve(import.meta.dirname, '../../fixtures')
   const testProjectDir = resolve(fixturesDir, 'simple-ts')
 
   beforeEach(() => {

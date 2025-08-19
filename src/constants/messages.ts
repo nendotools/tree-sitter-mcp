@@ -3,7 +3,7 @@
  */
 
 export const CONSOLE_MESSAGES = {
-  CODEBASE_STATS: '📊 New codebase statistics:',
+  CODEBASE_STATS: '[STATS] New codebase statistics:',
   LINES_OF_CODE: '   Lines of code:',
   FILES_COUNT: '   Files:',
   DIRECTORIES_COUNT: '   Directories:',

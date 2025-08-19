@@ -3,6 +3,7 @@
  */
 
 import { analyzeProject } from '../analysis/index.js'
+import { analyzeErrors } from '../analysis/errors.js'
 import { searchCode, findUsage } from '../core/search.js'
 import { createPersistentManager, getOrCreateProject } from '../project/persistent-manager.js'
 import { getLogger } from '../utils/logger.js'
@@ -11,6 +12,25 @@ import type { AnalysisOptions } from '../types/analysis.js'
 import type { JsonObject, Project } from '../types/core.js'
 
 const mcpPersistentManager = createPersistentManager(10)
+
+// Export function for test cleanup
+export function clearMCPMemory(): void {
+  // Stop all watchers first
+  for (const stopWatcher of mcpPersistentManager.watchers.values()) {
+    stopWatcher()
+  }
+  mcpPersistentManager.watchers.clear()
+
+  // Clear all projects from memory
+  mcpPersistentManager.memory.projects.clear()
+  mcpPersistentManager.directoryToProject.clear()
+  mcpPersistentManager.projectToDirectory.clear()
+
+  // Force garbage collection if available
+  if (global.gc) {
+    global.gc()
+  }
+}
 
 interface MCPToolParams {
   name: string
@@ -29,14 +49,14 @@ interface MCPToolResult {
   [key: string]: unknown
 }
 
-async function getOrCreateMCPProject(projectId?: string, directory = process.cwd()): Promise<Project> {
-  const actualDirectory = projectId && projectId.startsWith('/') ? projectId : directory
+async function getOrCreateMCPProject(projectId?: string, directory?: string): Promise<Project> {
+  const actualDirectory = directory || (projectId && projectId.startsWith('/') ? projectId : process.cwd())
   const actualProjectId = projectId && !projectId.startsWith('/') ? projectId : undefined
 
   return getOrCreateProject(mcpPersistentManager, {
     directory: actualDirectory,
     languages: [],
-    autoWatch: true,
+    autoWatch: process.env.NODE_ENV !== 'test',
   }, actualProjectId)
 }
 
@@ -62,6 +82,9 @@ export async function handleToolRequest(request: MCPToolRequest): Promise<MCPToo
     case 'analyze_code':
       return handleAnalyzeCode(args)
 
+    case 'check_errors':
+      return handleCheckErrors(args)
+
     default:
       throw new Error(`Unknown tool: ${name}`)
   }
@@ -70,6 +93,7 @@ export async function handleToolRequest(request: MCPToolRequest): Promise<MCPToo
 async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
   const {
     projectId,
+    directory,
     query,
     maxResults = 20,
     fuzzyThreshold = 30,
@@ -85,6 +109,7 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
   try {
     const project = await getOrCreateMCPProject(
       typeof projectId === 'string' ? projectId : undefined,
+      typeof directory === 'string' ? directory : undefined,
     )
     const searchNodes = getSearchNodes(project)
 
@@ -126,6 +151,7 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
 async function handleFindUsage(args: JsonObject): Promise<MCPToolResult> {
   const {
     projectId,
+    directory,
     identifier,
     caseSensitive = false,
     exactMatch = true,
@@ -140,6 +166,7 @@ async function handleFindUsage(args: JsonObject): Promise<MCPToolResult> {
   try {
     const project = await getOrCreateMCPProject(
       typeof projectId === 'string' ? projectId : undefined,
+      typeof directory === 'string' ? directory : undefined,
     )
     const searchNodes = getSearchNodes(project)
 
@@ -178,31 +205,28 @@ async function handleFindUsage(args: JsonObject): Promise<MCPToolResult> {
 async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
   const {
     projectId,
+    directory,
     analysisTypes = ['quality'],
-    scope = 'project',
     pathPattern,
     maxResults = 20,
   } = args
 
-  const validScopes = ['project', 'file', 'method'] as const
-
   const analysisTypesArray = Array.isArray(analysisTypes) ? analysisTypes as string[] : ['quality']
-  const scopeValue = validScopes.includes(scope as typeof validScopes[number]) ? scope as typeof validScopes[number] : 'project'
 
   try {
     const project = await getOrCreateMCPProject(
       typeof projectId === 'string' ? projectId : undefined,
+      typeof directory === 'string' ? directory : undefined,
     )
 
     const options: AnalysisOptions = {
       includeQuality: analysisTypesArray.includes('quality'),
       includeDeadcode: analysisTypesArray.includes('deadcode'),
       includeStructure: analysisTypesArray.includes('structure'),
-      includeConfigValidation: analysisTypesArray.includes('config-validation'),
-      scope: scopeValue,
+      includeSyntax: analysisTypesArray.includes('syntax'),
     }
 
-    const result = await analyzeProject(project.config.directory, options)
+    const result = await analyzeProject(project, options)
 
     let filteredFindings = result.findings
     if (typeof pathPattern === 'string') {
@@ -230,7 +254,6 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
             timestamp: new Date().toISOString(),
             projectId: project.id,
             directory: project.config.directory,
-            scope,
             analysisTypes,
             pathPattern: typeof pathPattern === 'string' ? pathPattern : undefined,
             maxResults: Number(maxResults),
@@ -243,5 +266,55 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
   }
   catch (error) {
     throw handleError(error, 'Code analysis failed')
+  }
+}
+
+async function handleCheckErrors(args: JsonObject): Promise<MCPToolResult> {
+  const {
+    projectId,
+    directory,
+    pathPattern,
+    maxResults = 50,
+  } = args
+
+  try {
+    const project = await getOrCreateMCPProject(
+      typeof projectId === 'string' ? projectId : undefined,
+      typeof directory === 'string' ? directory : undefined,
+    )
+
+    const result = analyzeErrors(project)
+
+    let filteredErrors = result.errors
+    if (typeof pathPattern === 'string') {
+      filteredErrors = result.errors.filter(error =>
+        error.file.includes(pathPattern),
+      )
+    }
+
+    const limitedErrors = filteredErrors.slice(0, Number(maxResults))
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          errors: {
+            errors: limitedErrors,
+            summary: result.summary,
+            metrics: result.metrics,
+            timestamp: new Date().toISOString(),
+            projectId: project.id,
+            directory: project.config.directory,
+            pathPattern: typeof pathPattern === 'string' ? pathPattern : undefined,
+            maxResults: Number(maxResults),
+            totalErrors: result.errors.length,
+            filteredErrors: limitedErrors.length,
+          },
+        }, null, 2),
+      }],
+    }
+  }
+  catch (error) {
+    throw handleError(error, 'Error analysis failed')
   }
 }

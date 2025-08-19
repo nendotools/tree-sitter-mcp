@@ -12,7 +12,7 @@ Search for functions, classes, variables, and other code elements with fuzzy mat
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `query` | string | ✓ | - | Search query (name of element) |
+| `query` | string | Required | - | Search query (name of element) |
 | `maxResults` | number | | 20 | Maximum number of results |
 | `fuzzyThreshold` | number | | 30 | Minimum fuzzy match score |
 | `exactMatch` | boolean | | false | Require exact name match |
@@ -45,7 +45,7 @@ Find all usages of a function, variable, class, or identifier.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `identifier` | string | ✓ | - | Function, variable, class, or identifier name |
+| `identifier` | string | Required | - | Function, variable, class, or identifier name |
 | `caseSensitive` | boolean | | false | Case sensitive search |
 | `exactMatch` | boolean | | true | Require exact identifier match |
 | `maxResults` | number | | 50 | Maximum number of results |
@@ -67,9 +67,9 @@ Comprehensive code quality, structure, and dead code analysis.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `projectId` | string | ✓ | - | Project identifier |
-| `analysisTypes` | array | ✓ | - | Analysis types to run |
-| `scope` | string | ✓ | - | Analysis scope |
+| `projectId` | string | Required | - | Project identifier |
+| `analysisTypes` | array | Required | - | Analysis types to run |
+| `scope` | string | Required | - | Analysis scope |
 | `target` | string | | - | Specific file/method when scope is file/method |
 | `includeMetrics` | boolean | | false | Include quantitative metrics |
 | `severity` | string | | info | Minimum severity level |
@@ -98,6 +98,28 @@ Comprehensive code quality, structure, and dead code analysis.
   "scope": "project",
   "includeMetrics": true,
   "severity": "warning"
+}
+```
+
+### `check_errors`
+
+Find actionable syntax errors with detailed context and fix suggestions.
+
+**Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `projectId` | string | | - | Project identifier for cached projects |
+| `directory` | string | | cwd | Directory to check for errors |
+| `pathPattern` | string | | - | Filter by file path pattern |
+| `maxResults` | number | | 50 | Maximum number of errors to return |
+
+**Example:**
+```json
+{
+  "directory": "src/components",
+  "maxResults": 20,
+  "pathPattern": "*.ts"
 }
 ```
 

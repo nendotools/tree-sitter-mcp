@@ -4,15 +4,15 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { resolve } from 'path'
-import { createProject, parseProject } from '../project/manager.js'
-import { analyzeProject } from '../analysis/index.js'
-import { searchCode } from '../core/search.js'
-import type { Project } from '../types/core.js'
+import { createProject, parseProject } from '../../project/manager.js'
+import { analyzeProject } from '../../analysis/index.js'
+import { searchCode } from '../../core/search.js'
+import type { Project } from '../../types/core.js'
 
 describe('Simple Integration Test', () => {
   let testProjects: Project[] = []
 
-  const fixturesDir = resolve(import.meta.dirname, 'fixtures')
+  const fixturesDir = resolve(import.meta.dirname, '../fixtures')
   const simpleProjectDir = resolve(fixturesDir, 'simple-ts')
 
   beforeEach(() => {

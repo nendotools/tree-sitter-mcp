@@ -3,6 +3,7 @@
  */
 
 import type { TreeNode, SearchOptions, SearchResult, FindUsageResult } from '../types/core.js'
+import { createLightweightTreeNode } from '../types/core.js'
 import { escapeRegExp } from '../utils/string-analysis.js'
 
 /**
@@ -31,7 +32,7 @@ export function searchCode(
     const score = calculateScore(query, node, exactMatch, fuzzyThreshold)
     if (score > 0) {
       results.push({
-        node,
+        node: createLightweightTreeNode(node),
         score,
         matches: getMatches(query, node),
       })
@@ -153,7 +154,7 @@ export function findUsage(
       const context = getUsageContext(node, lineNumber, lines)
 
       results.push({
-        node,
+        node: createLightweightTreeNode(node),
         context,
         startLine: (node.startLine || 1) + lineNumber,
         endLine: (node.startLine || 1) + lineNumber,

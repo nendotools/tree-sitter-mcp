@@ -15,11 +15,15 @@ export const MCP_TOOLS = [
         },
         projectId: {
           type: 'string',
-          description: 'Project ID for targeting specific cached project',
+          description: 'Optional: Project ID for targeting specific cached project',
+        },
+        directory: {
+          type: 'string',
+          description: 'Optional: Directory to search (default: current working directory)',
         },
         pathPattern: {
           type: 'string',
-          description: 'Filter by file path pattern',
+          description: 'Optional: Filter results to files containing this text in their path (e.g., "server", "client", "components")',
         },
         maxResults: {
           type: 'number',
@@ -57,11 +61,15 @@ export const MCP_TOOLS = [
         },
         projectId: {
           type: 'string',
-          description: 'Project ID for targeting specific cached project',
+          description: 'Optional: Project ID for targeting specific cached project',
+        },
+        directory: {
+          type: 'string',
+          description: 'Optional: Directory to search (default: current working directory)',
         },
         pathPattern: {
           type: 'string',
-          description: 'Filter by file path pattern',
+          description: 'Optional: Filter results to files containing this text in their path (e.g., "server", "client", "components")',
         },
         caseSensitive: {
           type: 'boolean',
@@ -90,41 +98,24 @@ export const MCP_TOOLS = [
       properties: {
         projectId: {
           type: 'string',
-          description: 'Project to analyze',
+          description: 'Optional: Project ID for targeting specific cached project (if not provided, directory is required)',
+        },
+        directory: {
+          type: 'string',
+          description: 'Optional: Directory to analyze (default: current working directory)',
         },
         pathPattern: {
           type: 'string',
-          description: 'Filter by file path pattern',
+          description: 'Optional: Filter results to files containing this text in their path (e.g., "server", "client", "components")',
         },
         analysisTypes: {
           type: 'array',
           items: {
             type: 'string',
-            enum: ['quality', 'structure', 'deadcode', 'config-validation'],
+            enum: ['quality', 'structure', 'deadcode'],
           },
-          description: 'Analysis types to run',
+          description: 'Analysis types to run: quality, deadcode, structure',
           default: ['quality'],
-        },
-        scope: {
-          type: 'string',
-          enum: ['project', 'file', 'method'],
-          description: 'Analysis scope',
-          default: 'project',
-        },
-        includeMetrics: {
-          type: 'boolean',
-          description: 'Include quantitative metrics in addition to findings',
-          default: false,
-        },
-        severity: {
-          type: 'string',
-          enum: ['info', 'warning', 'critical'],
-          description: 'Show only issues at or above this severity level',
-          default: 'info',
-        },
-        target: {
-          type: 'string',
-          description: 'Specific file path or method name when scope is file/method',
         },
         maxResults: {
           type: 'number',
@@ -132,7 +123,34 @@ export const MCP_TOOLS = [
           default: 20,
         },
       },
-      required: ['projectId', 'analysisTypes', 'scope'],
+      required: ['analysisTypes'],
+    },
+  },
+  {
+    name: 'check_errors',
+    description: 'Find actionable syntax errors with detailed context and fix suggestions',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: {
+          type: 'string',
+          description: 'Optional: Project ID for targeting specific cached project',
+        },
+        directory: {
+          type: 'string',
+          description: 'Optional: Directory to check for errors (default: current working directory)',
+        },
+        pathPattern: {
+          type: 'string',
+          description: 'Optional: Filter results to files containing this text in their path (e.g., "server", "client", "components")',
+        },
+        maxResults: {
+          type: 'number',
+          description: 'Maximum number of errors to return',
+          default: 50,
+        },
+      },
+      required: [],
     },
   },
 ]

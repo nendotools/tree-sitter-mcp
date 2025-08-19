@@ -41,6 +41,9 @@ Trace where functions, classes, and variables are used.
 ### `analyze_code`
 Comprehensive code quality and structure analysis.
 
+### `check_errors`
+Find actionable syntax errors with detailed context and fix suggestions.
+
 ## Usage Patterns
 
 ### Code Exploration

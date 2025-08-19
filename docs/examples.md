@@ -64,7 +64,7 @@ tree-sitter-mcp find-usage "getUserData" --exact --output markdown > refactor-im
 
 ```bash
 # Analyze the large class
-tree-sitter-mcp analyze src/services/UserService.ts --quality
+tree-sitter-mcp analyze src/services/UserService.ts --analysis-types quality
 
 # Find all methods in the class
 tree-sitter-mcp search "" --type method --path-pattern "**/UserService.ts"
@@ -81,13 +81,10 @@ tree-sitter-mcp find-usage "UserService" --exact
 
 ```bash
 # Full quality analysis
-tree-sitter-mcp analyze --quality --structure --deadcode --metrics
-
-# Find complex functions only
-tree-sitter-mcp analyze --quality --severity warning
+tree-sitter-mcp analyze --analysis-types quality structure deadcode
 
 # Generate quality report
-tree-sitter-mcp analyze --quality --structure --deadcode --output markdown > quality-audit.md
+tree-sitter-mcp analyze --analysis-types quality structure deadcode --output markdown > quality-audit.md
 ```
 
 **Note on Quality Scores:** The `codeQualityScore` measures complexity, not project value. Target 5-7 for most projects, 3-5 for large/complex codebases. Scores of 8+ may indicate over-abstraction. No project should aim for a perfect 10.
@@ -98,13 +95,10 @@ tree-sitter-mcp analyze --quality --structure --deadcode --output markdown > qua
 
 ```bash
 # Find all dead code
-tree-sitter-mcp analyze --deadcode
-
-# Focus on unused exports
-tree-sitter-mcp analyze --deadcode --severity warning
+tree-sitter-mcp analyze --analysis-types deadcode
 
 # Check specific directory
-tree-sitter-mcp analyze src/utils --deadcode
+tree-sitter-mcp analyze src/utils --analysis-types deadcode
 ```
 
 ## API Development
@@ -225,24 +219,24 @@ tree-sitter-mcp search "singleton" --type class
 echo "Running code quality analysis..."
 
 # Check for critical issues
-critical_issues=$(tree-sitter-mcp analyze --severity critical --output json | jq '.analysis.summary.criticalFindings')
+critical_issues=$(tree-sitter-mcp analyze --analysis-types quality --output json | jq '.summary.criticalFindings')
 
 if [ "$critical_issues" -gt 0 ]; then
-    echo "❌ Critical quality issues found:"
-    tree-sitter-mcp analyze --severity critical
+    echo "ERROR: Critical quality issues found:"
+    tree-sitter-mcp analyze --analysis-types quality --output text
     exit 1
 fi
 
 # Check for dead code
-dead_code=$(tree-sitter-mcp analyze --deadcode --output json | jq '.analysis.findings | length')
+dead_code=$(tree-sitter-mcp analyze --analysis-types deadcode --output json | jq '.findings | length')
 
 if [ "$dead_code" -gt 10 ]; then
-    echo "⚠️  Significant dead code detected:"
-    tree-sitter-mcp analyze --deadcode --severity warning
+    echo "WARNING: Significant dead code detected:"
+    tree-sitter-mcp analyze --analysis-types deadcode --output text
     echo "Consider cleanup before merge"
 fi
 
-echo "✅ Quality checks passed"
+echo "SUCCESS: Quality checks passed"
 ```
 
 ### Documentation Generation
@@ -325,13 +319,13 @@ The flow follows: Controller → Service → Processor → External APIs
 
 ```bash
 # Find long functions that might be slow
-tree-sitter-mcp analyze --quality | grep "long_method"
+tree-sitter-mcp analyze --analysis-types quality --output text | grep "long_method"
 
 # Find complex functions
-tree-sitter-mcp analyze --quality | grep "high_complexity"
+tree-sitter-mcp analyze --analysis-types quality --output text | grep "high_complexity"
 
-# Find functions with many parameters (potential over-engineering)
-tree-sitter-mcp analyze --quality | grep "too_many_parameters"
+# Find functions with many parameters (potential over-engineering)  
+tree-sitter-mcp analyze --analysis-types quality --output text | grep "too_many_parameters"
 ```
 
 ### Database Query Analysis

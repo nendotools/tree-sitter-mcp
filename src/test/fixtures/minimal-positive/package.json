@@ -1,0 +1,6 @@
+{
+  "name": "minimal-positive-project",
+  "version": "1.0.0",
+  "description": "Minimal project with guaranteed search matches",
+  "main": "index.js"
+}

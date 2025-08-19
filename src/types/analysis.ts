@@ -11,7 +11,7 @@ export interface AnalysisResult {
 }
 
 export interface Finding {
-  type: 'quality' | 'deadcode' | 'structure'
+  type: 'quality' | 'deadcode' | 'structure' | 'syntax'
   category: string
   severity: 'critical' | 'warning' | 'info'
   location: string
@@ -24,6 +24,7 @@ export interface AnalysisMetrics {
   quality?: QualityMetrics
   deadcode?: DeadcodeMetrics
   structure?: StructureMetrics
+  syntax?: SyntaxMetrics
 }
 
 export interface AnalysisSummary {
@@ -69,9 +70,17 @@ export interface AnalysisOptions {
   includeQuality?: boolean
   includeDeadcode?: boolean
   includeStructure?: boolean
-  includeConfigValidation?: boolean
+  includeSyntax?: boolean
   target?: string
   scope?: 'project' | 'file' | 'method'
+}
+
+export interface SyntaxMetrics {
+  totalFiles: number
+  filesWithErrors: number
+  totalSyntaxErrors: number
+  totalErrorNodes: number // Count of nodes with hasError: true
+  errorsByType: Record<string, number>
 }
 
 export interface MonorepoInfo {
