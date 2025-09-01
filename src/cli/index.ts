@@ -28,7 +28,7 @@ export function createCLI(): Command {
 
   program
     .command('search <query>')
-    .description('Search for code elements')
+    .description('Search for code elements with progressive content inclusion')
     .option('-d, --directory <dir>', 'Directory to search (default: current directory)')
     .option('-p, --project-id <id>', 'Optional: Project ID for persistent AST caching')
     .option('--path-pattern <pattern>', 'Optional: Filter results to files containing this text in their path')
@@ -36,6 +36,9 @@ export function createCLI(): Command {
     .option('-m, --max-results <num>', 'Maximum number of results', '20')
     .option('--fuzzy-threshold <num>', 'Minimum fuzzy match score (0-100)', '30')
     .option('--exact', 'Exact match only')
+    .option('--force-content-inclusion', 'Force content inclusion even with 4+ results')
+    .option('--max-content-lines <num>', 'Maximum lines for content truncation', '150')
+    .option('--disable-content-inclusion', 'Disable content inclusion entirely')
     .option('--output <format>', 'Output format (json, text)', 'json')
     .action(handleSearch)
 
@@ -94,6 +97,11 @@ interface SearchOptions {
   output: string
   debug?: boolean
   quiet?: boolean
+
+  // Content inclusion options
+  forceContentInclusion?: boolean
+  maxContentLines?: string
+  disableContentInclusion?: boolean
 }
 
 async function handleSearch(query: string, options: SearchOptions): Promise<void> {
@@ -138,12 +146,25 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
       fuzzyThreshold = parsed
     }
 
+    let maxContentLines = 150
+    if (options.maxContentLines) {
+      const parsed = parseInt(options.maxContentLines)
+      if (isNaN(parsed) || parsed < 1) {
+        throw new Error(`Invalid max-content-lines value: ${options.maxContentLines}. Must be a positive number.`)
+      }
+      maxContentLines = parsed
+    }
+
     const results = searchCode(query, searchNodes, {
       maxResults,
       fuzzyThreshold,
       exactMatch: options.exact,
       types: options.type,
       pathPattern: options.pathPattern,
+      // New content inclusion options
+      forceContentInclusion: options.forceContentInclusion,
+      maxContentLines,
+      disableContentInclusion: options.disableContentInclusion,
     })
 
     if (options.output === 'json') {
@@ -159,6 +180,11 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
           endColumn: r.node.endColumn,
           score: r.score,
           matches: r.matches,
+          // New content inclusion fields
+          contentIncluded: r.contentIncluded,
+          content: r.content,
+          contentTruncated: r.contentTruncated,
+          contentLines: r.contentLines,
         })),
         totalResults: results.length,
       }, null, 2))
@@ -177,6 +203,28 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
       logger.output(`${chalk.green('●')} ${chalk.bold(node.name || 'unnamed')} ${chalk.dim(`(${node.type})`)}`)
       logger.output(`  ${chalk.dim(node.path)}${node.startLine ? ':' + node.startLine : ''}`)
       logger.output(`  ${chalk.dim('Score:')} ${score}`)
+
+      // Show content inclusion status and content if available
+      if (result.contentIncluded && result.content) {
+        logger.output(`  ${chalk.dim('Content:')} ${result.contentTruncated ? `${result.contentLines} lines (truncated)` : `${result.contentLines} lines`}`)
+        logger.output('')
+        logger.output(chalk.dim('  ┌─ Content:'))
+        // Show content with indentation
+        const contentLines = result.content.split('\n')
+        const maxShowLines = 10 // Show max 10 lines in text mode for readability
+        const showLines = contentLines.slice(0, Math.min(maxShowLines, contentLines.length))
+        showLines.forEach((line) => {
+          logger.output(chalk.dim('  │ ') + line)
+        })
+        if (contentLines.length > maxShowLines) {
+          logger.output(chalk.dim(`  │ ... (${contentLines.length - maxShowLines} more lines)`))
+        }
+        logger.output(chalk.dim('  └─'))
+      }
+      else if (result.contentIncluded === false) {
+        logger.output(`  ${chalk.dim('Content:')} Not included (${results.length >= 4 ? 'discovery mode' : 'no content available'})`)
+      }
+
       logger.output('')
     }
   }

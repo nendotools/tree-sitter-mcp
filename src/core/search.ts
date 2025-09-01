@@ -5,9 +5,10 @@
 import type { TreeNode, SearchOptions, SearchResult, FindUsageResult } from '../types/core.js'
 import { createLightweightTreeNode } from '../types/core.js'
 import { escapeRegExp } from '../utils/string-analysis.js'
+import { getUsageContext, extractContent } from '../utils/content-extraction.js'
 
 /**
- * Searches for code elements matching the query
+ * Searches for code elements matching the query with progressive content inclusion
  */
 export function searchCode(
   query: string,
@@ -20,33 +21,166 @@ export function searchCode(
     exactMatch = false,
     types = [],
     pathPattern,
+    forceContentInclusion = false,
+    maxContentLines = 150,
+    disableContentInclusion = false,
   } = options
 
-  const results: SearchResult[] = []
+  // First pass: collect all matching results without content
+  const initialResults: Omit<SearchResult, 'contentIncluded' | 'content' | 'contentTruncated' | 'contentLines'>[] = []
 
-  for (const node of nodes) {
-    if (types.length > 0 && !types.includes(node.type)) continue
+  function collectMatches(currentNodes: TreeNode[]) {
+    for (const node of currentNodes) {
+      if (types.length > 0 && !types.includes(node.type)) continue
+      if (pathPattern && !node.path.includes(pathPattern)) continue
 
-    if (pathPattern && !node.path.includes(pathPattern)) continue
+      const score = calculateScore(query, node, exactMatch, fuzzyThreshold)
+      if (score > 0) {
+        initialResults.push({
+          node: createLightweightTreeNode(node),
+          score,
+          matches: getMatches(query, node),
+        })
+      }
 
-    const score = calculateScore(query, node, exactMatch, fuzzyThreshold)
-    if (score > 0) {
-      results.push({
-        node: createLightweightTreeNode(node),
-        score,
-        matches: getMatches(query, node),
-      })
-    }
-
-    if (node.children) {
-      const childResults = searchCode(query, node.children, options)
-      results.push(...childResults)
+      if (node.children) {
+        collectMatches(node.children)
+      }
     }
   }
 
-  return results
+  collectMatches(nodes)
+
+  // Remove duplicates by node ID (same node can appear multiple times due to different match paths)
+  const seenNodeIds = new Set<string>()
+  const uniqueResults = initialResults.filter((result) => {
+    if (seenNodeIds.has(result.node.id)) {
+      return false
+    }
+    seenNodeIds.add(result.node.id)
+    return true
+  })
+
+  // Sort and slice to get final result set
+  const sortedResults = uniqueResults
     .sort((a, b) => b.score - a.score)
     .slice(0, maxResults)
+
+  // Apply progressive content inclusion based on result count
+  return includeContentInResults(sortedResults, {
+    forceContentInclusion,
+    maxContentLines,
+    disableContentInclusion,
+    explicitMaxContentLines: 'maxContentLines' in options,
+  })
+}
+
+/**
+ * Applies progressive content inclusion logic based on result count
+ */
+function includeContentInResults(
+  results: Omit<SearchResult, 'contentIncluded' | 'content' | 'contentTruncated' | 'contentLines'>[],
+  options: {
+    forceContentInclusion?: boolean
+    maxContentLines?: number
+    disableContentInclusion?: boolean
+    explicitMaxContentLines?: boolean
+  } = {},
+): SearchResult[] {
+  const { forceContentInclusion = false, maxContentLines = 150, disableContentInclusion = false, explicitMaxContentLines = false } = options
+  const resultCount = results.length
+
+  // If content inclusion is disabled, return metadata only
+  if (disableContentInclusion && !forceContentInclusion) {
+    return results.map(r => ({
+      ...r,
+      contentIncluded: false,
+      content: undefined,
+      contentTruncated: undefined,
+      contentLines: undefined,
+    }))
+  }
+
+  // Progressive content inclusion rules
+  if (resultCount >= 4 && !forceContentInclusion) {
+    // 4+ results: metadata only (discovery mode)
+    return results.map(r => ({
+      ...r,
+      contentIncluded: false,
+      content: undefined,
+      contentTruncated: undefined,
+      contentLines: undefined,
+    }))
+  }
+
+  // 1-3 results: include content with appropriate limits
+  return results.map((result) => {
+    const node = result.node
+    if (!node.content) {
+      return {
+        ...result,
+        contentIncluded: false,
+        content: undefined,
+        contentTruncated: undefined,
+        contentLines: undefined,
+      }
+    }
+
+    if (resultCount === 1) {
+      // Single result: full content unless maxContentLines is explicitly set and smaller than content
+      const isExplicitLimit = explicitMaxContentLines && maxContentLines < node.content.split('\n').length
+
+      if (isExplicitLimit) {
+        // Respect explicit maxContentLines even for single results
+        const extracted = extractContent(node.content, {
+          maxLines: maxContentLines,
+          truncationMessage: '',
+        })
+        return {
+          ...result,
+          contentIncluded: true,
+          content: extracted.content,
+          contentTruncated: extracted.truncated,
+          contentLines: extracted.originalLines,
+        }
+      }
+      else {
+        // Full content when no explicit limit or content is short
+        return {
+          ...result,
+          contentIncluded: true,
+          content: node.content,
+          contentTruncated: false,
+          contentLines: node.content.split('\n').length,
+        }
+      }
+    }
+
+    if (forceContentInclusion) {
+      // When forced, always give full content (ignore maxContentLines)
+      return {
+        ...result,
+        contentIncluded: true,
+        content: node.content,
+        contentTruncated: false,
+        contentLines: node.content.split('\n').length,
+      }
+    }
+
+    // 2-3 results: limited content (maxContentLines limit)
+    const extracted = extractContent(node.content, {
+      maxLines: maxContentLines,
+      truncationMessage: '', // Don't add corruption markers to code content
+    })
+
+    return {
+      ...result,
+      contentIncluded: true,
+      content: extracted.content,
+      contentTruncated: extracted.truncated,
+      contentLines: extracted.originalLines,
+    }
+  })
 }
 
 function calculateScore(query: string, node: TreeNode, exactMatch: boolean, fuzzyThreshold: number): number {
@@ -170,30 +304,4 @@ export function findUsage(
 
   nodes.forEach(searchInNode)
   return results
-}
-
-/**
- * Get contextual information around a usage
- */
-function getUsageContext(node: TreeNode, lineNumber: number, lines: string[]): string {
-  if (node.type === 'function') {
-    const content = lines.join('\n')
-    if (content.length <= 500) {
-      return content
-    }
-    return content.substring(0, 500) + '...'
-  }
-
-  const startLine = Math.max(0, lineNumber - 10)
-  const endLine = Math.min(lines.length - 1, lineNumber + 3)
-
-  const contextLines = lines.slice(startLine, endLine + 1)
-
-  return contextLines
-    .map((line, index) => {
-      const actualLineNum = startLine + index + 1
-      const prefix = actualLineNum === lineNumber + 1 ? '→ ' : '  '
-      return `${prefix}${actualLineNum}: ${line}`
-    })
-    .join('\n')
 }

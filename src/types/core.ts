@@ -110,6 +110,11 @@ export interface SearchOptions {
   exactMatch?: boolean
   types?: string[]
   pathPattern?: string
+
+  // Content inclusion options
+  forceContentInclusion?: boolean
+  maxContentLines?: number
+  disableContentInclusion?: boolean
 }
 
 export interface SearchResult {
@@ -117,6 +122,12 @@ export interface SearchResult {
   score: number
   matches: string[]
   context?: string
+
+  // Content inclusion fields
+  contentIncluded: boolean
+  content?: string
+  contentTruncated?: boolean
+  contentLines?: number
 }
 
 export interface FindUsageResult {
@@ -162,6 +173,11 @@ export interface SearchCodeArgs {
   exactMatch?: boolean
   types?: string[]
   pathPattern?: string
+
+  // Content inclusion options
+  forceContentInclusion?: boolean
+  maxContentLines?: number
+  disableContentInclusion?: boolean
 }
 
 export interface FindUsageArgs {

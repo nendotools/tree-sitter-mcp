@@ -256,6 +256,120 @@ describe('MCP search_code Tool', () => {
         expect(result).toHaveProperty('endColumn')
         expect(result).toHaveProperty('score')
         expect(result).toHaveProperty('matches')
+        // New content inclusion fields
+        expect(result).toHaveProperty('contentIncluded')
+        expect(typeof result.contentIncluded).toBe('boolean')
+        if (result.contentIncluded) {
+          expect(result).toHaveProperty('content')
+          expect(result).toHaveProperty('contentTruncated')
+          expect(result).toHaveProperty('contentLines')
+          expect(typeof result.contentTruncated).toBe('boolean')
+          expect(typeof result.contentLines).toBe('number')
+        }
+      })
+    })
+  })
+
+  describe('Content Inclusion Feature', () => {
+    const contentFixture = resolve(fixturesDir, 'content-inclusion-test')
+
+    it('should include full content for 1 result', async () => {
+      const result = await callSearchCode({
+        query: 'processUserDataValidation',
+        directory: contentFixture,
+        maxResults: 1,
+      })
+
+      const content = JSON.parse(result.content[0].text)
+      expect(content.results).toHaveLength(1)
+      expect(content.results[0].contentIncluded).toBe(true)
+      expect(content.results[0].content).toBeDefined()
+      expect(content.results[0].contentTruncated).toBe(false)
+      expect(content.results[0].contentLines).toBeGreaterThan(0)
+    })
+
+    it('should include limited content for 3 results', async () => {
+      const result = await callSearchCode({
+        query: 'processUser',
+        directory: contentFixture,
+        maxResults: 3,
+      })
+
+      const content = JSON.parse(result.content[0].text)
+      expect(content.results.length).toBeLessThanOrEqual(3)
+      content.results.forEach((result: any) => {
+        expect(result.contentIncluded).toBe(true)
+        if (result.content) {
+          expect(result.contentLines).toBeGreaterThan(0)
+        }
+      })
+    })
+
+    it('should not include content for 4+ results', async () => {
+      const result = await callSearchCode({
+        query: 'processUser',
+        directory: contentFixture,
+        maxResults: 10,
+      })
+
+      const content = JSON.parse(result.content[0].text)
+      expect(content.results.length).toBeGreaterThanOrEqual(4)
+      content.results.forEach((result: any) => {
+        expect(result.contentIncluded).toBe(false)
+        expect(result.content).toBeUndefined()
+        expect(result.contentTruncated).toBeUndefined()
+        expect(result.contentLines).toBeUndefined()
+      })
+    })
+
+    it('should force content inclusion when forceContentInclusion is true', async () => {
+      const result = await callSearchCode({
+        query: 'processUser',
+        directory: contentFixture,
+        maxResults: 10,
+        forceContentInclusion: true,
+      })
+
+      const content = JSON.parse(result.content[0].text)
+      expect(content.results.length).toBeGreaterThanOrEqual(4)
+      content.results.forEach((result: any) => {
+        expect(result.contentIncluded).toBe(true)
+        if (result.content) {
+          expect(result.contentLines).toBeGreaterThan(0)
+        }
+      })
+    })
+
+    it('should disable content inclusion when disableContentInclusion is true', async () => {
+      const result = await callSearchCode({
+        query: 'processUserDataValidation',
+        directory: contentFixture,
+        maxResults: 1,
+        disableContentInclusion: true,
+      })
+
+      const content = JSON.parse(result.content[0].text)
+      expect(content.results).toHaveLength(1)
+      expect(content.results[0].contentIncluded).toBe(false)
+      expect(content.results[0].content).toBeUndefined()
+      expect(content.results[0].contentTruncated).toBeUndefined()
+      expect(content.results[0].contentLines).toBeUndefined()
+    })
+
+    it('should respect maxContentLines parameter', async () => {
+      const result = await callSearchCode({
+        query: 'processUserData',
+        directory: contentFixture,
+        maxResults: 3,
+        maxContentLines: 10,
+      })
+
+      const content = JSON.parse(result.content[0].text)
+      content.results.forEach((result: any) => {
+        if (result.contentIncluded && result.content && result.contentLines > 10) {
+          expect(result.contentTruncated).toBe(true)
+          expect(result.content).not.toContain('... truncated ...')
+        }
       })
     })
   })

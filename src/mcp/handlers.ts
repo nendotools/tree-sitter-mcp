@@ -100,6 +100,10 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
     exactMatch = false,
     types = [],
     pathPattern,
+    // New content inclusion options
+    forceContentInclusion = false,
+    maxContentLines = 150,
+    disableContentInclusion = false,
   } = args
 
   if (typeof query !== 'string') {
@@ -119,6 +123,10 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
       exactMatch: Boolean(exactMatch),
       types: Array.isArray(types) ? types as string[] : [],
       pathPattern: typeof pathPattern === 'string' ? pathPattern : undefined,
+      // New content inclusion options
+      forceContentInclusion: Boolean(forceContentInclusion),
+      maxContentLines: Number(maxContentLines),
+      disableContentInclusion: Boolean(disableContentInclusion),
     })
 
     return {
@@ -137,6 +145,11 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
             endColumn: r.node.endColumn,
             score: r.score,
             matches: r.matches,
+            // New content inclusion fields
+            contentIncluded: r.contentIncluded,
+            content: r.content,
+            contentTruncated: r.contentTruncated,
+            contentLines: r.contentLines,
           })),
           totalResults: results.length,
         }, null, 2),

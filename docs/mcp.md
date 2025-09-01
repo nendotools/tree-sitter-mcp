@@ -33,7 +33,7 @@ tree-sitter-mcp --mcp
 When running as an MCP server, Tree-Sitter MCP provides these tools:
 
 ### `search_code`
-Find code elements by name with fuzzy matching.
+Find code elements by name with fuzzy matching and progressive content inclusion. Automatically includes code content based on result count: single result gets full content, 2-3 results get limited content, 4+ results get metadata only.
 
 ### `find_usage`  
 Trace where functions, classes, and variables are used.

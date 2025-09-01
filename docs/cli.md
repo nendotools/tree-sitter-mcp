@@ -26,6 +26,9 @@ tree-sitter-mcp search <query> [options]
 - `-m, --max-results <n>` - Maximum results to return (default: 20)
 - `--fuzzy-threshold <n>` - Minimum fuzzy match score (default: 30)
 - `--exact` - Use exact matching instead of fuzzy
+- `--force-content-inclusion` - Include content even with 4+ results
+- `--max-content-lines <n>` - Max lines for content truncation (default: 150)
+- `--disable-content-inclusion` - Disable content inclusion entirely
 - `--output <format>` - Output format: json, text (default: json)
 
 **Examples:**
@@ -41,6 +44,14 @@ tree-sitter-mcp search "DatabaseManager" --exact
 
 # Search in specific files
 tree-sitter-mcp search "config" --path-pattern "**/*.{ts,js}"
+
+# Progressive content inclusion (automatic based on result count)
+tree-sitter-mcp search "handleRequest" --max-results 1  # Full content
+tree-sitter-mcp search "handleRequest" --max-results 3  # Limited content 
+tree-sitter-mcp search "handleRequest" --max-results 10 # Metadata only
+
+# Force content inclusion even with many results
+tree-sitter-mcp search "User" --force-content-inclusion
 
 # JSON output
 tree-sitter-mcp search "User" --output json
