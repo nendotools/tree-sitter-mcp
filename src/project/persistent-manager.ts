@@ -27,6 +27,43 @@ export function createPersistentManager(maxProjects = 10): PersistentProjectMana
   }
 }
 
+function hasConfigChanged(oldConfig: ProjectConfig, newConfig: ProjectConfig): boolean {
+  // Check if ignoreDirs arrays are different
+  const oldIgnoreDirs = oldConfig.ignoreDirs || []
+  const newIgnoreDirs = newConfig.ignoreDirs || []
+
+  if (oldIgnoreDirs.length !== newIgnoreDirs.length) {
+    return true
+  }
+
+  for (let i = 0; i < oldIgnoreDirs.length; i++) {
+    if (oldIgnoreDirs[i] !== newIgnoreDirs[i]) {
+      return true
+    }
+  }
+
+  // Check other significant config changes
+  if (oldConfig.maxDepth !== newConfig.maxDepth) {
+    return true
+  }
+
+  // Check languages array
+  const oldLanguages = oldConfig.languages || []
+  const newLanguages = newConfig.languages || []
+
+  if (oldLanguages.length !== newLanguages.length) {
+    return true
+  }
+
+  for (let i = 0; i < oldLanguages.length; i++) {
+    if (oldLanguages[i] !== newLanguages[i]) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export async function getOrCreateProject(
   manager: PersistentProjectManager,
   config: ProjectConfig,
@@ -47,8 +84,8 @@ export async function getOrCreateProject(
 
   let project = getProject(manager.memory, finalProjectId)
   if (project) {
-    if (project.config.directory !== directory) {
-      logger.info(`Project ${finalProjectId} directory changed, reparsing`)
+    if (project.config.directory !== directory || hasConfigChanged(project.config, config)) {
+      logger.info(`Project ${finalProjectId} configuration changed, reparsing`)
       await updateProjectDirectory(manager, project, directory, config)
     }
     return project

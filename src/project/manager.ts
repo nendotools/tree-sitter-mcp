@@ -45,6 +45,10 @@ export async function parseProject(project: Project): Promise<Project> {
   try {
     logger.info(`Parsing project: ${project.config.directory}`)
 
+    // Clear existing files and nodes before reparsing
+    project.files.clear()
+    project.nodes.clear()
+
     if (project.subProjects && project.subProjects.length > 0) {
       logger.info(`Parsing ${project.subProjects.length} sub-projects`)
       for (const subProject of project.subProjects) {
@@ -60,6 +64,7 @@ export async function parseProject(project: Project): Promise<Project> {
       const files = await findProjectFiles(
         project.config.directory,
         project.config.languages,
+        project.config.ignoreDirs,
       )
 
       logger.info(`Found ${files.length} files to parse`)

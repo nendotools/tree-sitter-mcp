@@ -6,6 +6,7 @@ import { join, resolve } from 'path'
 import { readFileSync as fsReadFileSync, readdirSync } from 'fs'
 import { isDirectory, isFile } from '../utils/helpers.js'
 import { getLogger } from '../utils/logger.js'
+import { GLOBAL_IGNORE_DIRS } from '../constants/index.js'
 import type { MonorepoInfo } from '../types/analysis.js'
 
 const PROJECT_INDICATORS = [
@@ -13,14 +14,6 @@ const PROJECT_INDICATORS = [
   'Cargo.toml', 'go.mod', 'pyproject.toml', 'requirements.txt', 'Pipfile',
   'composer.json', 'pom.xml', 'build.gradle', 'tsconfig.json',
 ]
-
-const IGNORE_DIRS = new Set([
-  'node_modules', '.git', '.svn', '.hg', 'target', 'build', 'dist', 'out',
-  '.next', '.nuxt', '.output', '.cache', '.tmp', 'vendor', '__pycache__',
-  '.vscode', '.idea', 'coverage', '.nyc_output', 'venv', '.venv', '.env',
-  '.pytest_cache', '.mypy_cache', '.tox', 'htmlcov', '.coverage',
-  'test', 'tests', '__tests__', 'spec', 'specs', '__test__',
-])
 
 export function detectMonorepo(directory: string): MonorepoInfo {
   const logger = getLogger()
@@ -77,7 +70,7 @@ export function findSubProjects(directory: string, maxDepth = 3): string[] {
 
       for (const entry of entries) {
         const fullPath = join(dir, entry)
-        if (isDirectory(fullPath) && !IGNORE_DIRS.has(entry)) {
+        if (isDirectory(fullPath) && !GLOBAL_IGNORE_DIRS.has(entry)) {
           search(fullPath, depth + 1)
         }
       }

@@ -39,6 +39,7 @@ export function createCLI(): Command {
     .option('--force-content-inclusion', 'Force content inclusion even with 4+ results')
     .option('--max-content-lines <num>', 'Maximum lines for content truncation', '150')
     .option('--disable-content-inclusion', 'Disable content inclusion entirely')
+    .option('--ignore-dirs <dirs...>', 'Additional directories to ignore (beyond default ignore list)')
     .option('--output <format>', 'Output format (json, text)', 'json')
     .action(handleSearch)
 
@@ -49,6 +50,7 @@ export function createCLI(): Command {
     .option('-p, --project-id <id>', 'Optional: Project ID for persistent AST caching')
     .option('--path-pattern <pattern>', 'Optional: Filter results to files containing this text in their path')
     .option('-a, --analysis-types <types...>', 'Analysis types to run: quality, deadcode, structure (default: quality)', ['quality'])
+    .option('--ignore-dirs <dirs...>', 'Additional directories to ignore (beyond default ignore list)')
     .option('--max-results <num>', 'Maximum number of findings to return', '20')
     .option('--output <format>', 'Output format (json, text, markdown)', 'json')
     .action(handleAnalysis)
@@ -59,6 +61,7 @@ export function createCLI(): Command {
     .option('-d, --directory <dir>', 'Directory to analyze (default: current directory)')
     .option('-p, --project-id <id>', 'Optional: Project ID for persistent AST caching')
     .option('--path-pattern <pattern>', 'Optional: Filter results to files containing this text in their path')
+    .option('--ignore-dirs <dirs...>', 'Additional directories to ignore (beyond default ignore list)')
     .option('--max-results <num>', 'Maximum number of errors to return', '50')
     .option('--output <format>', 'Output format (json, text)', 'json')
     .action(handleErrors)
@@ -71,6 +74,7 @@ export function createCLI(): Command {
     .option('--path-pattern <pattern>', 'Optional: Filter results to files containing this text in their path')
     .option('--case-sensitive', 'Case sensitive search')
     .option('--exact', 'Exact match only')
+    .option('--ignore-dirs <dirs...>', 'Additional directories to ignore (beyond default ignore list)')
     .option('-m, --max-results <num>', 'Maximum number of results', '50')
     .option('--output <format>', 'Output format (json, text)', 'json')
     .action(handleFindUsage)
@@ -94,6 +98,7 @@ interface SearchOptions {
   maxResults: string
   fuzzyThreshold: string
   exact?: boolean
+  ignoreDirs?: string[]
   output: string
   debug?: boolean
   quiet?: boolean
@@ -113,6 +118,7 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
     const project = await getOrCreateProject(persistentManager, {
       directory: options.directory || process.cwd(),
       languages: [],
+      ignoreDirs: options.ignoreDirs || [],
       autoWatch: false,
     }, options.projectId)
 
@@ -253,6 +259,7 @@ interface AnalysisOptions {
   projectId?: string
   pathPattern?: string
   analysisTypes?: string[]
+  ignoreDirs?: string[]
   maxResults?: string
   output?: string
   debug?: boolean
@@ -263,6 +270,7 @@ interface ErrorsOptions {
   directory?: string
   projectId?: string
   pathPattern?: string
+  ignoreDirs?: string[]
   maxResults?: string
   output?: string
   debug?: boolean
@@ -283,12 +291,13 @@ async function handleAnalysis(options: AnalysisOptions): Promise<void> {
 
     const project = await getOrCreateProject(persistentManager, {
       directory: options.directory || process.cwd(),
+      ignoreDirs: options.ignoreDirs || [],
       autoWatch: false,
     }, options.projectId)
 
     logger.info(`Analyzing ${project.config.directory} (project: ${project.id})...`)
 
-    const result = await analyzeProject(project.config.directory, analysisOptions)
+    const result = await analyzeProject(project, analysisOptions)
 
     let filteredFindings = result.findings
     if (options.pathPattern) {
@@ -373,6 +382,7 @@ async function handleErrors(options: ErrorsOptions): Promise<void> {
   try {
     const project = await getOrCreateProject(persistentManager, {
       directory: options.directory || process.cwd(),
+      ignoreDirs: options.ignoreDirs || [],
       autoWatch: false,
     }, options.projectId)
 
@@ -482,6 +492,7 @@ interface FindUsageOptions {
   pathPattern?: string
   caseSensitive?: boolean
   exact?: boolean
+  ignoreDirs?: string[]
   maxResults: string
   output: string
   debug?: boolean
@@ -513,6 +524,7 @@ async function handleFindUsage(identifier: string, options: FindUsageOptions): P
     const project = await getOrCreateProject(persistentManager, {
       directory: options.directory || process.cwd(),
       languages: [],
+      ignoreDirs: options.ignoreDirs || [],
       autoWatch: false,
     }, options.projectId)
 

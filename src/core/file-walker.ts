@@ -6,15 +6,7 @@ import { readdir, stat } from 'fs/promises'
 import { join, resolve, extname } from 'path'
 import { getLanguageByExtension } from './languages.js'
 import { getLogger } from '../utils/logger.js'
-import { isTestFile } from '../constants/index.js'
-
-const DEFAULT_IGNORE_DIRS = new Set([
-  'node_modules', '.git', '.svn', '.hg', 'target', 'build', 'dist', 'out',
-  '.next', '.nuxt', '.output', '.cache', '.tmp', 'vendor', '__pycache__',
-  '.vscode', '.idea', 'coverage', '.nyc_output', 'venv', '.venv', '.env',
-  '.pytest_cache', '.mypy_cache', '.tox', 'htmlcov', '.coverage',
-  'test', 'tests', '__tests__', 'spec', 'specs', '__test__',
-])
+import { isTestFile, GLOBAL_IGNORE_DIRS } from '../constants/index.js'
 
 export interface WalkOptions {
   maxDepth?: number
@@ -35,7 +27,7 @@ export async function walkDirectory(
     includeHidden = false,
   } = options
 
-  const ignoreDirSet = new Set([...DEFAULT_IGNORE_DIRS, ...ignoreDirs])
+  const ignoreDirSet = new Set([...GLOBAL_IGNORE_DIRS, ...ignoreDirs])
   const files: string[] = []
 
   async function walk(dir: string, depth: number): Promise<void> {
@@ -84,10 +76,11 @@ export async function walkDirectory(
   return files
 }
 
-export async function findProjectFiles(directory: string, languages?: string[]): Promise<string[]> {
+export async function findProjectFiles(directory: string, languages?: string[], ignoreDirs?: string[]): Promise<string[]> {
   return walkDirectory(directory, {
     maxDepth: 15,
     languages,
+    ignoreDirs: ignoreDirs || [],
     includeHidden: false,
   })
 }

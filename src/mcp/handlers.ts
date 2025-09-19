@@ -49,13 +49,13 @@ interface MCPToolResult {
   [key: string]: unknown
 }
 
-async function getOrCreateMCPProject(projectId?: string, directory?: string): Promise<Project> {
+async function getOrCreateMCPProject(projectId?: string, directory?: string, ignoreDirs?: string[]): Promise<Project> {
   const actualDirectory = directory || (projectId && projectId.startsWith('/') ? projectId : process.cwd())
   const actualProjectId = projectId && !projectId.startsWith('/') ? projectId : undefined
 
   return getOrCreateProject(mcpPersistentManager, {
     directory: actualDirectory,
-    languages: [],
+    ignoreDirs: ignoreDirs || [],
     autoWatch: process.env.NODE_ENV !== 'test',
   }, actualProjectId)
 }
@@ -114,6 +114,7 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
     const project = await getOrCreateMCPProject(
       typeof projectId === 'string' ? projectId : undefined,
       typeof directory === 'string' ? directory : undefined,
+      [],
     )
     const searchNodes = getSearchNodes(project)
 
@@ -180,6 +181,7 @@ async function handleFindUsage(args: JsonObject): Promise<MCPToolResult> {
     const project = await getOrCreateMCPProject(
       typeof projectId === 'string' ? projectId : undefined,
       typeof directory === 'string' ? directory : undefined,
+      [],
     )
     const searchNodes = getSearchNodes(project)
 
@@ -221,6 +223,7 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
     directory,
     analysisTypes = ['quality'],
     pathPattern,
+    ignoreDirs = [],
     maxResults = 20,
   } = args
 
@@ -230,6 +233,7 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
     const project = await getOrCreateMCPProject(
       typeof projectId === 'string' ? projectId : undefined,
       typeof directory === 'string' ? directory : undefined,
+      Array.isArray(ignoreDirs) ? ignoreDirs as string[] : [],
     )
 
     const options: AnalysisOptions = {
@@ -294,6 +298,7 @@ async function handleCheckErrors(args: JsonObject): Promise<MCPToolResult> {
     const project = await getOrCreateMCPProject(
       typeof projectId === 'string' ? projectId : undefined,
       typeof directory === 'string' ? directory : undefined,
+      [],
     )
 
     const result = analyzeErrors(project)
