@@ -347,10 +347,10 @@ async function handleAnalysis(options: AnalysisOptions): Promise<void> {
     }
 
     if (options.output === 'json') {
-      logger.output(JSON.stringify(result, null, 2))
+      logger.output(JSON.stringify(filteredResult, null, 2))
     }
     else if (options.output === 'markdown') {
-      logger.output(formatAnalysisReport(result))
+      logger.output(formatAnalysisReport(filteredResult))
     }
     else {
       logger.output('\n' + renderAnalysis(analysisData, 'console'))
