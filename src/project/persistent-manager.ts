@@ -6,7 +6,7 @@ import { resolve, basename } from 'path'
 import { createHash } from 'crypto'
 import { access, constants } from 'fs/promises'
 import { createMemoryManager, addProject, getProject, removeProject, type MemoryManager } from './memory.js'
-import { createProject, parseProject, watchProject } from './manager.js'
+import { createProject, parseProject, watchProject, updateProject } from './manager.js'
 import { getLogger } from '../utils/logger.js'
 import { PROJECT_ID_PATTERNS } from '../constants/persistence.js'
 import type { Project, ProjectConfig, FileChange } from '../types/core.js'
@@ -250,8 +250,9 @@ function startWatching(
   if (manager.watchers.has(project.id)) return
 
   const logger = getLogger()
-  const stopWatcher = watchProject(project, (changes: FileChange[]) => {
+  const stopWatcher = watchProject(project, async (changes: FileChange[]) => {
     logger.debug(`Project ${project.id} file changes: ${changes.length}`)
+    await updateProject(project, changes)
   })
 
   manager.watchers.set(project.id, stopWatcher)
