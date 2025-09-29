@@ -276,8 +276,7 @@ function generateDeadcodeFindings(result: DeadcodeResult): Finding[] {
       category: 'unused_file',
       severity: 'warning',
       location: filePath,
-      description: `File appears to be unused and can potentially be removed`,
-      context: 'Verify this file is not referenced by framework conventions or external tools',
+      description: `Remove unused file`,
     })
   }
 
@@ -287,8 +286,7 @@ function generateDeadcodeFindings(result: DeadcodeResult): Finding[] {
       category: 'unused_function',
       severity: 'info',
       location: `${node.path}:${node.startLine || 0}`,
-      description: `Function '${node.name}' appears to be unused`,
-      context: 'Consider removing if no longer needed',
+      description: `Remove unused: ${node.name}`,
     })
   }
 

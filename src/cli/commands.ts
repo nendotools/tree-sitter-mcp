@@ -172,7 +172,7 @@ function displayTextResults(result: AnalysisResult, logger: Logger): void {
 
   const criticalIssues = critical.length > 0
     ? critical.slice(0, 5).map((f: Finding) =>
-      `● ${f.description}\n  ${f.location}${f.context ? `\n  → ${f.context}` : ''}`,
+      `● ${f.description}\n  ${f.location}`,
     ).join('\n\n') + (critical.length > 5 ? `\n\n... and ${critical.length - 5} more critical issues` : '')
     : undefined
 

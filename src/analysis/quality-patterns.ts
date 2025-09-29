@@ -38,8 +38,7 @@ export function detectMagicValues(node: TreeNode): Finding[] {
           category: QUALITY_CATEGORIES.MAGIC_NUMBER,
           severity: 'warning',
           location: `${node.path}:${node.startLine || 0}`,
-          description: `Magic number '${number}' found`,
-          context: 'Consider extracting to a named constant with descriptive meaning',
+          description: `Extract magic number: ${number}`,
           metrics: { magicValue: number },
         })
       }
@@ -57,8 +56,7 @@ export function detectMagicValues(node: TreeNode): Finding[] {
         category: QUALITY_CATEGORIES.MAGIC_STRING,
         severity: 'warning',
         location: `${node.path}:${node.startLine || 0}`,
-        description: `Magic string '${str.substring(0, 30)}...' found`,
-        context: 'Consider extracting to a named constant or configuration',
+        description: `Extract magic string: ${str.substring(0, 20)}...`,
         metrics: { magicValue: str },
       })
     }
@@ -104,10 +102,7 @@ export function detectDeepNesting(node: TreeNode): Finding[] {
         category: QUALITY_CATEGORIES.DEEP_NESTING,
         severity,
         location: `${node.path}:${lineNumber}`,
-        description: `Deep nesting detected (${adjustedNesting} effective levels, ${currentNesting} actual)`,
-        context: adjustedNesting >= NESTING_THRESHOLD.DEEP
-          ? 'Critical nesting level - consider breaking this function into smaller parts'
-          : 'Consider using early returns, guard clauses, or extracting nested logic into separate functions',
+        description: `Reduce nesting: ${adjustedNesting} levels`,
         metrics: { nestingLevel: currentNesting },
       })
       break // Only report once per function
@@ -146,8 +141,7 @@ export function detectGodClasses(functionNodes: TreeNode[]): Finding[] {
         category: QUALITY_CATEGORIES.GOD_CLASS,
         severity: 'critical',
         location: filePath,
-        description: `File has ${functions.length} functions, indicating a potential God class/object`,
-        context: 'Consider breaking this into smaller, more focused modules with single responsibilities',
+        description: `Split large file: ${functions.length} functions`,
         metrics: { functionCount: functions.length },
       })
     }
@@ -157,8 +151,7 @@ export function detectGodClasses(functionNodes: TreeNode[]): Finding[] {
         category: QUALITY_CATEGORIES.GOD_CLASS,
         severity: 'warning',
         location: filePath,
-        description: `File has ${functions.length} functions, which may indicate growing complexity`,
-        context: 'Consider if this module is taking on too many responsibilities',
+        description: `Consider splitting: ${functions.length} functions`,
         metrics: { functionCount: functions.length },
       })
     }
@@ -236,8 +229,7 @@ export function analyzeMicroFunctionPatterns(functionUsage: Map<string, number>,
         category: QUALITY_CATEGORIES.EXCESSIVE_ABSTRACTION,
         severity: 'critical',
         location: filePath,
-        description: `File has ${functions.length} very short single-use functions`,
-        context: 'Consider consolidating these micro-functions or inlining them to improve readability',
+        description: `Inline micro-functions: ${functions.length} short/unused`,
         metrics: { microFunctionCount: functions.length },
       })
     }

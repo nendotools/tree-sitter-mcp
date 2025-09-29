@@ -78,10 +78,7 @@ function analyzeQualityIssues(functionNodes: TreeNode[]): Finding[] {
         category: QUALITY_CATEGORIES.HIGH_COMPLEXITY,
         severity: complexity > thresholds.complexityCritical ? 'critical' as const : 'warning' as const,
         location: `${node.path}:${node.startLine || 0}`,
-        description: `Function '${node.name || 'anonymous'}' has high cyclomatic complexity (${complexity})`,
-        context: isTestFile(node.path)
-          ? 'Test function is complex - consider breaking into smaller test cases'
-          : 'Consider breaking down into smaller functions',
+        description: `${node.name || 'anonymous'}: reduce complexity (${complexity})`,
         metrics: { complexity },
       })
     }
@@ -92,10 +89,7 @@ function analyzeQualityIssues(functionNodes: TreeNode[]): Finding[] {
         category: QUALITY_CATEGORIES.LONG_METHOD,
         severity: length > thresholds.lengthCritical ? 'critical' as const : 'warning' as const,
         location: `${node.path}:${node.startLine || 0}`,
-        description: `Method '${node.name || 'anonymous'}' is very long (${length} lines)`,
-        context: isTestFile(node.path)
-          ? 'Test method is long - consider extracting helper functions'
-          : 'Consider extracting functionality into separate methods',
+        description: `${node.name || 'anonymous'}: shorten method (${length} lines)`,
         metrics: { methodLength: length },
       })
     }
@@ -106,10 +100,7 @@ function analyzeQualityIssues(functionNodes: TreeNode[]): Finding[] {
         category: QUALITY_CATEGORIES.PARAMETER_OVERLOAD,
         severity: params > thresholds.parameterCritical ? 'critical' as const : 'warning' as const,
         location: `${node.path}:${node.startLine || 0}`,
-        description: `Function '${node.name || 'anonymous'}' has too many parameters (${params})`,
-        context: isTestFile(node.path)
-          ? 'Test function has many parameters - consider using test fixtures'
-          : 'Consider using object parameters or breaking into smaller functions',
+        description: `${node.name || 'anonymous'}: reduce parameters (${params})`,
         metrics: { parameterCount: params },
       })
     }

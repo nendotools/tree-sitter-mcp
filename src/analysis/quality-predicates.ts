@@ -40,10 +40,7 @@ export function createAbstractionFinding(node: TreeNode, length: number, usageCo
     category: QUALITY_CATEGORIES.UNNECESSARY_ABSTRACTION,
     severity: 'critical',
     location: `${node.path}:${node.startLine || 0}`,
-    description: `Function '${node.name}' is very short (${length} lines) and ${usageDescription}`,
-    context: usageCount === 0
-      ? 'Consider removing this unused function'
-      : 'Consider inlining this function to reduce unnecessary abstraction',
+    description: `Inline short function: ${node.name} (${length} lines, ${usageDescription})`,
     metrics: { methodLength: length, usageCount },
   }
 }

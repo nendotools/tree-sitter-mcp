@@ -85,7 +85,6 @@ function analyzeProjectFiles(
             severity: 'critical', // Syntax errors are always critical
             location: `${error.file}:${error.line}:${error.column}`,
             description: error.message,
-            context: error.context,
             metrics: {
               errorType: error.errorType,
               startLine: error.line,

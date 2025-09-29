@@ -16,7 +16,6 @@ export interface Finding {
   severity: 'critical' | 'warning' | 'info'
   location: string
   description: string
-  context?: string
   metrics?: JsonObject
 }
 

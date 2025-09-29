@@ -247,8 +247,7 @@ function generateStructureFindings(
       category: 'circular_dependency',
       severity: 'critical',
       location: cycle[0] || 'unknown',
-      description: `Circular dependency detected: ${cycle.join(' → ')}`,
-      context: 'Circular dependencies can cause runtime errors and make code difficult to maintain',
+      description: `Circular dependency: ${cycle.join(' → ')}`,
     })
   }
 
@@ -258,8 +257,7 @@ function generateStructureFindings(
       category: 'high_coupling',
       severity: 'warning',
       location: file,
-      description: 'High coupling detected: file has many dependencies',
-      context: 'Consider breaking down large files or reducing coupling',
+      description: 'Reduce coupling: too many dependencies',
     })
   }
 
@@ -269,8 +267,7 @@ function generateStructureFindings(
       category: 'deep_nesting',
       severity: 'warning',
       location: 'HTML/Template files',
-      description: `Deep nesting detected (max depth: ${htmlAnalysis.maxNestingDepth})`,
-      context: 'Deep nesting can impact performance and maintainability. Consider flattening DOM structure.',
+      description: `Flatten HTML: ${htmlAnalysis.maxNestingDepth} levels deep`,
       metrics: { maxDepth: htmlAnalysis.maxNestingDepth },
     })
   }
