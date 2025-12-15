@@ -14,6 +14,7 @@ export const LOGIC_EXTENSIONS = {
   RUBY: ['.rb'],
   CSHARP: ['.cs'],
   PHP: ['.php'],
+  KOTLIN: ['.kt', '.kts'],
 } as const
 
 export const FRAMEWORK_EXTENSIONS = {

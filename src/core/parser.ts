@@ -3,11 +3,12 @@
  */
 
 import Parser from 'tree-sitter'
-import { readFileSync } from 'fs'
+import { readFileSync, statSync } from 'fs'
 import { extname } from 'path'
 import { createError } from '../utils/errors.js'
 import { getLogger } from '../utils/logger.js'
 import { getParser, getLanguageByExtension } from './languages.js'
+import { PARSER_LIMITS, PARSER_NAMES } from '../constants/parsers.js'
 import type { TreeNode, LanguageConfig } from '../types/core.js'
 
 /**
@@ -17,11 +18,28 @@ export async function parseFile(filePath: string): Promise<TreeNode> {
   const logger = getLogger()
 
   try {
-    const rawContent = readFileSync(filePath, 'utf-8')
-    const content = truncateLongLines(rawContent, 1000)
-
     const extension = extname(filePath)
     const languageConfig = getLanguageByExtension(extension)
+
+    if (languageConfig?.name === PARSER_NAMES.KOTLIN) {
+      const fileSize = statSync(filePath).size
+      if (fileSize >= PARSER_LIMITS.KOTLIN_MAX_FILE_SIZE) {
+        const rawContent = readFileSync(filePath, 'utf-8')
+        const content = truncateLongLines(rawContent, 1000)
+        logger.warn(`Kotlin file exceeds size limit (${fileSize} bytes > ${PARSER_LIMITS.KOTLIN_MAX_FILE_SIZE}): ${filePath}`)
+        return {
+          id: `file-${Date.now()}`,
+          type: 'file',
+          path: filePath,
+          content,
+          skipped: true,
+          skipReason: `File too large for Kotlin parser (${fileSize} bytes exceeds ${PARSER_LIMITS.KOTLIN_MAX_FILE_SIZE} byte limit)`,
+        }
+      }
+    }
+
+    const rawContent = readFileSync(filePath, 'utf-8')
+    const content = truncateLongLines(rawContent, 1000)
 
     if (!languageConfig) {
       return {
@@ -165,7 +183,7 @@ function getFunctionName(node: Parser.SyntaxNode, content: string): string | nul
   }
 
   for (const child of node.children) {
-    if (child.type === 'identifier') {
+    if (child.type === 'identifier' || child.type === 'simple_identifier') {
       return content.substring(child.startIndex, child.endIndex)
     }
   }

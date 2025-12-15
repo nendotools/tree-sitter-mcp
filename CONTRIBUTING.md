@@ -279,33 +279,53 @@ src/test/fixtures/
 
 ### Step-by-Step Guide
 
-1. **Check Tree-Sitter grammar** exists for the language
-2. **Add parser configuration** in `src/constants/parsers.ts`
-3. **Define element extraction** in `src/core/parser.ts`
-4. **Add file extensions** in `src/constants/file-types.ts`
+1. **Install Tree-Sitter grammar** - `npm install tree-sitter-<language>`
+2. **Add parser constants** in `src/constants/parsers.ts`
+3. **Add file extensions** in `src/constants/file-types.ts`
+4. **Register parser** in `src/core/languages.ts`
 5. **Create test fixtures** in `src/test/fixtures/`
-6. **Add integration tests**
+6. **Add parser tests** in `src/test/unit/core/parser.test.ts`
 7. **Update documentation**
 
 ### Example: Adding Swift Support
 
 ```typescript
-// src/constants/parsers.ts
-export const LANGUAGE_PARSERS = {
+// 1. src/constants/parsers.ts - Add to each constant
+export const PARSER_NAMES = {
   // ... existing languages
-  swift: () => import('tree-sitter-swift'),
-}
+  SWIFT: 'swift',
+} as const
 
-// src/constants/file-types.ts
-export const FILE_EXTENSIONS = {
+export const FUNCTION_TYPES = {
+  // ... existing languages
+  SWIFT: ['function_declaration'],
+} as const
+
+export const CLASS_TYPES = {
+  // ... existing languages
+  SWIFT: ['class_declaration', 'struct_declaration', 'protocol_declaration'],
+} as const
+
+// 2. src/constants/file-types.ts
+export const LOGIC_EXTENSIONS = {
   // ... existing extensions
-  '.swift': 'swift',
+  SWIFT: ['.swift'],
+} as const
+
+// 3. src/core/languages.ts
+import Swift from 'tree-sitter-swift'
+
+// Add to LANGUAGE_CONFIGS array:
+{
+  name: PARSER_NAMES.SWIFT,
+  extensions: [...LOGIC_EXTENSIONS.SWIFT],
+  parserName: PARSER_NAMES.SWIFT,
+  functionTypes: [...FUNCTION_TYPES.SWIFT],
+  classTypes: [...CLASS_TYPES.SWIFT],
 }
 
-// src/core/parser.ts - Add element extraction logic
-function extractSwiftElements(node: TreeSitterNode): ElementNode[] {
-  // Implementation for Swift-specific parsing
-}
+// Add to GRAMMARS object:
+[PARSER_NAMES.SWIFT]: Swift,
 ```
 
 ## Documentation

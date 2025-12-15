@@ -62,6 +62,24 @@ function analyzeProjectFiles(
   let totalErrorNodes = 0
 
   for (const [filePath, fileNode] of project.files) {
+    if (fileNode?.skipped) {
+      filesWithErrors.add(filePath)
+      errorsByType['file_too_large'] = (errorsByType['file_too_large'] || 0) + 1
+
+      findings.push({
+        type: 'syntax',
+        category: 'Parse Skipped',
+        severity: 'critical',
+        location: filePath,
+        description: fileNode.skipReason || 'File skipped during parsing',
+        metrics: {
+          errorType: 'file_too_large',
+          skipped: true,
+        },
+      })
+      continue
+    }
+
     // Use the raw tree-sitter node if available
     if (fileNode?.rawNode) {
       // Count nodes with hasError for simple metrics

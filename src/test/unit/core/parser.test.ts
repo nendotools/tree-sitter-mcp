@@ -248,6 +248,50 @@ describe('Language Fixture Parsing', () => {
         pub const ADMIN_ROLE: &str = "admin";
       `,
     },
+    {
+      lang: 'kotlin',
+      filename: 'user.kt',
+      code: `
+        package com.example
+
+        interface UserService {
+            fun findById(id: Long): User?
+            fun save(user: User): User
+        }
+
+        data class User(
+            val id: Long,
+            val name: String,
+            val email: String
+        ) {
+            fun getDisplayName(): String = name
+        }
+
+        class UserRepository : UserService {
+            private val users = mutableListOf<User>()
+
+            override fun findById(id: Long): User? {
+                return users.find { it.id == id }
+            }
+
+            override fun save(user: User): User {
+                users.add(user)
+                return user
+            }
+        }
+
+        object UserFactory {
+            fun create(name: String, email: String): User {
+                return User(System.currentTimeMillis(), name, email)
+            }
+        }
+
+        fun main() {
+            val user = UserFactory.create("John", "john@example.com")
+            println(user.getDisplayName())
+        }
+      `,
+    },
   ]
 
   languageFixtures.forEach(({ lang, filename, code }) => {

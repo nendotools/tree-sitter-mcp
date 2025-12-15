@@ -16,6 +16,7 @@ export const PARSER_NAMES = {
   CSHARP: 'c_sharp',
   PHP: 'php',
   HTML: 'html',
+  KOTLIN: 'kotlin',
 } as const
 
 export const FUNCTION_TYPES = {
@@ -31,6 +32,7 @@ export const FUNCTION_TYPES = {
   CSHARP: ['method_declaration'],
   PHP: ['function_definition', 'method_declaration'],
   HTML: [],
+  KOTLIN: ['function_declaration'],
 } as const
 
 export const CLASS_TYPES = {
@@ -46,4 +48,9 @@ export const CLASS_TYPES = {
   CSHARP: ['class_declaration', 'interface_declaration'],
   PHP: ['class_declaration'],
   HTML: [],
+  KOTLIN: ['class_declaration', 'object_declaration'],
+} as const
+
+export const PARSER_LIMITS = {
+  KOTLIN_MAX_FILE_SIZE: 32767,
 } as const

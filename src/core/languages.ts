@@ -15,6 +15,7 @@ import Ruby from 'tree-sitter-ruby'
 import CSharp from 'tree-sitter-c-sharp'
 import PHP from 'tree-sitter-php'
 import HTML from 'tree-sitter-html'
+import Kotlin from 'tree-sitter-kotlin'
 
 import { LOGIC_EXTENSIONS, PARSER_NAMES, FUNCTION_TYPES, CLASS_TYPES } from '../constants/index.js'
 import type { LanguageConfig, TreeSitterLanguage } from '../types/core.js'
@@ -104,6 +105,13 @@ export const LANGUAGE_CONFIGS: LanguageConfig[] = [
     functionTypes: [...FUNCTION_TYPES.HTML],
     classTypes: [...CLASS_TYPES.HTML],
   },
+  {
+    name: PARSER_NAMES.KOTLIN,
+    extensions: [...LOGIC_EXTENSIONS.KOTLIN],
+    parserName: PARSER_NAMES.KOTLIN,
+    functionTypes: [...FUNCTION_TYPES.KOTLIN],
+    classTypes: [...CLASS_TYPES.KOTLIN],
+  },
 ]
 
 const GRAMMARS: Record<string, TreeSitterLanguage> = {
@@ -120,6 +128,7 @@ const GRAMMARS: Record<string, TreeSitterLanguage> = {
   [PARSER_NAMES.CSHARP]: CSharp,
   [PARSER_NAMES.PHP]: PHP.php,
   [PARSER_NAMES.HTML]: HTML,
+  [PARSER_NAMES.KOTLIN]: Kotlin,
 }
 
 const parsers = new Map<string, Parser>()
