@@ -236,7 +236,7 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
       Array.isArray(ignoreDirs) ? ignoreDirs as string[] : [],
     )
 
-    const depDirs = findDependencyModuleDirs(project.config.directory)
+    const depDirs = findDependencyModuleDirs(project.config.directory, project.nodes)
 
     const options: AnalysisOptions = {
       includeQuality: analysisTypesArray.includes('quality'),
@@ -306,7 +306,7 @@ async function handleCheckErrors(args: JsonObject): Promise<MCPToolResult> {
     )
 
     const result = analyzeErrors(project)
-    const depDirs = findDependencyModuleDirs(project.config.directory)
+    const depDirs = findDependencyModuleDirs(project.config.directory, project.nodes)
     const partitioned = partitionErrors(result.errors, depDirs)
 
     let filteredErrors = partitioned.sourceErrors

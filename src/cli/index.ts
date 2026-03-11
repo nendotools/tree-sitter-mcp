@@ -290,7 +290,7 @@ async function handleAnalysis(options: AnalysisOptions): Promise<void> {
       autoWatch: false,
     }, options.projectId)
 
-    const depDirs = findDependencyModuleDirs(project.config.directory)
+    const depDirs = findDependencyModuleDirs(project.config.directory, project.nodes)
     const analysisOptions: CoreAnalysisOptions = {
       includeQuality: analysisTypes.includes('quality'),
       includeDeadcode: analysisTypes.includes('deadcode'),
@@ -392,7 +392,7 @@ async function handleErrors(options: ErrorsOptions): Promise<void> {
 
     logger.info(`Finding errors in ${project.config.directory} (project: ${project.id})...`)
     const result = analyzeErrors(project)
-    const depDirs = findDependencyModuleDirs(project.config.directory)
+    const depDirs = findDependencyModuleDirs(project.config.directory, project.nodes)
     const partitioned = partitionErrors(result.errors, depDirs)
 
     let filteredErrors = partitioned.sourceErrors

@@ -199,7 +199,7 @@ const DEPENDENCY_MODULE_MARKERS = [
   'package.json', 'pom.xml',
 ]
 
-export function findDependencyModuleDirs(rootDirectory: string): string[] {
+export function findChildModuleDirs(rootDirectory: string): string[] {
   const root = resolve(rootDirectory)
   const moduleDirs: string[] = []
 
@@ -224,6 +224,62 @@ export function findDependencyModuleDirs(rootDirectory: string): string[] {
   }
 
   return moduleDirs
+}
+
+const PRIMARY_MODULE_NAMES = new Set(['app', 'src', 'lib', 'main', 'core', 'packages'])
+
+export function findDependencyModuleDirs(rootDirectory: string, nodesByFile?: Map<string, unknown[]>): string[] {
+  const allModules = findChildModuleDirs(rootDirectory)
+  if (allModules.length <= 1) return allModules
+
+  const primaryDir = identifyPrimaryModule(allModules, rootDirectory, nodesByFile)
+  if (!primaryDir) return allModules
+  return allModules.filter(dir => dir !== primaryDir)
+}
+
+function identifyPrimaryModule(
+  modules: string[],
+  rootDirectory: string,
+  nodesByFile?: Map<string, unknown[]>,
+): string | undefined {
+  // 1. Check for conventional primary module names
+  for (const dir of modules) {
+    const name = dir.split('/').pop() ?? ''
+    if (PRIMARY_MODULE_NAMES.has(name)) return dir
+  }
+
+  // 2. Check for module matching root project name
+  const rootName = rootDirectory.split('/').pop() ?? ''
+  for (const dir of modules) {
+    const name = dir.split('/').pop() ?? ''
+    if (name === rootName) return dir
+  }
+
+  // 3. Fall back to module with most code elements
+  if (!nodesByFile) return undefined
+
+  const elementCounts = new Map<string, number>()
+  for (const dir of modules) elementCounts.set(dir, 0)
+
+  for (const [filePath, nodes] of nodesByFile) {
+    for (const dir of modules) {
+      if (filePath.startsWith(dir + '/') || filePath.startsWith(dir + '\\')) {
+        elementCounts.set(dir, (elementCounts.get(dir) ?? 0) + nodes.length)
+        break
+      }
+    }
+  }
+
+  let primaryDir = ''
+  let maxCount = 0
+  for (const [dir, count] of elementCounts) {
+    if (count > maxCount) {
+      maxCount = count
+      primaryDir = dir
+    }
+  }
+
+  return primaryDir || undefined
 }
 
 export function isMonorepoRoot(directory: string): boolean {
