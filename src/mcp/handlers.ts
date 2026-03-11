@@ -236,11 +236,14 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
       Array.isArray(ignoreDirs) ? ignoreDirs as string[] : [],
     )
 
+    const depDirs = findDependencyModuleDirs(project.config.directory)
+
     const options: AnalysisOptions = {
       includeQuality: analysisTypesArray.includes('quality'),
       includeDeadcode: analysisTypesArray.includes('deadcode'),
       includeStructure: analysisTypesArray.includes('structure'),
       includeSyntax: analysisTypesArray.includes('syntax'),
+      excludePaths: depDirs,
     }
 
     const result = await analyzeProject(project, options)

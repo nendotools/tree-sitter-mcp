@@ -72,6 +72,7 @@ export interface AnalysisOptions {
   includeSyntax?: boolean
   target?: string
   scope?: 'project' | 'file' | 'method'
+  excludePaths?: string[]
 }
 
 export interface SyntaxMetrics {

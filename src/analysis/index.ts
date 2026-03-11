@@ -70,13 +70,18 @@ export async function analyzeProject(
       logger.info(`Starting analysis of ${project.config.directory}`)
     }
 
-    const nodes = Array.from(project.files.values())
-    const elementNodes = Array.from(project.nodes.values()).flat()
+    const excludePaths = options.excludePaths ?? []
+    const shouldInclude = (node: { path: string }) =>
+      excludePaths.length === 0
+      || !excludePaths.some(ep => node.path.startsWith(ep + '/') || node.path.startsWith(ep + '\\'))
+
+    const nodes = Array.from(project.files.values()).filter(shouldInclude)
+    const elementNodes = Array.from(project.nodes.values()).flat().filter(shouldInclude)
 
     if (project.subProjects) {
       for (const subProject of project.subProjects) {
-        nodes.push(...Array.from(subProject.files.values()))
-        elementNodes.push(...Array.from(subProject.nodes.values()).flat())
+        nodes.push(...Array.from(subProject.files.values()).filter(shouldInclude))
+        elementNodes.push(...Array.from(subProject.nodes.values()).flat().filter(shouldInclude))
       }
     }
 

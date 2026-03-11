@@ -283,18 +283,21 @@ async function handleAnalysis(options: AnalysisOptions): Promise<void> {
 
   try {
     const analysisTypes = options.analysisTypes || ['quality']
-    const analysisOptions: CoreAnalysisOptions = {
-      includeQuality: analysisTypes.includes('quality'),
-      includeDeadcode: analysisTypes.includes('deadcode'),
-      includeStructure: analysisTypes.includes('structure'),
-      includeSyntax: analysisTypes.includes('syntax'),
-    }
 
     const project = await getOrCreateProject(persistentManager, {
       directory: options.directory || process.cwd(),
       ignoreDirs: options.ignoreDirs || [],
       autoWatch: false,
     }, options.projectId)
+
+    const depDirs = findDependencyModuleDirs(project.config.directory)
+    const analysisOptions: CoreAnalysisOptions = {
+      includeQuality: analysisTypes.includes('quality'),
+      includeDeadcode: analysisTypes.includes('deadcode'),
+      includeStructure: analysisTypes.includes('structure'),
+      includeSyntax: analysisTypes.includes('syntax'),
+      excludePaths: depDirs,
+    }
 
     logger.info(`Analyzing ${project.config.directory} (project: ${project.id})...`)
 
