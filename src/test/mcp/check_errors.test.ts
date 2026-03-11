@@ -30,9 +30,8 @@ describe('MCP check_errors tool', () => {
 
       const responseData = JSON.parse(result.content[0].text)
       expect(responseData).toHaveProperty('errors')
-      expect(responseData.errors).toHaveProperty('errors')
-      expect(responseData.errors).toHaveProperty('summary')
-      expect(responseData.errors).toHaveProperty('metrics')
+      expect(responseData).toHaveProperty('summary')
+      expect(responseData).toHaveProperty('projectId')
     })
 
     it('should find errors in error scenarios directory', async () => {
@@ -48,9 +47,9 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors.summary.totalErrors).toBeGreaterThan(0)
-      expect(responseData.errors.summary.filesWithErrors).toBeGreaterThan(0)
-      expect(responseData.errors.errors.length).toBeGreaterThan(0)
+      expect(responseData.summary.totalErrors).toBeGreaterThan(0)
+      expect(responseData.summary.filesWithErrors).toBeGreaterThan(0)
+      expect(responseData.errors.length).toBeGreaterThan(0)
     })
 
     it('should find no errors in clean code directory', async () => {
@@ -66,14 +65,14 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors.summary.totalErrors).toBe(0)
-      expect(responseData.errors.summary.filesWithErrors).toBe(0)
-      expect(responseData.errors.errors).toHaveLength(0)
+      expect(responseData.summary.totalErrors).toBe(0)
+      expect(responseData.summary.filesWithErrors).toBe(0)
+      expect(responseData.errors).toHaveLength(0)
     })
   })
 
   describe('parameter validation and handling', () => {
-    it('should work without any arguments', async () => {
+    it('should work with directory argument', async () => {
       const request = {
         params: {
           name: 'check_errors',
@@ -87,8 +86,7 @@ describe('MCP check_errors tool', () => {
       expect(result).toHaveProperty('content')
 
       const responseData = JSON.parse(result.content[0].text)
-      expect(responseData.errors).toHaveProperty('directory')
-      expect(responseData.errors.directory).toBe(ERROR_SCENARIOS_DIR)
+      expect(responseData).toHaveProperty('projectId')
     })
 
     it('should handle projectId parameter', async () => {
@@ -105,7 +103,7 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors.projectId).toBe('test-errors-project')
+      expect(responseData.projectId).toBe('test-errors-project')
     })
 
     it('should handle maxResults parameter', async () => {
@@ -122,8 +120,7 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors.maxResults).toBe(3)
-      expect(responseData.errors.errors.length).toBeLessThanOrEqual(3)
+      expect(responseData.errors.length).toBeLessThanOrEqual(3)
     })
 
     it('should handle pathPattern parameter', async () => {
@@ -140,10 +137,8 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors.pathPattern).toBe('syntax-errors.js')
-
-      if (responseData.errors.errors.length > 0) {
-        responseData.errors.errors.forEach((error: any) => {
+      if (responseData.errors.length > 0) {
+        responseData.errors.forEach((error: any) => {
           expect(error.file).toContain('syntax-errors.js')
         })
       }
@@ -162,7 +157,7 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors.maxResults).toBe(50) // Default value
+      expect(responseData.errors.length).toBeLessThanOrEqual(50)
     })
   })
 
@@ -180,36 +175,20 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      // Top-level structure
       expect(responseData).toHaveProperty('errors')
+      expect(responseData).toHaveProperty('summary')
+      expect(responseData).toHaveProperty('projectId')
+      expect(responseData).toHaveProperty('totalSourceErrors')
+      expect(responseData).toHaveProperty('filteredErrors')
 
-      // Errors object structure
-      const errorsData = responseData.errors
-      expect(errorsData).toHaveProperty('errors')
-      expect(errorsData).toHaveProperty('summary')
-      expect(errorsData).toHaveProperty('metrics')
-      expect(errorsData).toHaveProperty('timestamp')
-      expect(errorsData).toHaveProperty('projectId')
-      expect(errorsData).toHaveProperty('directory')
-      expect(errorsData).toHaveProperty('maxResults')
-      expect(errorsData).toHaveProperty('totalErrors')
-      expect(errorsData).toHaveProperty('filteredErrors')
-
-      // Summary structure
-      expect(errorsData.summary).toHaveProperty('totalErrors')
-      expect(errorsData.summary).toHaveProperty('missingErrors')
-      expect(errorsData.summary).toHaveProperty('parseErrors')
-      expect(errorsData.summary).toHaveProperty('extraErrors')
-      expect(errorsData.summary).toHaveProperty('filesWithErrors')
-
-      // Metrics structure
-      expect(errorsData.metrics).toHaveProperty('totalFiles')
-      expect(errorsData.metrics).toHaveProperty('totalErrorNodes')
-      expect(errorsData.metrics).toHaveProperty('errorsByType')
-      expect(errorsData.metrics).toHaveProperty('errorsByFile')
+      expect(responseData.summary).toHaveProperty('totalErrors')
+      expect(responseData.summary).toHaveProperty('missingErrors')
+      expect(responseData.summary).toHaveProperty('parseErrors')
+      expect(responseData.summary).toHaveProperty('extraErrors')
+      expect(responseData.summary).toHaveProperty('filesWithErrors')
     })
 
-    it('should include actionable error details', async () => {
+    it('should include condensed error details', async () => {
       const request = {
         params: {
           name: 'check_errors',
@@ -222,38 +201,28 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      if (responseData.errors.errors.length > 0) {
-        responseData.errors.errors.forEach((error: any) => {
+      if (responseData.errors.length > 0) {
+        responseData.errors.forEach((error: any) => {
           expect(error).toHaveProperty('type')
           expect(error).toHaveProperty('nodeType')
           expect(error).toHaveProperty('file')
           expect(error).toHaveProperty('line')
-          expect(error).toHaveProperty('column')
           expect(error).toHaveProperty('endLine')
-          expect(error).toHaveProperty('endColumn')
           expect(error).toHaveProperty('text')
-          expect(error).toHaveProperty('context')
           expect(error).toHaveProperty('suggestion')
 
-          // Validate error types
           expect(['missing', 'parse_error', 'extra']).toContain(error.type)
 
-          // Validate position data
           expect(typeof error.line).toBe('number')
-          expect(typeof error.column).toBe('number')
           expect(error.line).toBeGreaterThan(0)
-          expect(error.column).toBeGreaterThan(0)
 
-          // Validate actionable content
-          expect(typeof error.context).toBe('string')
           expect(typeof error.suggestion).toBe('string')
-          expect(error.context.length).toBeGreaterThan(0)
           expect(error.suggestion.length).toBeGreaterThan(0)
         })
       }
     })
 
-    it('should include timestamp and metadata', async () => {
+    it('should include project metadata', async () => {
       const request = {
         params: {
           name: 'check_errors',
@@ -266,13 +235,9 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors.timestamp).toBeDefined()
-      expect(typeof responseData.errors.timestamp).toBe('string')
-      // Validate it's a valid ISO date
-      expect(new Date(responseData.errors.timestamp).toISOString()).toBe(responseData.errors.timestamp)
-
-      expect(typeof responseData.errors.projectId).toBe('string')
-      expect(typeof responseData.errors.directory).toBe('string')
+      expect(typeof responseData.projectId).toBe('string')
+      expect(typeof responseData.totalSourceErrors).toBe('number')
+      expect(typeof responseData.filteredErrors).toBe('number')
     })
   })
 
@@ -291,8 +256,8 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors.errors.length).toBeLessThanOrEqual(2)
-      expect(responseData.errors.filteredErrors).toBeLessThanOrEqual(2)
+      expect(responseData.errors.length).toBeLessThanOrEqual(2)
+      expect(responseData.filteredErrors).toBeLessThanOrEqual(2)
     })
 
     it('should filter by pathPattern correctly', async () => {
@@ -309,8 +274,8 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      if (responseData.errors.errors.length > 0) {
-        responseData.errors.errors.forEach((error: any) => {
+      if (responseData.errors.length > 0) {
+        responseData.errors.forEach((error: any) => {
           expect(error.file).toContain('invalid-syntax.ts')
         })
       }
@@ -330,9 +295,9 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors.errors).toHaveLength(0)
-      expect(responseData.errors.filteredErrors).toBe(0)
-      expect(responseData.errors.summary.totalErrors).toBeGreaterThanOrEqual(0) // Total might be > 0 but filtered is 0
+      expect(responseData.errors).toHaveLength(0)
+      expect(responseData.filteredErrors).toBe(0)
+      expect(responseData.summary.totalErrors).toBeGreaterThanOrEqual(0)
     })
   })
 
@@ -356,7 +321,7 @@ describe('MCP check_errors tool', () => {
           name: 'check_errors',
           arguments: {
             directory: ERROR_SCENARIOS_DIR,
-            maxResults: '5', // String instead of number
+            maxResults: '5',
             pathPattern: 'syntax-errors',
           },
         },
@@ -365,8 +330,7 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors.maxResults).toBe(5) // Should be converted to number
-      expect(responseData.errors.pathPattern).toBe('syntax-errors')
+      expect(responseData.errors.length).toBeLessThanOrEqual(5)
     })
 
     it('should handle null and undefined arguments gracefully', async () => {
@@ -384,8 +348,7 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const responseData = JSON.parse(result.content[0].text)
 
-      expect(responseData.errors).toHaveProperty('directory')
-      expect(responseData.errors.pathPattern).toBeUndefined()
+      expect(responseData).toHaveProperty('projectId')
     })
   })
 
@@ -405,7 +368,7 @@ describe('MCP check_errors tool', () => {
       const result = await handleToolRequest(request)
       const duration = Date.now() - startTime
 
-      expect(duration).toBeLessThan(5000) // Should complete within 5 seconds
+      expect(duration).toBeLessThan(5000)
       expect(result).toHaveProperty('content')
     })
 
@@ -426,9 +389,9 @@ describe('MCP check_errors tool', () => {
       const data1 = JSON.parse(result1.content[0].text)
       const data2 = JSON.parse(result2.content[0].text)
 
-      expect(data1.errors.summary.totalErrors).toBe(data2.errors.summary.totalErrors)
-      expect(data1.errors.summary.filesWithErrors).toBe(data2.errors.summary.filesWithErrors)
-      expect(data1.errors.errors.length).toBe(data2.errors.errors.length)
+      expect(data1.summary.totalErrors).toBe(data2.summary.totalErrors)
+      expect(data1.summary.filesWithErrors).toBe(data2.summary.filesWithErrors)
+      expect(data1.errors.length).toBe(data2.errors.length)
     })
   })
 })

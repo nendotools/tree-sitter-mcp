@@ -25,20 +25,12 @@ function runErrorsCommand(args: string[]): { stdout: string, stderr: string, sta
 }
 
 function extractJSONFromOutput(stdout: string): any {
-  // Find the line that starts with { (the JSON output)
-  const jsonLine = stdout.split('\n').find(line => line.trim().startsWith('{'))
-  if (!jsonLine) {
-    throw new Error('No JSON found in output')
-  }
-
-  // Find the complete JSON by looking for the matching closing brace
   const lines = stdout.split('\n')
   const startIndex = lines.findIndex(line => line.trim().startsWith('{'))
   if (startIndex === -1) {
     throw new Error('No JSON start found in output')
   }
 
-  // Combine lines from start until we have valid JSON
   let jsonStr = ''
   let braceCount = 0
   let inString = false
@@ -48,7 +40,6 @@ function extractJSONFromOutput(stdout: string): any {
     const line = lines[i]
     jsonStr += (i > startIndex ? '\n' : '') + line
 
-    // Count braces to find the end of JSON
     for (const char of line) {
       if (escapeNext) {
         escapeNext = false
@@ -71,7 +62,6 @@ function extractJSONFromOutput(stdout: string): any {
       }
     }
 
-    // If we've closed all braces, we have complete JSON
     if (braceCount === 0 && jsonStr.trim().startsWith('{')) {
       break
     }
@@ -88,7 +78,6 @@ describe('CLI errors command', () => {
       expect(result.status).toBe(0)
       expect(result.stdout).toContain('"errors"')
       expect(result.stdout).toContain('"summary"')
-      expect(result.stdout).toContain('"metrics"')
 
       const output = extractJSONFromOutput(result.stdout)
       expect(output.errors).toBeDefined()
@@ -127,7 +116,7 @@ describe('CLI errors command', () => {
       const result = runErrorsCommand(['--directory', CLEAN_CODE_DIR, '--output', 'text'])
 
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('No syntax errors found! ✓')
+      expect(result.stdout).toContain('No source errors found!')
     })
   })
 
@@ -182,11 +171,10 @@ describe('CLI errors command', () => {
       if (output.errors.length > 0) {
         const errorTypes = output.errors.map((error: any) => error.type)
         expect(errorTypes).toContain('parse_error')
-        // Note: May also contain 'missing' or 'extra' depending on error files
       }
     })
 
-    it('should provide actionable context and suggestions', () => {
+    it('should provide actionable suggestions', () => {
       const result = runErrorsCommand(['--directory', ERROR_SCENARIOS_DIR, '--output', 'json'])
 
       expect(result.status).toBe(0)
@@ -194,14 +182,10 @@ describe('CLI errors command', () => {
 
       if (output.errors.length > 0) {
         output.errors.forEach((error: any) => {
-          expect(error).toHaveProperty('context')
           expect(error).toHaveProperty('suggestion')
           expect(error).toHaveProperty('file')
           expect(error).toHaveProperty('line')
-          expect(error).toHaveProperty('column')
-          expect(typeof error.context).toBe('string')
           expect(typeof error.suggestion).toBe('string')
-          expect(error.context.length).toBeGreaterThan(0)
           expect(error.suggestion.length).toBeGreaterThan(0)
         })
       }
@@ -215,7 +199,6 @@ describe('CLI errors command', () => {
       expect(result.status).toBe(0)
       expect(result.stdout).toContain('=== Syntax Errors Analysis ===')
 
-      // Should contain at least one of these sections based on error types found
       const hasParseErrors = result.stdout.includes('=== Parse Errors')
       const hasMissingErrors = result.stdout.includes('=== Missing Syntax')
       const hasExtraErrors = result.stdout.includes('=== Extra Syntax')
@@ -229,7 +212,7 @@ describe('CLI errors command', () => {
       expect(result.status).toBe(0)
 
       if (result.stdout.includes('Parse Errors') || result.stdout.includes('Missing Syntax')) {
-        expect(result.stdout).toMatch(/\w+\.(js|ts):\d+:\d+/) // File:line:column pattern
+        expect(result.stdout).toMatch(/\w+\.(js|ts):\d+:\d+/)
         expect(result.stdout).toContain('Context:')
         expect(result.stdout).toContain('Fix:')
       }
@@ -252,8 +235,7 @@ describe('CLI errors command', () => {
 
       expect(result.status).toBe(0)
       const output = extractJSONFromOutput(result.stdout)
-      expect(output.errors).toHaveLength(0) // Filtered results should be empty
-      // totalErrors shows total before filtering, which is expected behavior
+      expect(output.errors).toHaveLength(0)
       expect(output.summary.totalErrors).toBeGreaterThanOrEqual(0)
     })
 
@@ -273,7 +255,7 @@ describe('CLI errors command', () => {
       const duration = Date.now() - startTime
 
       expect(result.status).toBe(0)
-      expect(duration).toBeLessThan(5000) // Should complete within 5 seconds
+      expect(duration).toBeLessThan(5000)
     })
 
     it('should handle large maxResults values', () => {
@@ -286,21 +268,18 @@ describe('CLI errors command', () => {
   })
 
   describe('metrics and summary data', () => {
-    it('should provide comprehensive metrics in JSON output', () => {
+    it('should provide summary data in JSON output', () => {
       const result = runErrorsCommand(['--directory', ERROR_SCENARIOS_DIR, '--output', 'json'])
 
       expect(result.status).toBe(0)
       const output = extractJSONFromOutput(result.stdout)
 
-      expect(output.metrics).toHaveProperty('totalFiles')
-      expect(output.metrics).toHaveProperty('totalErrorNodes')
-      expect(output.metrics).toHaveProperty('errorsByType')
-      expect(output.metrics).toHaveProperty('errorsByFile')
+      expect(output).toHaveProperty('summary')
+      expect(output).toHaveProperty('totalSourceErrors')
+      expect(output).toHaveProperty('filteredErrors')
 
-      expect(typeof output.metrics.totalFiles).toBe('number')
-      expect(typeof output.metrics.totalErrorNodes).toBe('number')
-      expect(typeof output.metrics.errorsByType).toBe('object')
-      expect(typeof output.metrics.errorsByFile).toBe('object')
+      expect(typeof output.totalSourceErrors).toBe('number')
+      expect(typeof output.filteredErrors).toBe('number')
     })
 
     it('should show correct counts in summary', () => {
@@ -312,7 +291,6 @@ describe('CLI errors command', () => {
       const { summary } = output
       expect(summary.totalErrors).toBe(summary.missingErrors + summary.parseErrors + summary.extraErrors)
       expect(summary.filesWithErrors).toBeGreaterThanOrEqual(0)
-      expect(summary.filesWithErrors).toBeLessThanOrEqual(output.metrics.totalFiles)
     })
   })
 })

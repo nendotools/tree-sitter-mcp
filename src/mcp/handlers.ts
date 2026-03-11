@@ -3,9 +3,10 @@
  */
 
 import { analyzeProject } from '../analysis/index.js'
-import { analyzeErrors } from '../analysis/errors.js'
+import { analyzeErrors, partitionErrors } from '../analysis/errors.js'
 import { searchCode, findUsage } from '../core/search.js'
 import { createPersistentManager, getOrCreateProject } from '../project/persistent-manager.js'
+import { findDependencyModuleDirs } from '../project/monorepo.js'
 import { getLogger } from '../utils/logger.js'
 import { handleError } from '../utils/errors.js'
 import type { AnalysisOptions } from '../types/analysis.js'
@@ -95,7 +96,7 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
     projectId,
     directory,
     query,
-    maxResults = 20,
+    maxResults = 10,
     fuzzyThreshold = 30,
     exactMatch = false,
     types = [],
@@ -146,14 +147,13 @@ async function handleSearchCode(args: JsonObject): Promise<MCPToolResult> {
             endColumn: r.node.endColumn,
             score: r.score,
             matches: r.matches,
-            // New content inclusion fields
             contentIncluded: r.contentIncluded,
             content: r.content,
             contentTruncated: r.contentTruncated,
             contentLines: r.contentLines,
           })),
           totalResults: results.length,
-        }, null, 2),
+        }),
       }],
     }
   }
@@ -208,7 +208,7 @@ async function handleFindUsage(args: JsonObject): Promise<MCPToolResult> {
             context: result.context,
           })),
           totalUsages: results.length,
-        }, null, 2),
+        }),
       }],
     }
   }
@@ -224,7 +224,7 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
     analysisTypes = ['quality'],
     pathPattern,
     ignoreDirs = [],
-    maxResults = 20,
+    maxResults = 15,
   } = args
 
   const analysisTypesArray = Array.isArray(analysisTypes) ? analysisTypes as string[] : ['quality']
@@ -277,7 +277,7 @@ async function handleAnalyzeCode(args: JsonObject): Promise<MCPToolResult> {
             totalFindings: result.findings.length,
             filteredFindings: limitedFindings.length,
           },
-        }, null, 2),
+        }),
       }],
     }
   }
@@ -291,6 +291,7 @@ async function handleCheckErrors(args: JsonObject): Promise<MCPToolResult> {
     projectId,
     directory,
     pathPattern,
+    ignoreDirs = [],
     maxResults = 50,
   } = args
 
@@ -298,37 +299,52 @@ async function handleCheckErrors(args: JsonObject): Promise<MCPToolResult> {
     const project = await getOrCreateMCPProject(
       typeof projectId === 'string' ? projectId : undefined,
       typeof directory === 'string' ? directory : undefined,
-      [],
+      Array.isArray(ignoreDirs) ? ignoreDirs as string[] : [],
     )
 
     const result = analyzeErrors(project)
+    const depDirs = findDependencyModuleDirs(project.config.directory)
+    const partitioned = partitionErrors(result.errors, depDirs)
 
-    let filteredErrors = result.errors
+    let filteredErrors = partitioned.sourceErrors
     if (typeof pathPattern === 'string') {
-      filteredErrors = result.errors.filter(error =>
+      filteredErrors = filteredErrors.filter(error =>
         error.file.includes(pathPattern),
       )
     }
 
+    const severityOrder = { missing: 0, parse_error: 1, extra: 2 }
+    filteredErrors.sort((a, b) => {
+      const aOrder = severityOrder[a.type] ?? 3
+      const bOrder = severityOrder[b.type] ?? 3
+      return aOrder - bOrder
+    })
+
     const limitedErrors = filteredErrors.slice(0, Number(maxResults))
+
+    const condensedErrors = limitedErrors.map(e => ({
+      file: e.file,
+      line: e.line,
+      endLine: e.endLine,
+      type: e.type,
+      nodeType: e.nodeType,
+      text: e.text,
+      suggestion: e.suggestion,
+      enclosingFunction: e.enclosingFunction,
+    }))
 
     return {
       content: [{
         type: 'text',
         text: JSON.stringify({
-          errors: {
-            errors: limitedErrors,
-            summary: result.summary,
-            metrics: result.metrics,
-            timestamp: new Date().toISOString(),
-            projectId: project.id,
-            directory: project.config.directory,
-            pathPattern: typeof pathPattern === 'string' ? pathPattern : undefined,
-            maxResults: Number(maxResults),
-            totalErrors: result.errors.length,
-            filteredErrors: limitedErrors.length,
-          },
-        }, null, 2),
+          errors: condensedErrors,
+          dependencyModules: partitioned.dependencyModuleErrors,
+          summary: result.summary,
+          projectId: project.id,
+          totalSourceErrors: partitioned.sourceErrors.length,
+          totalDependencyErrors: partitioned.totalDependencyErrors,
+          filteredErrors: limitedErrors.length,
+        }),
       }],
     }
   }

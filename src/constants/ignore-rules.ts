@@ -10,7 +10,7 @@ export const GLOBAL_IGNORE_DIRS = new Set([
   'node_modules', 'vendor', 'target', '__pycache__',
 
   // Build outputs
-  'build', 'dist', 'out', '.output',
+  'build', 'dist', 'out', '.output', 'gradle',
 
   // Framework specific
   '.next', '.nuxt', '.cache', '.tmp',

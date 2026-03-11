@@ -6,7 +6,8 @@ import { Command } from 'commander'
 import chalk from 'chalk'
 import { execSync } from 'child_process'
 import { analyzeProject, formatAnalysisReport } from '../analysis/index.js'
-import { analyzeErrors } from '../analysis/errors.js'
+import { analyzeErrors, partitionErrors } from '../analysis/errors.js'
+import { findDependencyModuleDirs } from '../project/monorepo.js'
 import { searchCode, findUsage } from '../core/search.js'
 import { createPersistentManager, getOrCreateProject } from '../project/persistent-manager.js'
 import { startMCPServer } from '../mcp/server.js'
@@ -33,7 +34,7 @@ export function createCLI(): Command {
     .option('-p, --project-id <id>', 'Optional: Project ID for persistent AST caching')
     .option('--path-pattern <pattern>', 'Optional: Filter results to files containing this text in their path')
     .option('-t, --type <types...>', 'Filter by element types (function, class, etc.)')
-    .option('-m, --max-results <num>', 'Maximum number of results', '20')
+    .option('-m, --max-results <num>', 'Maximum number of results', '10')
     .option('--fuzzy-threshold <num>', 'Minimum fuzzy match score (0-100)', '30')
     .option('--exact', 'Exact match only')
     .option('--force-content-inclusion', 'Force content inclusion even with 4+ results')
@@ -51,7 +52,7 @@ export function createCLI(): Command {
     .option('--path-pattern <pattern>', 'Optional: Filter results to files containing this text in their path')
     .option('-a, --analysis-types <types...>', 'Analysis types to run: quality, deadcode, structure (default: quality)', ['quality'])
     .option('--ignore-dirs <dirs...>', 'Additional directories to ignore (beyond default ignore list)')
-    .option('--max-results <num>', 'Maximum number of findings to return', '20')
+    .option('--max-results <num>', 'Maximum number of findings to return', '15')
     .option('--output <format>', 'Output format (json, text, markdown)', 'json')
     .action(handleAnalysis)
 
@@ -134,7 +135,7 @@ async function handleSearch(query: string, options: SearchOptions): Promise<void
 
     const searchNodes = [...allNodes, ...elementNodes]
 
-    let maxResults = 20
+    let maxResults = 10
     if (options.maxResults) {
       const parsed = parseInt(options.maxResults)
       if (isNaN(parsed) || parsed < 0) {
@@ -313,7 +314,7 @@ async function handleAnalysis(options: AnalysisOptions): Promise<void> {
       return aOrder - bOrder
     })
 
-    let maxResults = 20
+    let maxResults = 15
     if (options.maxResults) {
       const parsed = parseInt(options.maxResults)
       if (isNaN(parsed) || parsed < 0) {
@@ -388,27 +389,48 @@ async function handleErrors(options: ErrorsOptions): Promise<void> {
 
     logger.info(`Finding errors in ${project.config.directory} (project: ${project.id})...`)
     const result = analyzeErrors(project)
+    const depDirs = findDependencyModuleDirs(project.config.directory)
+    const partitioned = partitionErrors(result.errors, depDirs)
 
-    let filteredErrors = result.errors
+    let filteredErrors = partitioned.sourceErrors
     if (options.pathPattern) {
-      filteredErrors = result.errors.filter(error =>
+      filteredErrors = filteredErrors.filter(error =>
         error.file.includes(options.pathPattern!),
       )
     }
 
+    const severityOrder: Record<string, number> = { missing: 0, parse_error: 1, extra: 2 }
+    filteredErrors.sort((a, b) => {
+      const aOrder = severityOrder[a.type] ?? 3
+      const bOrder = severityOrder[b.type] ?? 3
+      return aOrder - bOrder
+    })
+
     const maxResults = options.maxResults ? parseInt(options.maxResults) : 50
     const limitedErrors = filteredErrors.slice(0, maxResults)
 
-    const filteredResult = {
-      ...result,
-      errors: limitedErrors,
-    }
-
     if (options.output === 'json') {
-      logger.output(JSON.stringify(filteredResult, null, 2))
+      const condensedErrors = limitedErrors.map(e => ({
+        file: e.file,
+        line: e.line,
+        endLine: e.endLine,
+        type: e.type,
+        nodeType: e.nodeType,
+        text: e.text,
+        suggestion: e.suggestion,
+        enclosingFunction: e.enclosingFunction,
+      }))
+      logger.output(JSON.stringify({
+        errors: condensedErrors,
+        dependencyModules: partitioned.dependencyModuleErrors,
+        summary: result.summary,
+        totalSourceErrors: partitioned.sourceErrors.length,
+        totalDependencyErrors: partitioned.totalDependencyErrors,
+        filteredErrors: limitedErrors.length,
+      }))
     }
     else {
-      logger.output(formatErrorsReport(filteredResult))
+      logger.output(formatErrorsReport({ ...result, errors: limitedErrors }, partitioned))
     }
   }
   catch (error) {
@@ -431,7 +453,7 @@ async function handleErrors(options: ErrorsOptions): Promise<void> {
   }
 }
 
-function formatErrorsReport(result: any): string {
+function formatErrorsReport(result: any, partitioned?: any): string {
   const { errors, summary } = result
 
   let output = '\n=== Syntax Errors Analysis ===\n'
@@ -441,12 +463,15 @@ function formatErrorsReport(result: any): string {
   output += `Parse errors: ${summary.parseErrors}\n`
   output += `Extra syntax: ${summary.extraErrors}\n\n`
 
+  if (partitioned?.dependencyModuleErrors?.length > 0) {
+    output += formatDependencyModuleSummaries(partitioned)
+  }
+
   if (errors.length === 0) {
-    output += chalk.green('No syntax errors found! ✓\n')
+    output += chalk.green('No source errors found!\n')
     return output
   }
 
-  // Group errors by type
   const errorsByType = {
     missing: errors.filter((e: any) => e.type === 'missing'),
     parse_error: errors.filter((e: any) => e.type === 'parse_error'),
@@ -459,7 +484,8 @@ function formatErrorsReport(result: any): string {
       output += `  ${error.file}:${error.line}:${error.column}\n`
       output += `    Missing: ${error.nodeType}\n`
       output += `    Context: ${error.context}\n`
-      output += `    Fix: ${error.suggestion}\n\n`
+      output += `    Fix: ${error.suggestion}\n`
+      output += formatEnclosingFunction(error)
     }
   }
 
@@ -469,7 +495,8 @@ function formatErrorsReport(result: any): string {
       output += `  ${error.file}:${error.line}:${error.column}\n`
       output += `    Error: "${error.text}"\n`
       output += `    Context: ${error.context}\n`
-      output += `    Fix: ${error.suggestion}\n\n`
+      output += `    Fix: ${error.suggestion}\n`
+      output += formatEnclosingFunction(error)
     }
   }
 
@@ -479,11 +506,35 @@ function formatErrorsReport(result: any): string {
       output += `  ${error.file}:${error.line}:${error.column}\n`
       output += `    Extra: "${error.text}"\n`
       output += `    Context: ${error.context}\n`
-      output += `    Fix: ${error.suggestion}\n\n`
+      output += `    Fix: ${error.suggestion}\n`
+      output += formatEnclosingFunction(error)
     }
   }
 
   return output
+}
+
+function formatDependencyModuleSummaries(partitioned: any): string {
+  const { dependencyModuleErrors, totalDependencyErrors } = partitioned
+  let output = `=== Dependency Modules (${totalDependencyErrors} errors) ===\n`
+  output += chalk.dim('  Use --path-pattern to inspect specific modules\n\n')
+
+  for (const mod of dependencyModuleErrors) {
+    const types = Object.entries(mod.topTypes as Record<string, number>)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .map(([type, count]) => `${type}: ${count}`)
+      .join(', ')
+    output += `  ${mod.module}/ ${chalk.dim(`(${mod.errorCount} errors across ${mod.fileCount} files)`)}\n`
+    output += `    ${chalk.dim(types)}\n\n`
+  }
+
+  return output
+}
+
+function formatEnclosingFunction(error: any): string {
+  if (!error.enclosingFunction) return '\n'
+  const fn = error.enclosingFunction
+  return `    In: ${fn.name} (${fn.type}, lines ${fn.startLine}-${fn.endLine})\n\n`
 }
 
 interface FindUsageOptions {

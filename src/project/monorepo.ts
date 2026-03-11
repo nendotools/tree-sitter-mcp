@@ -69,6 +69,7 @@ export function findSubProjects(directory: string, maxDepth = 3): string[] {
       }
 
       for (const entry of entries) {
+        if (entry.startsWith('.')) continue
         const fullPath = join(dir, entry)
         if (isDirectory(fullPath) && !GLOBAL_IGNORE_DIRS.has(entry)) {
           search(fullPath, depth + 1)
@@ -189,6 +190,40 @@ export function findRootProject(directory: string): string {
   }
 
   return directory
+}
+
+const DEPENDENCY_MODULE_MARKERS = [
+  'build.gradle', 'build.gradle.kts',
+  'CMakeLists.txt', 'Makefile',
+  'Cargo.toml', 'go.mod',
+  'package.json', 'pom.xml',
+]
+
+export function findDependencyModuleDirs(rootDirectory: string): string[] {
+  const root = resolve(rootDirectory)
+  const moduleDirs: string[] = []
+
+  try {
+    const entries = readDirSync(root)
+    for (const entry of entries) {
+      if (entry.startsWith('.')) continue
+      const fullPath = join(root, entry)
+      if (!isDirectory(fullPath) || GLOBAL_IGNORE_DIRS.has(entry)) continue
+
+      const childEntries = readDirSync(fullPath)
+      const hasBuildMarker = childEntries.some(child =>
+        DEPENDENCY_MODULE_MARKERS.includes(child),
+      )
+      if (hasBuildMarker) {
+        moduleDirs.push(fullPath)
+      }
+    }
+  }
+  catch {
+    /* ignore filesystem errors */
+  }
+
+  return moduleDirs
 }
 
 export function isMonorepoRoot(directory: string): boolean {

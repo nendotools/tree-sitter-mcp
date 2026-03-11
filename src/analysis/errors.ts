@@ -4,7 +4,6 @@
 
 import type { Project } from '../types/core.js'
 
-// Constants for error types and node patterns
 const ERROR_TYPES = {
   MISSING: 'missing',
   PARSE_ERROR: 'parse_error',
@@ -32,6 +31,16 @@ const NODE_PATTERNS = {
   ERROR: 'ERROR',
 } as const
 
+const COMMENT_NODE_TYPES = new Set([
+  'comment',
+  'line_comment',
+  'multiline_comment',
+  'block_comment',
+  'doc_comment',
+])
+
+const MAX_ERROR_TEXT_LENGTH = 120
+
 export interface ActionableError {
   type: 'missing' | 'parse_error' | 'extra'
   nodeType: string
@@ -44,6 +53,28 @@ export interface ActionableError {
   context: string
   suggestion: string
   parentContext?: string
+  enclosingFunction?: EnclosingContext
+}
+
+export interface EnclosingContext {
+  name: string
+  type: string
+  startLine: number
+  endLine: number
+}
+
+export interface DependencyModuleSummary {
+  module: string
+  path: string
+  errorCount: number
+  fileCount: number
+  topTypes: Record<string, number>
+}
+
+export interface PartitionedErrors {
+  sourceErrors: ActionableError[]
+  dependencyModuleErrors: DependencyModuleSummary[]
+  totalDependencyErrors: number
 }
 
 export interface ErrorAnalysisResult {
@@ -205,8 +236,60 @@ function collectErrorsRecursively(node: any, filePath: string, errors: Actionabl
   }
 }
 
+function isCommentNode(node: any): boolean {
+  return COMMENT_NODE_TYPES.has(node.type)
+}
+
 function isActionableErrorNode(node: any): boolean {
+  if (node.isExtra && isCommentNode(node)) return false
+
   return node.isMissing || node.type === NODE_PATTERNS.ERROR || node.isExtra
+}
+
+function truncateText(text: string): string {
+  if (!text) return ''
+  const singleLine = text.replace(/\n/g, ' ').trim()
+  if (singleLine.length <= MAX_ERROR_TEXT_LENGTH) return singleLine
+  return singleLine.substring(0, MAX_ERROR_TEXT_LENGTH) + '...'
+}
+
+function findEnclosingFunction(node: any): EnclosingContext | undefined {
+  let current = node.parent
+  while (current) {
+    if (isEnclosingNode(current)) {
+      const name = current.childForFieldName?.('name')?.text
+        || findChildIdentifier(current)
+      if (name) {
+        return {
+          name,
+          type: current.type,
+          startLine: (current.startPosition?.row ?? 0) + 1,
+          endLine: (current.endPosition?.row ?? 0) + 1,
+        }
+      }
+    }
+    current = current.parent
+  }
+  return undefined
+}
+
+function isEnclosingNode(node: any): boolean {
+  const type = node.type
+  return type.includes('function')
+    || type.includes('method')
+    || type === 'class_declaration'
+    || type === 'object_declaration'
+    || type === 'class_definition'
+    || type === 'class_specifier'
+}
+
+function findChildIdentifier(node: any): string | null {
+  for (const child of node.children || []) {
+    if (child.type === 'identifier' || child.type === 'simple_identifier' || child.type === 'type_identifier') {
+      return child.text
+    }
+  }
+  return null
 }
 
 function createActionableError(node: any, filePath: string): ActionableError {
@@ -221,10 +304,11 @@ function createActionableError(node: any, filePath: string): ActionableError {
     column: position.column + 1,
     endLine: endPosition.row + 1,
     endColumn: endPosition.column + 1,
-    text: node.text || '',
+    text: truncateText(node.text || ''),
     context: getActionableContext(node),
     suggestion: generateSuggestion(node),
     parentContext: node.parent?.type,
+    enclosingFunction: findEnclosingFunction(node),
   }
 }
 
@@ -359,4 +443,61 @@ function generateErrorSuggestion(text: string): string {
   }
 
   return 'Fix syntax error'
+}
+
+export function partitionErrors(
+  errors: ActionableError[],
+  dependencyDirs: string[],
+): PartitionedErrors {
+  if (dependencyDirs.length === 0) {
+    return { sourceErrors: errors, dependencyModuleErrors: [], totalDependencyErrors: 0 }
+  }
+
+  const sourceErrors: ActionableError[] = []
+  const depErrorsByDir = new Map<string, ActionableError[]>()
+
+  for (const error of errors) {
+    const depDir = findMatchingDependencyDir(error.file, dependencyDirs)
+    if (depDir) {
+      const list = depErrorsByDir.get(depDir) ?? []
+      list.push(error)
+      depErrorsByDir.set(depDir, list)
+    }
+    else {
+      sourceErrors.push(error)
+    }
+  }
+
+  let totalDependencyErrors = 0
+  const dependencyModuleErrors: DependencyModuleSummary[] = []
+
+  for (const [dir, depErrors] of depErrorsByDir) {
+    totalDependencyErrors += depErrors.length
+    dependencyModuleErrors.push(createModuleSummary(dir, depErrors))
+  }
+
+  dependencyModuleErrors.sort((a, b) => b.errorCount - a.errorCount)
+
+  return { sourceErrors, dependencyModuleErrors, totalDependencyErrors }
+}
+
+function findMatchingDependencyDir(filePath: string, dependencyDirs: string[]): string | undefined {
+  return dependencyDirs.find(dir => filePath.startsWith(dir + '/') || filePath.startsWith(dir + '\\'))
+}
+
+function createModuleSummary(dirPath: string, errors: ActionableError[]): DependencyModuleSummary {
+  const filesWithErrors = new Set(errors.map(e => e.file))
+  const topTypes: Record<string, number> = {}
+
+  for (const error of errors) {
+    topTypes[error.type] = (topTypes[error.type] ?? 0) + 1
+  }
+
+  return {
+    module: dirPath.split('/').pop() ?? dirPath,
+    path: dirPath,
+    errorCount: errors.length,
+    fileCount: filesWithErrors.size,
+    topTypes,
+  }
 }

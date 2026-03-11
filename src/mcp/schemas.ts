@@ -28,7 +28,7 @@ export const MCP_TOOLS = [
         maxResults: {
           type: 'number',
           description: 'Maximum number of results',
-          default: 20,
+          default: 10,
         },
         fuzzyThreshold: {
           type: 'number',
@@ -125,7 +125,7 @@ export const MCP_TOOLS = [
         maxResults: {
           type: 'number',
           description: 'Maximum number of findings to return',
-          default: 20,
+          default: 15,
         },
       },
       required: ['analysisTypes'],
@@ -148,6 +148,11 @@ export const MCP_TOOLS = [
         pathPattern: {
           type: 'string',
           description: 'Optional: Filter results to files containing this text in their path (e.g., "server", "client", "components")',
+        },
+        ignoreDirs: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional: Additional directories to ignore (beyond default ignore list)',
         },
         maxResults: {
           type: 'number',
